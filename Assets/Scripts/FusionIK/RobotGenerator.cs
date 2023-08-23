@@ -50,15 +50,13 @@ namespace FusionIK
             }
             
             // Randomly move the robot.
-            _robot.SnapRadians(_robot.RandomJoints());
-            Robot.PhysicsStep();
+            _robot.Snap(_robot.RandomJoints());
 
             // Get the position and rotation to reach.
             (Vector3 position, Quaternion rotation) target = _robot.EndTransform;
             
             // Reset the robot back to its starting position.
-            _robot.SnapRadians(_starting);
-            Robot.PhysicsStep();
+            _robot.Snap(_starting);
 
             // Get the best result to reach the target.
             List<float> ending = _robot.BioIkOptimize(target.position, target.rotation, maxGenerations, _starting.ToArray(), attempts, out bool hasReached);

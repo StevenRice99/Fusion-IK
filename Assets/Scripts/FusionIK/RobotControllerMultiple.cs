@@ -78,8 +78,7 @@ namespace FusionIK
         protected Result[] RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation, int[] maxGenerations)
         {
             // Move to robot to a random position.
-            Robot.SnapRadians(Robot.RandomJoints());
-            Robot.PhysicsStep();
+            Robot.Snap(Robot.RandomJoints());
 
             // Get the position and rotation of the robot to be those to reach.
             (Vector3 position, Quaternion rotation) target = Robot.EndTransform;
@@ -94,11 +93,7 @@ namespace FusionIK
             for (int i = 0; i < maxGenerations.Length; i++)
             {
                 // Move every robot to the starting position.
-                for (int j = 0; j < robots.Length; j++)
-                {
-                    robots[j].SnapRadians(starting);
-                }
-                Robot.PhysicsStep();
+                Robot.Snap(robots, starting);
                 
                 // Test every robot.
                 for (int j = 0; j < robots.Length; j++)
@@ -159,7 +154,6 @@ namespace FusionIK
         private static Result EvaluateRobot(Robot r, Vector3 position, Quaternion rotation, int maxGenerations, uint seed)
         {
             r.Snap(position, rotation, maxGenerations, out bool reached, out float moveTime, out int generations, seed);
-            Robot.PhysicsStep();
 
             return new(r.mode == Robot.SolverMode.Network ? 0 : maxGenerations, r, reached, moveTime, generations, Robot.PositionAccuracy(position, r.EndTransform.position), r.RotationAccuracy(rotation, r.EndTransform.rotation));
         }
