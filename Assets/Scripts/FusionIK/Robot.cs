@@ -231,7 +231,7 @@ namespace FusionIK
         public void SnapRadians(List<float> radians)
         {
             IsMoving = false;
-            Stop(radians);
+            Snap(radians);
         }
 
         /// <summary>
@@ -265,9 +265,9 @@ namespace FusionIK
         /// </summary>
         public static void PhysicsStep()
         {
-            Physics.autoSimulation = false;
+            Physics.simulationMode = SimulationMode.Script;
             Physics.Simulate(1);
-            Physics.autoSimulation = true;
+            Physics.simulationMode = SimulationMode.FixedUpdate;
         }
 
         /// <summary>
@@ -421,12 +421,11 @@ namespace FusionIK
         /// Stop the robot at a position.
         /// </summary>
         /// <param name="radians">The joint values in radians to stop at.</param>
-        private void Stop(IEnumerable<float> radians)
+        private void Snap(IEnumerable<float> radians)
         {
             List<float> list = radians.ToList();
             Root.SetDriveTargets(list);
             Root.SetJointVelocities(_zeros);
-            Root.SetJointAccelerations(_zeros);
             Root.SetJointForces(_zeros);
             Root.SetJointPositions(list);
         }
@@ -1038,15 +1037,8 @@ namespace FusionIK
                 }
             }
 
-            // Stop moving if at the targets.
-            if (IsMoving)
-            {
-                Root.SetDriveTargets(delta);
-            }
-            else
-            {
-                Stop(delta);
-            }
+            // Set to position.
+            Snap(delta);
         }
 
         private void OnDestroy()
