@@ -179,7 +179,7 @@ namespace FusionIK
         /// Set the radians to move to.
         /// </summary>
         /// <param name="radians">The radians to move to.</param>
-        public void Move(List<float> radians)
+        public void MoveRadians(List<float> radians)
         {
             // Set the targets.
             _targets = radians;
@@ -221,46 +221,17 @@ namespace FusionIK
         /// <param name="seed">The seed for the random numbers of the solver.</param>
         public void Snap(Vector3 position, Quaternion rotation, int maxGenerations, out bool reached, out float moveTime, out int generations, uint seed = 0)
         {
-            Snap(RequestSolution(position, rotation, maxGenerations, out reached, out moveTime, out generations, seed));
-        }
-
-        public static void Snap(Robot[] robots, List<float> radians)
-        {
-            Physics.simulationMode = SimulationMode.Script;
-            foreach (Robot robot in robots)
-            {
-                robot.Move(radians);
-            }
-
-            while (robots.Any(x => x.IsMoving))
-            {
-                foreach (Robot robot in robots)
-                {
-                    robot.MoveLogic();
-                }
-                
-                Physics.Simulate(Time.fixedDeltaTime);
-            }
-            
-            Physics.simulationMode = SimulationMode.FixedUpdate;
+            SnapRadians(RequestSolution(position, rotation, maxGenerations, out reached, out moveTime, out generations, seed));
         }
 
         /// <summary>
         /// Snap joints to radian values.
         /// </summary>
         /// <param name="radians">The radians to snap to.</param>
-        public void Snap(List<float> radians)
+        public void SnapRadians(List<float> radians)
         {
-            Physics.simulationMode = SimulationMode.Script;
-            Move(radians);
-            
-            while (IsMoving)
-            {
-                MoveLogic();
-                Physics.Simulate(Time.fixedDeltaTime);
-            }
-
-            Physics.simulationMode = SimulationMode.FixedUpdate;
+            IsMoving = false;
+            Snap(radians);
         }
 
         /// <summary>
@@ -287,6 +258,16 @@ namespace FusionIK
             }
 
             return angles;
+        }
+        
+        /// <summary>
+        /// Step the physics simulation.
+        /// </summary>
+        public static void PhysicsStep()
+        {
+            Physics.simulationMode = SimulationMode.Script;
+            Physics.Simulate(1);
+            Physics.simulationMode = SimulationMode.FixedUpdate;
         }
 
         /// <summary>
@@ -358,7 +339,7 @@ namespace FusionIK
         public List<float> BioIkOptimize(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, float[] starting, int attempts, out bool hasReached)
         {
             // Move to the start.
-            Snap(starting.ToList());
+            SnapRadians(starting.ToList());
             
             // If already at the destination, no need to move and return.
             if (Reached(targetPosition, targetRotation))
@@ -375,7 +356,8 @@ namespace FusionIK
             for (int attempt = 0; attempt < attempts; attempt++)
             {
                 // Move to the Bio IK solution.
-                Snap(BioIkSolve(targetPosition, targetRotation, starting, maxGenerations, new((uint) Random.Range(1, int.MaxValue)), out bool reached, out _, out _));
+                SnapRadians(BioIkSolve(targetPosition, targetRotation, starting, maxGenerations, new((uint) Random.Range(1, int.MaxValue)), out bool reached, out _, out _));
+                PhysicsStep();
 
                 // Only care if reached.
                 if (!reached)
@@ -405,7 +387,8 @@ namespace FusionIK
             
             // Move to the best solution.
             hasReached = true;
-            Snap(best);
+            SnapRadians(best);
+            PhysicsStep();
             return GetJoints();
         }
 
@@ -438,7 +421,7 @@ namespace FusionIK
         /// Stop the robot at a position.
         /// </summary>
         /// <param name="radians">The joint values in radians to stop at.</param>
-        private void SetJoints(IEnumerable<float> radians)
+        private void Snap(IEnumerable<float> radians)
         {
             List<float> list = radians.ToList();
             Root.SetDriveTargets(list);
@@ -1021,12 +1004,7 @@ namespace FusionIK
             {
                 return;
             }
-            
-            MoveLogic();
-        }
 
-        private void MoveLogic()
-        {
             IsMoving = false;
 
             // Move the robot towards the target joint values.
@@ -1060,7 +1038,7 @@ namespace FusionIK
             }
 
             // Set to position.
-            SetJoints(delta);
+            Snap(delta);
         }
 
         private void OnDestroy()

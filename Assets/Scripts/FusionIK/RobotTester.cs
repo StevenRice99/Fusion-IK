@@ -215,14 +215,14 @@ namespace FusionIK
             for (int i = 0; i < robots.Length; i++)
             {
                 endings[i] = robots[i].GetJoints();
+                robots[i].SnapRadians(starting);
             }
-            
-            Robot.Snap(robots, starting);
+            Robot.PhysicsStep();
 
             // Call to move robots in real time.
             for (int i = 0; i < robots.Length; i++)
             {
-                robots[i].Move(endings[i]);
+                robots[i].MoveRadians(endings[i]);
             }
         }
 
