@@ -508,6 +508,15 @@ namespace FusionIK
         /// <returns>The joints to move the robot to.</returns>
         private List<float> RequestSolution(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, out bool reached, out float moveTime, out int generations, uint seed = 0)
         {
+            // If already at the destination do nothing.
+            if (Reached(targetPosition, targetRotation))
+            {
+                reached = true;
+                moveTime = 0;
+                generations = 0;
+                return GetJoints();
+            }
+            
             // If no seed was passed, create a random one.
             if (seed == 0)
             {
