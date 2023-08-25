@@ -10,7 +10,7 @@ namespace FusionIK
     /// Control robots of every movement type.
     /// </summary>
     [DisallowMultipleComponent]
-    public class RobotControllerMultiple : RobotController
+    public class ControllerMultiple : Controller
     {
         /// <summary>
         /// All robots to control.

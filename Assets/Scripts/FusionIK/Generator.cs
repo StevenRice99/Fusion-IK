@@ -6,7 +6,7 @@ using UnityEngine;
 namespace FusionIK
 {
     [DisallowMultipleComponent]
-    public sealed class RobotGenerator : RobotController
+    public sealed class Generator : Controller
     {
         [Tooltip("The maximum number of generations Bio IK is allowed to run for.")]
         [Min(1)]

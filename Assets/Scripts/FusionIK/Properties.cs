@@ -11,8 +11,8 @@ namespace FusionIK
     /// <summary>
     /// Handle properties for a robot.
     /// </summary>
-    [CreateAssetMenu(fileName = "Robot Properties", menuName = "Rapid-Sim/Robot Properties", order = 0)]
-    public class RobotProperties : ScriptableObject
+    [CreateAssetMenu(fileName = "Properties", menuName = "Fusion-IK Properties", order = 0)]
+    public class Properties : ScriptableObject
     {
         /// <summary>
         /// A network to run inference on.

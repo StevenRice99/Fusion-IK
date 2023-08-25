@@ -31,7 +31,7 @@ namespace FusionIK
         /// <summary>
         /// The properties of the robot.
         /// </summary>
-        public RobotProperties Properties => properties;
+        public Properties Properties => properties;
         
         /// <summary>
         /// The ghost joints of the robot.
@@ -65,7 +65,7 @@ namespace FusionIK
 
         [Tooltip("The robot properties to use.")]
         [SerializeField]
-        private RobotProperties properties;
+        private Properties properties;
 
         [Tooltip("Mode to perform solving in.")]
         public SolverMode mode = SolverMode.BioIk;

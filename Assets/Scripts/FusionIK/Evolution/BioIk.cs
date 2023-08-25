@@ -2174,28 +2174,35 @@ namespace FusionIK.Evolution
                         if (nbd[i - 1] != 0)
                         {
                             double a2;
-                            if (a1 < 0.0 && nbd[i - 1] <= 2)
+                            switch (a1)
                             {
-                                a2 = l[i - 1] - x[i - 1];
-                                if (a2 >= 0.0)
+                                case < 0.0 when nbd[i - 1] <= 2:
                                 {
-                                    stepMax = 0.0;
+                                    a2 = l[i - 1] - x[i - 1];
+                                    if (a2 >= 0.0)
+                                    {
+                                        stepMax = 0.0;
+                                    }
+                                    else if (a1 * stepMax < a2)
+                                    {
+                                        stepMax = a2 / a1;
+                                    }
+
+                                    break;
                                 }
-                                else if (a1 * stepMax < a2)
+                                case > 0.0 when nbd[i - 1] >= 2:
                                 {
-                                    stepMax = a2 / a1;
-                                }
-                            }
-                            else if (a1 > 0.0 && nbd[i - 1] >= 2)
-                            {
-                                a2 = u[i - 1] - x[i - 1];
-                                if (a2 <= 0.0)
-                                {
-                                    stepMax = 0.0;
-                                }
-                                else if (a1 * stepMax > a2)
-                                {
-                                    stepMax = a2 / a1;
+                                    a2 = u[i - 1] - x[i - 1];
+                                    if (a2 <= 0.0)
+                                    {
+                                        stepMax = 0.0;
+                                    }
+                                    else if (a1 * stepMax > a2)
+                                    {
+                                        stepMax = a2 / a1;
+                                    }
+
+                                    break;
                                 }
                             }
                         }

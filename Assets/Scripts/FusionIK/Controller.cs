@@ -7,7 +7,7 @@ namespace FusionIK
     /// Control a robot.
     /// </summary>
     [DisallowMultipleComponent]
-    public abstract class RobotController : MonoBehaviour
+    public abstract class Controller : MonoBehaviour
     {
         [Tooltip("The robot to control.")]
         [SerializeField]

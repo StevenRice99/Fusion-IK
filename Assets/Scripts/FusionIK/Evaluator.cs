@@ -7,7 +7,7 @@ namespace FusionIK
     /// Evaluate all robot solving methods against each other.
     /// </summary>
     [DisallowMultipleComponent]
-    public class RobotEvaluator : RobotControllerMultiple
+    public class Evaluator : ControllerMultiple
     {
         [Tooltip("The maximum number of generations Bio IK is allowed to run for.")]
         [SerializeField]

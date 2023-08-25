@@ -8,7 +8,7 @@ using UnityEngine.Rendering;
 namespace FusionIK
 {
     [DisallowMultipleComponent]
-    public class RobotTester : RobotControllerMultiple
+    public class Tester : ControllerMultiple
     {
         /// <summary>
         /// Cached shader value for use with line rendering.
