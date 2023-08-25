@@ -49,6 +49,11 @@ namespace FusionIK
         public bool IsMoving { get; private set; }
 
         /// <summary>
+        /// How long the robot is.
+        /// </summary>
+        public float ChainLength { get; private set; }
+
+        /// <summary>
         /// Get the end position and rotation of the robot.
         /// </summary>
         public (Vector3 position, Quaternion rotation) EndTransform => (LastJoint.position, LastJoint.rotation);
@@ -99,11 +104,6 @@ namespace FusionIK
         /// How fast the joints are currently moving.
         /// </summary>
         private float[] _currentSpeeds;
-
-        /// <summary>
-        /// How long the robot is.
-        /// </summary>
-        private float _chainLength;
 
         /// <summary>
         /// The networks to control the joints.
@@ -317,7 +317,7 @@ namespace FusionIK
         /// </summary>
         /// <param name="position">The position in global position.</param>
         /// <returns>The relative position.</returns>
-        private Vector3 RelativePosition(Vector3 position) => Root.transform.InverseTransformPoint(position) / _chainLength;
+        private Vector3 RelativePosition(Vector3 position) => Root.transform.InverseTransformPoint(position) / ChainLength;
 
         /// <summary>
         /// Get a rotation relative to the root of the robot.
@@ -787,18 +787,18 @@ namespace FusionIK
             _joints = _joints.OrderBy(j => j.Joint.index).ToArray();
             
             // Calculate the chain length.
-            _chainLength = 0;
+            ChainLength = 0;
             List<JointLimit> limits = new();
             for (int i = 0; i < _joints.Length; i++)
             {
                 limits.AddRange(_joints[i].Limits());
                 if (i > 0)
                 {
-                    _chainLength += Vector3.Distance(_joints[i - 1].transform.position, _joints[i].transform.position);
+                    ChainLength += Vector3.Distance(_joints[i - 1].transform.position, _joints[i].transform.position);
                 }
             }
 
-            Rescaling = math.PI * math.PI / (_chainLength * _chainLength);
+            Rescaling = math.PI * math.PI / (ChainLength * ChainLength);
 
             _limits = limits.ToArray();
             List<float> joints = GetJoints();

@@ -155,7 +155,7 @@ namespace FusionIK
             // Create a new movement when the space key is pressed.
             if (Keyboard.current.spaceKey.wasPressedThisFrame)
             {
-                Move();
+                RandomMove();
             }
         }
 
@@ -168,25 +168,20 @@ namespace FusionIK
             }
         }
 
-        /// <summary>
-        /// Move all robots to a random target.
-        /// </summary>
-        private void Move()
+        private List<float> GetStarting()
         {
             // Clear old paths.
             foreach (List<Vector3> path in _paths)
             {
                 path.Clear();
             }
-
-            // Start at the last position.
-            List<float> starting = Robot.Properties.LastPose ?? Robot.GetJoints();
-
-            // Solve for random target.
-            Result[] results = RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, maxGenerations);
-            _endPosition = position;
-            _endRotation = rotation;
             
+            // Start at the last position.
+            return Robot.Properties.LastPose ?? Robot.GetJoints();
+        }
+
+        private void MovePerform(List<float> starting, Result[] results)
+        {
             // Get the best robot and order the rest.
             Robot best = Best(results, out _ordered);
 
@@ -224,6 +219,28 @@ namespace FusionIK
             {
                 robots[i].MoveRadians(endings[i]);
             }
+        }
+
+        private void Move()
+        {
+            List<float> starting = GetStarting();
+            
+            MovePerform(starting, MoveResults(starting, _endPosition.Value, _endRotation.Value, new [] {maxGenerations}));
+        }
+
+        /// <summary>
+        /// Move all robots to a random target.
+        /// </summary>
+        private void RandomMove()
+        {
+            List<float> starting = GetStarting();
+
+            // Solve for random target.
+            Result[] results = RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, maxGenerations);
+            _endPosition = position;
+            _endRotation = rotation;
+
+            MovePerform(starting, results);
         }
 
         /// <summary>
@@ -299,6 +316,7 @@ namespace FusionIK
         {
             // Display input to change the max number of generations.
             GUI.color = Color.white;
+            
             GUI.Label(new(10, 10, 100, 20), "Max Generations");
             string s = maxGenerations.ToString();
             s = GUI.TextField(new(10, 30, 100, 20), s, 5);
@@ -320,12 +338,52 @@ namespace FusionIK
                 }
             }
 
+            if (_endPosition == null || _endRotation == null)
+            {
+                _endPosition = Robot.EndTransform.position;
+                _endRotation = Robot.EndTransform.rotation;
+            }
+
+            // Button to move the robot randomly.
+            if (GUI.Button(new(10, 55, 100, 20), "Random Move"))
+            {
+                RandomMove();
+            }
+
             // Button to move the robot.
-            if (_endPosition == null || GUI.Button(new(10, 55, 100, 20), "Move"))
+            if (GUI.Button(new(10, 75, 100, 20), "Move"))
             {
                 Move();
             }
 
+            const int controlsWidth = 200;
+            const int controlsHeight = 20;
+            const int labelWidth = 90;
+            
+            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, 10, labelWidth, controlsHeight), "Position X");
+            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight + 10 * 2, labelWidth, controlsHeight), "Position Y");
+            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 2 + 10 * 3, labelWidth, controlsHeight), "Position Z");
+            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 3 + 10 * 4, labelWidth, controlsHeight), "Rotation X");
+            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 4 + 10 * 5, labelWidth, controlsHeight), "Rotation Y");
+            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 5 + 10 * 6, labelWidth, controlsHeight), "Rotation Z");
+
+            Transform robotTransform = Robot.transform;
+            Vector3 robotPosition = robotTransform.position;
+            
+            float x = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, 10, controlsWidth, controlsHeight), _endPosition.Value.x, robotPosition.x - Robot.ChainLength, robotPosition.x + Robot.ChainLength);
+            float y = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight + 10 * 2, controlsWidth, controlsHeight), _endPosition.Value.y, robotPosition.y - Robot.ChainLength, robotPosition.y + Robot.ChainLength);
+            float z = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 2 + 10 * 3, controlsWidth, controlsHeight), _endPosition.Value.z, robotPosition.z - Robot.ChainLength, robotPosition.z + Robot.ChainLength);
+            
+            _endPosition = new(x, y, z);
+
+            Vector3 euler = _endRotation.Value.eulerAngles;
+            
+            x = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 3 + 10 * 4, controlsWidth, controlsHeight), euler.x, 0, 360);
+            y = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 4 + 10 * 5, controlsWidth, controlsHeight), euler.y, 0, 360);
+            z = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 5 + 10 * 6, controlsWidth, controlsHeight), euler.z, 0, 360);
+            
+            _endRotation = Quaternion.Euler(x, y, z);
+            
             if (_ordered == null)
             {
                 return;

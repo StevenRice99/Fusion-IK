@@ -86,6 +86,19 @@ namespace FusionIK
             position = target.position;
             rotation = target.rotation;
 
+            return MoveResults(starting, position, rotation, maxGenerations);
+        }
+
+        /// <summary>
+        /// Get the results of all robots moving for multiple generation values.
+        /// </summary>
+        /// <param name="starting">The starting joint values.</param>
+        /// <param name="position">The position to reach.</param>
+        /// <param name="rotation">The rotation to reach.</param>
+        /// <param name="maxGenerations">All the maximum number of generations to run each algorithm for.</param>
+        /// <returns>The results of all robots.</returns>
+        protected Result[] MoveResults(List<float> starting, Vector3 position, Quaternion rotation, int[] maxGenerations)
+        {
             // Generate the seed for random number generation.
             uint seed = (uint) Random.Range(1, int.MaxValue);
 
@@ -121,7 +134,7 @@ namespace FusionIK
                         continue;
                     }
                     
-                    results.Add(EvaluateRobot(robots[j], target.position, target.rotation, maxGenerations[i], seed));
+                    results.Add(EvaluateRobot(robots[j], position, rotation, maxGenerations[i], seed));
                 }
             }
 
