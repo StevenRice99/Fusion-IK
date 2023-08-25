@@ -49,6 +49,9 @@ namespace FusionIK
                 _starting = lastOutput ?? _robot.GetJoints();
             }
             
+            // Get the random joints;
+            List<float> randomJoints = _robot.RandomJoints();
+            
             // Randomly move the robot.
             _robot.SnapRadians(_robot.RandomJoints());
             Robot.PhysicsStep();
@@ -63,10 +66,10 @@ namespace FusionIK
             // Get the best result to reach the target.
             List<float> ending = _robot.BioIkOptimize(target.position, target.rotation, maxGenerations, _starting.ToArray(), attempts, out bool hasReached);
             
-            // If failed to reach, do nothing.
-            if (!hasReached)
+            // If failed to reach or the random move is faster, use the random joint values.
+            if (!hasReached || _robot.CalculateTime(_starting, randomJoints) < _robot.CalculateTime(_starting, ending))
             {
-                return;
+                ending = randomJoints;
             }
 
             // If reached, add the result, update the last pose, and set the start of the next generation to the result.

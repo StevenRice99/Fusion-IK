@@ -310,7 +310,7 @@ namespace FusionIK
         /// <param name="starting">Starting joint position.s</param>
         /// <param name="ending">Ending joint positions.</param>
         /// <returns>The time to complete the move.</returns>
-        private float CalculateTime(IEnumerable<float> starting, IReadOnlyList<float> ending) => starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
+        public float CalculateTime(IEnumerable<float> starting, IReadOnlyList<float> ending) => starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
 
         /// <summary>
         /// Get a position relative to the root of the robot.
