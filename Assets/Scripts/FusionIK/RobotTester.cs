@@ -89,8 +89,11 @@ namespace FusionIK
             {
                 _paths[i] = new();
             }
-            
-            SetMaterials();
+
+            if (robots.Length > 1)
+            {
+                SetMaterials();
+            }
         }
 
         /// <summary>
@@ -185,20 +188,23 @@ namespace FusionIK
             // Get the best robot and order the rest.
             Robot best = Best(results, out _ordered);
 
-            // Apply materials to all robots.
-            for (int i = 0; i < robots.Length; i++)
+            if (robots.Length > 1)
             {
-                // Regular if best, transparent otherwise.
-                Material material = robots[i] == best ? _normalMaterials[i] : _transparentMaterials[i];
-                for (int j = 0; j < _meshRenderers[i].Length; j++)
+                // Apply materials to all robots.
+                for (int i = 0; i < robots.Length; i++)
                 {
-                    Material[] materials = _meshRenderers[i][j].materials;
-                    for (int k = 0; k < materials.Length; k++)
+                    // Regular if best, transparent otherwise.
+                    Material material = robots[i] == best ? _normalMaterials[i] : _transparentMaterials[i];
+                    for (int j = 0; j < _meshRenderers[i].Length; j++)
                     {
-                        materials[k] = material;
-                    }
+                        Material[] materials = _meshRenderers[i][j].materials;
+                        for (int k = 0; k < materials.Length; k++)
+                        {
+                            materials[k] = material;
+                        }
 
-                    _meshRenderers[i][j].materials = materials;
+                        _meshRenderers[i][j].materials = materials;
+                    }
                 }
             }
 

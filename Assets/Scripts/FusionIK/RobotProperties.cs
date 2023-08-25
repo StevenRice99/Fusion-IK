@@ -19,7 +19,7 @@ namespace FusionIK
         /// </summary>
         /// <param name="index">The joint index for the network.</param>
         /// <returns>The network for the joint.</returns>
-        public Model CompiledNetwork(int index) => networkModels[index] != null ? ModelLoader.Load(networkModels[index]) : null;
+        public Model CompiledNetwork(int index) => networkModels.Length > 0 && networkModels[index] != null ? ModelLoader.Load(networkModels[index]) : null;
         
         /// <summary>
         /// How accurate in meters the robot can repeat a movement.
@@ -123,7 +123,7 @@ namespace FusionIK
         /// <summary>
         /// Check if all networks are present.
         /// </summary>
-        public bool NetworksCheck => networkModels.All(model => model != null);
+        public bool NetworksCheck => networkModels.Length > 0 && networkModels.All(model => model != null);
 
         /// <summary>
         /// Set the last pose the robot was in.

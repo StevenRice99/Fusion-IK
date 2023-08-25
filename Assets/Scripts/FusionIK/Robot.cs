@@ -1052,6 +1052,11 @@ namespace FusionIK
 
         private void OnDestroy()
         {
+            if (_workers  == null)
+            {
+                return;
+            }
+            
             // Clean up network runners.
             for (int i = 0; i < _workers.Length; i++)
             {
