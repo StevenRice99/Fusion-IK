@@ -10,6 +10,7 @@ def evaluate(name: str):
     :param name: Name of the robot.
     :return: Nothing.
     """
+    print("Fusion-IK Evaluation")
     results = {}
     # Check that the data folder exists.
     root = os.path.join(os.getcwd(), "Evaluation")

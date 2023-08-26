@@ -219,7 +219,7 @@ def train(name: str, epochs: int, batch: int):
     :param batch: Batch size.
     :return: Nothing.
     """
-    print(f"Neural Network Inverse Kinematics")
+    print(f"Fusion-IK Neural Network Training")
     print(f"Running on GPU with CUDA {torch.version.cuda}." if torch.cuda.is_available() else "Running on CPU.")
     # Check if there is data to train on.
     dataset = os.path.join(os.getcwd(), "Datasets", f"{name}.csv")
