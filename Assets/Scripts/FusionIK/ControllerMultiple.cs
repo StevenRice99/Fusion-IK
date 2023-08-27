@@ -27,31 +27,50 @@ namespace FusionIK
             base.Awake();
 
             // Create a robot for every movement type.
-            int types = Enum.GetNames(typeof(Robot.SolverMode)).Length;
-            List<Robot> robotsLists = new(types);
-            for (int i = 0; i < types; i++)
+            List<Robot> robotsLists = new();
+
+            Robot r = CreateRobot(Robot.SolverMode.BioIk, 0);
+            if (r != null)
             {
-                GameObject go = Instantiate(robotPrefab, Vector3.zero, Quaternion.identity);
-                Robot r = go.GetComponent<Robot>();
-                if (r == null)
-                {
-                    continue;
-                }
-
-                r.mode = (Robot.SolverMode) i;
-
-                // Can only create robots other than Bio IK if there is a network to run inference.
-                if (r.mode != Robot.SolverMode.BioIk && !r.Properties.NetworksCheck)
-                {
-                    Destroy(r.gameObject);
-                    continue;
-                }
-            
-                go.name = $"{r.Properties.name} {Robot.Name(r.mode)}";
                 robotsLists.Add(r);
+                for (int i = 0; i < r.Properties.networks.Length; i++)
+                {
+                    r = CreateRobot(Robot.SolverMode.Network, i);
+                    if (r != null)
+                    {
+                        robotsLists.Add(r);
+                    }
+                    
+                    r = CreateRobot(Robot.SolverMode.FusionIk, i);
+                    if (r != null)
+                    {
+                        robotsLists.Add(r);
+                    }
+                }
             }
 
             robots = robotsLists.ToArray();
+        }
+
+        private Robot CreateRobot(Robot.SolverMode solverMode, int networkIndex)
+        {
+            GameObject go = Instantiate(robotPrefab, Vector3.zero, Quaternion.identity);
+            Robot r = go.GetComponent<Robot>();
+            if (r == null)
+            {
+                Destroy(go);
+                return null;
+            }
+
+            r.mode = solverMode;
+            r.networkIndex = networkIndex;
+            go.name = $"{r.Properties.name} {Robot.Name(r.mode)}";
+            if (solverMode != Robot.SolverMode.BioIk && r.Properties.networks.Length > 1)
+            {
+                go.name += $" {networkIndex}";
+            }
+            
+            return r;
         }
 
         /// <summary>
@@ -124,12 +143,6 @@ namespace FusionIK
 
                     // Can only test the network if zero max generations.
                     if (maxGenerations[i] == 0 && robots[j].mode != Robot.SolverMode.Network)
-                    {
-                        continue;
-                    }
-                    
-                    // Can only test Greedy and Exhaustive Fusion IK versions if more than one generation.
-                    if (maxGenerations[i] == 1 && robots[j].mode > Robot.SolverMode.FusionIk)
                     {
                         continue;
                     }

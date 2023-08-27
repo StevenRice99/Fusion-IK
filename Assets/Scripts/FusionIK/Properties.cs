@@ -15,13 +15,6 @@ namespace FusionIK
     public class Properties : ScriptableObject
     {
         /// <summary>
-        /// A network to run inference on.
-        /// </summary>
-        /// <param name="index">The joint index for the network.</param>
-        /// <returns>The network for the joint.</returns>
-        public Model CompiledNetwork(int index) => networkModels.Length > 0 && networkModels[index] != null ? ModelLoader.Load(networkModels[index]) : null;
-        
-        /// <summary>
         /// How accurate in meters the robot can repeat a movement.
         /// </summary>
         public float Repeatability => repeatability;
@@ -50,6 +43,14 @@ namespace FusionIK
         /// Material to apply to the non-best robots during visualization.
         /// </summary>
         public Material Transparent => transparent;
+        
+        /// <summary>
+        /// A network to run inference on.
+        /// </summary>
+        /// <param name="index">The network index to use.</param>
+        /// <param name="joint">The joint network that is desired.</param>
+        /// <returns>The joint network at a given index that is desired.</returns>
+        public Model CompiledNetwork(int index, int joint) => networks.Length > 0 && index < networks.Length && networks[index] != null ? networks[index].CompiledNetwork(joint) : null;
 
         /// <summary>
         /// The last pose the robot was in.
@@ -63,9 +64,8 @@ namespace FusionIK
         [SerializeField]
         private float repeatability = 8e-5f;
 
-        [Tooltip("Model for the network to control the robot.")]
-        [SerializeField]
-        private NNModel[] networkModels;
+        [Tooltip("Networks to control the robot.")]
+        public InverseKinematicsNetwork[] networks;
 
         [Header("Bio IK")]
         [Tooltip("The population size of each generation during Bio IK evolution.")]
@@ -123,7 +123,7 @@ namespace FusionIK
         /// <summary>
         /// Check if all networks are present.
         /// </summary>
-        public bool NetworksCheck => networkModels.Length > 0 && networkModels.All(model => model != null);
+        public bool NetworksCheck => networks.Length != 0 && networks.All(n => n.networks.All(t => t != null));
 
         /// <summary>
         /// Set the last pose the robot was in.

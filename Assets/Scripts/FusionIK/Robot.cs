@@ -23,9 +23,7 @@ namespace FusionIK
         {
             Network,
             BioIk,
-            FusionIk,
-            GreedyFusionIk,
-            ExhaustiveFusionIk
+            FusionIk
         }
 
         /// <summary>
@@ -70,6 +68,10 @@ namespace FusionIK
         [Tooltip("Mode to perform solving in.")]
         public SolverMode mode = SolverMode.BioIk;
 
+        [Tooltip("The index of neural networks to use for Fusion-IK")]
+        [Min(0)]
+        public int networkIndex;
+
         /// <summary>
         /// The root joint of the robot.
         /// </summary>
@@ -108,12 +110,12 @@ namespace FusionIK
         /// <summary>
         /// The networks to control the joints.
         /// </summary>
-        private Model[] _networks;
+        private Model[][] _networks;
 
         /// <summary>
         /// The network workers.
         /// </summary>
-        private IWorker[] _workers;
+        private IWorker[][] _workers;
 
         /// <summary>
         /// The Bio IK controller.
@@ -134,12 +136,8 @@ namespace FusionIK
                 case SolverMode.BioIk:
                     return "Bio IK";
                 case SolverMode.FusionIk:
-                    return "Fusion IK";
-                case SolverMode.GreedyFusionIk:
-                    return "Greedy Fusion IK";
-                case SolverMode.ExhaustiveFusionIk:
                 default:
-                    return "Exhaustive Fusion IK";
+                    return "Fusion IK";
             }
         }
 
@@ -155,14 +153,10 @@ namespace FusionIK
                 case SolverMode.Network:
                     return Color.magenta;
                 case SolverMode.BioIk:
-                    return new(1, 0.65f, 0);
-                case SolverMode.FusionIk:
-                    return Color.white;
-                case SolverMode.GreedyFusionIk:
-                    return Color.cyan;
-                case SolverMode.ExhaustiveFusionIk:
-                default:
                     return Color.yellow;
+                case SolverMode.FusionIk:
+                default:
+                    return Color.white;
             }
         }
 
@@ -356,7 +350,7 @@ namespace FusionIK
             for (int attempt = 0; attempt < attempts; attempt++)
             {
                 // Move to the Bio IK solution.
-                SnapRadians(BioIkSolve(targetPosition, targetRotation, starting, maxGenerations, new((uint) Random.Range(1, int.MaxValue)), out bool reached, out _, out _));
+                SnapRadians(BioIkSolve(targetPosition, targetRotation, starting, maxGenerations, new((uint) Random.Range(1, int.MaxValue)), out bool reached, out _));
                 PhysicsStep();
 
                 // Only care if reached.
@@ -402,9 +396,8 @@ namespace FusionIK
         /// <param name="random">The random number generator.</param>
         /// <param name="reached">If the robot reached the destination.</param>
         /// <param name="generations">The number of generations needed to reach the solution.</param>
-        /// <param name="fitness">How fit the result was with smaller values being closer to the solution.</param>
         /// <returns>The joints to move the robot to.</returns>
-        private List<float> BioIkSolve(Vector3 targetPosition, Quaternion targetRotation, IReadOnlyList<float> starting, int maxGenerations, Unity.Mathematics.Random random, out bool reached, out int generations, out float fitness)
+        private List<float> BioIkSolve(Vector3 targetPosition, Quaternion targetRotation, IReadOnlyList<float> starting, int maxGenerations, Unity.Mathematics.Random random, out bool reached, out int generations)
         {
             double[] seed = new double[_limits.Length];
             for (int i = 0; i < _limits.Length; i++)
@@ -412,8 +405,7 @@ namespace FusionIK
                 seed[i] = starting[i];
             }
             
-            double[] solution = _bioIk.Optimise(seed, targetPosition, targetRotation, maxGenerations, random, out reached, out generations, out double f);
-            fitness = (float) f;
+            double[] solution = _bioIk.Optimise(seed, targetPosition, targetRotation, maxGenerations, random, out reached, out generations);
             return solution.Select(t => (float) t).ToList();
         }
 
@@ -535,12 +527,8 @@ namespace FusionIK
                 case SolverMode.BioIk:
                     return SolutionBioIk(targetPosition, targetRotation, maxGenerations, random, out reached, out moveTime, out generations);
                 case SolverMode.FusionIk:
-                    return SolutionFusionIk(targetPosition, targetRotation, maxGenerations, random, out reached, out moveTime, out generations);
-                case SolverMode.GreedyFusionIk:
-                    return SolutionGreedyFusionIk(targetPosition, targetRotation, maxGenerations, random, out reached, out moveTime, out generations);
-                case SolverMode.ExhaustiveFusionIk:
                 default:
-                    return SolutionExhaustiveFusionIk(targetPosition, targetRotation, maxGenerations, random, out reached, out moveTime, out generations);
+                    return SolutionFusionIk(targetPosition, targetRotation, maxGenerations, random, out reached, out moveTime, out generations);
             }
         }
 
@@ -578,119 +566,12 @@ namespace FusionIK
         {
             List<float> starting = GetJoints();
             
-            List<float> results = BioIkSolve(targetPosition, targetRotation, starting, maxGenerations, random, out reached, out generations, out _);
+            List<float> results = BioIkSolve(targetPosition, targetRotation, starting, maxGenerations, random, out reached, out generations);
             
             moveTime = CalculateTime(starting, results);
             return results;
         }
 
-        /// <summary>
-        /// Perform Exhaustive Fusion IK.
-        /// </summary>
-        /// <param name="targetPosition">The position to reach.</param>
-        /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">The number of generations the solving mode can be run for.</param>
-        /// <param name="random">The random number generator.</param>
-        /// <param name="reached">If the robot reached the destination.</param>
-        /// <param name="moveTime">How long it took for the robot to perform the move.</param>
-        /// <param name="generations">The number of generations needed to reach the solution.</param>
-        /// <returns>The joints to move the robot to.</returns>
-        private List<float> SolutionExhaustiveFusionIk(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, Unity.Mathematics.Random random, out bool reached, out float moveTime, out int generations)
-        {
-            // If only one generation, it is the same as standard Fusion IK so simply run it.
-            if (maxGenerations == 1)
-            {
-                return SolutionFusionIk(targetPosition, targetRotation, maxGenerations, random, out reached, out moveTime, out generations);
-            }
-            
-            List<float> starting = GetJoints();
-
-            // Split the generations.
-            int networkGenerations = maxGenerations / 2;
-            
-            // Get the results of both Fusion IK and Bio IK.
-            List<float> fusion = BioIkSolve(targetPosition, targetRotation, RunNetwork(PrepareInputs(targetPosition, targetRotation, GetJoints())), networkGenerations, random, out bool fusionReached, out networkGenerations, out float fusionFitness);
-            List<float> regular = BioIkSolve(targetPosition, targetRotation, starting, maxGenerations - networkGenerations, random, out bool regularReached, out generations, out float regularFitness);
-
-            generations += networkGenerations;
-
-            reached = fusionReached || regularReached;
-
-            // Return the best option.
-            switch (fusionReached)
-            {
-                // Fusion reached and regular did not.
-                case true when !regularReached:
-                    moveTime = CalculateTime(starting, fusion);
-                    return fusion;
-                // Fusion did not reach and regular did.
-                case false when regularReached:
-                    moveTime = CalculateTime(starting, regular);
-                    return regular;
-                // Both reached so choose the fastest one.
-                case true:
-                    float fusionTime = CalculateTime(starting, fusion);
-                    float regularTime = CalculateTime(starting, regular);
-                    moveTime = fusionTime <= regularTime ? fusionTime : regularTime;
-                    return fusionTime <= regularTime ? fusion : regular;
-                // Neither reached so choose the closest one.
-                default:
-                    moveTime = fusionFitness <= regularFitness ? CalculateTime(starting, fusion) : CalculateTime(starting, regular);
-                    return fusionFitness <= regularFitness ? fusion : regular;
-            }
-        }
-
-        /// <summary>
-        /// Perform Greedy Fusion IK.
-        /// </summary>
-        /// <param name="targetPosition">The position to reach.</param>
-        /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">The number of generations the solving mode can be run for.</param>
-        /// <param name="random">The random number generator.</param>
-        /// <param name="reached">If the robot reached the destination.</param>
-        /// <param name="moveTime">How long it took for the robot to perform the move.</param>
-        /// <param name="generations">The number of generations needed to reach the solution.</param>
-        /// <returns>The joints to move the robot to.</returns>
-        private List<float> SolutionGreedyFusionIk(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, Unity.Mathematics.Random random, out bool reached, out float moveTime, out int generations)
-        {
-            // If only one generation, it is the same as standard Fusion IK so simply run it.
-            if (maxGenerations == 1)
-            {
-                return SolutionFusionIk(targetPosition, targetRotation, maxGenerations, random, out reached, out moveTime, out generations);
-            }
-            
-            List<float> starting = GetJoints();
-
-            // Split the generations.
-            int networkGenerations = maxGenerations / 2;
-            
-            // Run the Fusion IK.
-            List<float> fusion = BioIkSolve(targetPosition, targetRotation, RunNetwork(PrepareInputs(targetPosition, targetRotation, GetJoints())), networkGenerations, random, out reached, out networkGenerations, out float fusionFitness);
-
-            // If it reached, return.
-            if (reached)
-            {
-                generations = networkGenerations;
-                moveTime = CalculateTime(starting, fusion);
-                return fusion;
-            }
-
-            // Otherwise, run Bio IK.
-            List<float> regular = BioIkSolve(targetPosition, targetRotation, starting, maxGenerations - networkGenerations, random, out reached, out generations, out float regularFitness);
-            generations += networkGenerations;
-            
-            // If it reached, return.
-            if (reached)
-            {
-                moveTime = CalculateTime(starting, regular);
-                return regular;
-            }
-            
-            // Otherwise, return whichever move was closest.
-            moveTime = fusionFitness <= regularFitness ? CalculateTime(starting, fusion) : CalculateTime(starting, regular);
-            return fusionFitness <= regularFitness ? fusion : regular;
-        }
-        
         /// <summary>
         /// Perform Fusion IK.
         /// </summary>
@@ -706,7 +587,7 @@ namespace FusionIK
         {
             List<float> starting = GetJoints();
             
-            List<float> results = BioIkSolve(targetPosition, targetRotation, RunNetwork(PrepareInputs(targetPosition, targetRotation, GetJoints())), maxGenerations, random, out reached, out generations, out _);
+            List<float> results = BioIkSolve(targetPosition, targetRotation, RunNetwork(PrepareInputs(targetPosition, targetRotation, GetJoints())), maxGenerations, random, out reached, out generations);
 
             moveTime = CalculateTime(starting, results);
             return results;
@@ -721,14 +602,14 @@ namespace FusionIK
         {
             // Get initial input values and prepare for outputs.
             float[] forwards = inputs.ToArray();
-            List<float> outputs = new(_workers.Length);
+            List<float> outputs = new(_workers[networkIndex].Length);
             
             // Go through every joint's network.
-            for (int i = 0; i < _workers.Length; i++)
+            for (int i = 0; i < _workers[networkIndex].Length; i++)
             {
                 // Run the current joint network.
                 Tensor input = new(1, 1, 1, forwards.Length, forwards, "INPUTS");
-                Tensor output = _workers[i].Execute(input).PeekOutput();
+                Tensor output = _workers[networkIndex][i].Execute(input).PeekOutput();
                 input.Dispose();
                 
                 // Add the output and replace the input for the next joint's network.
@@ -981,26 +862,39 @@ namespace FusionIK
             }
 
             // Setup networks.
-            _networks = new Model[_limits.Length];
-            _workers = new IWorker[_networks.Length];
+            _networks = new Model[properties.networks.Length][];
+            _workers = new IWorker[_networks.Length][];
             bool networkValid = true;
             for (int i = 0; i < _networks.Length; i++)
             {
-                _networks[i] = properties.CompiledNetwork(i);
-                if (_networks[i] != null)
-                {
-                    _workers[i] = WorkerFactory.CreateWorker(_networks[i]);
-                    continue;
-                }
+                _networks[i] = new Model[properties.networks[i].networks.Length];
+                _workers[i] = new IWorker[_networks[i].Length];
 
-                networkValid = false;
-                break;
+                for (int j = 0; j < _networks[i].Length; j++)
+                {
+                    _networks[i][j] = properties.CompiledNetwork(i, j);
+                    if (_networks[i][j] != null)
+                    {
+                        _workers[i][j] = WorkerFactory.CreateWorker(_networks[i][j]);
+                        continue;
+                    }
+
+                    networkValid = false;
+                }
             }
 
             // Do an initial network run as it is slower on the first inference.
             if (networkValid)
             {
-                RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
+                int currentNetworkIndex = networkIndex;
+                
+                for (int i = 0; i < _networks.Length; i++)
+                {
+                    networkIndex = i;
+                    RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
+                }
+
+                networkIndex = currentNetworkIndex;
             }
 
             // Configure the Bio IK solver.
@@ -1060,7 +954,10 @@ namespace FusionIK
             // Clean up network runners.
             for (int i = 0; i < _workers.Length; i++)
             {
-                _workers[i]?.Dispose();
+                for (int j = 0; j < _workers[i].Length; j++)
+                {
+                    _workers[i][j]?.Dispose();
+                }
             }
         }
     }

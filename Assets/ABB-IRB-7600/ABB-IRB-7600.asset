@@ -13,13 +13,14 @@ MonoBehaviour:
   m_Name: ABB-IRB-7600
   m_EditorClassIdentifier: 
   repeatability: 0.00008
-  networkModels:
-  - {fileID: 5022602860645237092, guid: 3b32219b5a6fd6740aedbbac288c3e49, type: 3}
-  - {fileID: 5022602860645237092, guid: 8e1503e031d47ef4f859169716ad6f6d, type: 3}
-  - {fileID: 5022602860645237092, guid: 9617d135164e9674f815d454073ef9fd, type: 3}
-  - {fileID: 5022602860645237092, guid: dea7d95daa1bdb94280efbbcd43bf050, type: 3}
-  - {fileID: 5022602860645237092, guid: c15f9aad1add16440baeee885dc54ac9, type: 3}
-  - {fileID: 5022602860645237092, guid: 341c5102ab0d81f4f90d51c718b71e49, type: 3}
+  networks:
+  - networks:
+    - {fileID: 5022602860645237092, guid: 3b32219b5a6fd6740aedbbac288c3e49, type: 3}
+    - {fileID: 5022602860645237092, guid: 8e1503e031d47ef4f859169716ad6f6d, type: 3}
+    - {fileID: 5022602860645237092, guid: 9617d135164e9674f815d454073ef9fd, type: 3}
+    - {fileID: 5022602860645237092, guid: dea7d95daa1bdb94280efbbcd43bf050, type: 3}
+    - {fileID: 5022602860645237092, guid: c15f9aad1add16440baeee885dc54ac9, type: 3}
+    - {fileID: 5022602860645237092, guid: 341c5102ab0d81f4f90d51c718b71e49, type: 3}
   population: 120
   elites: 3
   steps: 100
