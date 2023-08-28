@@ -330,7 +330,7 @@ namespace FusionIK
         /// <param name="attempts">The number of Bio IK attempts to perform.</param>
         /// <param name="hasReached">If the robot reached the destination.</param>
         /// <returns>The move to the destination which takes the least amount of time.</returns>
-        public List<float> BioIkOptimize(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, float[] starting, int attempts, out bool hasReached)
+        public List<float> Optimize(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, float[] starting, int attempts, out bool hasReached)
         {
             // Move to the start.
             SnapRadians(starting.ToList());
@@ -518,77 +518,23 @@ namespace FusionIK
             // Initialize random number generation.
             Unity.Mathematics.Random random = new(seed);
             
-            // Call the requested mode.
-            switch (mode)
+            List<float> starting = GetJoints();
+            List<float> results = null;
+            generations = 0;
+
+            reached = false;
+
+            if (mode != SolverMode.BioIk)
             {
-                case SolverMode.Network:
-                    generations = 0;
-                    return SolutionNetwork(targetPosition, targetRotation, out reached, out moveTime);
-                case SolverMode.BioIk:
-                    return SolutionBioIk(targetPosition, targetRotation, maxGenerations, random, out reached, out moveTime, out generations);
-                case SolverMode.FusionIk:
-                default:
-                    return SolutionFusionIk(targetPosition, targetRotation, maxGenerations, random, out reached, out moveTime, out generations);
+                results = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting));
+                reached = Reached(targetPosition, targetRotation);
             }
-        }
 
-        /// <summary>
-        /// Perform inference on the networks.
-        /// </summary>
-        /// <param name="targetPosition">The position to reach.</param>
-        /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="reached">If the robot reached the destination.</param>
-        /// <param name="moveTime">How long it took for the robot to perform the move.</param>
-        /// <returns>The joints to move the robot to.</returns>
-        private List<float> SolutionNetwork(Vector3 targetPosition, Quaternion targetRotation, out bool reached, out float moveTime)
-        {
-            List<float> starting = GetJoints();
-
-            List<float> results = RunNetwork(PrepareInputs(targetPosition, targetRotation, GetJoints()).ToList());
-            reached = Reached(targetPosition, targetRotation);
+            if (mode != SolverMode.Network)
+            {
+                results = BioIkSolve(targetPosition, targetRotation, results ?? starting, maxGenerations, random, out reached, out generations);
+            }
             
-            moveTime = CalculateTime(starting, results);
-            return results;
-        }
-
-        /// <summary>
-        /// Perform Bio IK.
-        /// </summary>
-        /// <param name="targetPosition">The position to reach.</param>
-        /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">The number of generations the solving mode can be run for.</param>
-        /// <param name="random">The random number generator.</param>
-        /// <param name="reached">If the robot reached the destination.</param>
-        /// <param name="moveTime">How long it took for the robot to perform the move.</param>
-        /// <param name="generations">The number of generations needed to reach the solution.</param>
-        /// <returns>The joints to move the robot to.</returns>
-        private List<float> SolutionBioIk(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, Unity.Mathematics.Random random, out bool reached, out float moveTime, out int generations)
-        {
-            List<float> starting = GetJoints();
-            
-            List<float> results = BioIkSolve(targetPosition, targetRotation, starting, maxGenerations, random, out reached, out generations);
-            
-            moveTime = CalculateTime(starting, results);
-            return results;
-        }
-
-        /// <summary>
-        /// Perform Fusion IK.
-        /// </summary>
-        /// <param name="targetPosition">The position to reach.</param>
-        /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">The number of generations the solving mode can be run for.</param>
-        /// <param name="random">The random number generator.</param>
-        /// <param name="reached">If the robot reached the destination.</param>
-        /// <param name="moveTime">How long it took for the robot to perform the move.</param>
-        /// <param name="generations">The number of generations needed to reach the solution.</param>
-        /// <returns>The joints to move the robot to.</returns>
-        private List<float> SolutionFusionIk(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, Unity.Mathematics.Random random, out bool reached, out float moveTime, out int generations)
-        {
-            List<float> starting = GetJoints();
-            
-            List<float> results = BioIkSolve(targetPosition, targetRotation, RunNetwork(PrepareInputs(targetPosition, targetRotation, GetJoints())), maxGenerations, random, out reached, out generations);
-
             moveTime = CalculateTime(starting, results);
             return results;
         }

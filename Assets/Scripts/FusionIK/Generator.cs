@@ -64,7 +64,7 @@ namespace FusionIK
             Robot.PhysicsStep();
 
             // Get the best result to reach the target.
-            List<float> ending = _robot.BioIkOptimize(target.position, target.rotation, maxGenerations, _starting.ToArray(), attempts, out bool hasReached);
+            List<float> ending = _robot.Optimize(target.position, target.rotation, maxGenerations, _starting.ToArray(), attempts, out bool hasReached);
             
             // If failed to reach or the random move is faster, use the random joint values.
             if (!hasReached || _robot.CalculateTime(_starting, randomJoints) < _robot.CalculateTime(_starting, ending))
