@@ -226,7 +226,7 @@ def train(epochs: int, batch: int):
     :param batch: Batch size.
     :return: Nothing.
     """
-    print(f"Fusion-IK Neural Network Training")
+    print(f"Fusion-IK Training")
     print(f"Running on GPU with CUDA {torch.version.cuda}." if torch.cuda.is_available() else "Running on CPU.")
     # Check if there is data to train on.
     if not os.path.exists(os.path.join(os.getcwd(), "Training")):
@@ -336,7 +336,7 @@ def train(epochs: int, batch: int):
 
 if __name__ == '__main__':
     try:
-        desc = "Neural Network Inverse Kinematics"
+        desc = "Fusion-IK Trainer"
         parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
         parser.add_argument("-e", "--epoch", type=int, help="Number of epochs to train for.", default=100)
         parser.add_argument("-b", "--batch", type=int, help="Batch size.", default=64)

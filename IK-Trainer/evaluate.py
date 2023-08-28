@@ -10,7 +10,6 @@ def evaluate():
     :return: Nothing.
     """
     print("Fusion-IK Evaluation")
-    results = {}
     # Check that the data folder exists.
     root = os.path.join(os.getcwd(), "Testing")
     if not os.path.exists(root):
@@ -18,6 +17,7 @@ def evaluate():
     robots = os.listdir(root)
     # Loop all files.
     for robot in robots:
+        results = {}
         outputs = []
         files = os.listdir(os.path.join(root, robot))
         for name in files:
@@ -29,12 +29,12 @@ def evaluate():
                 continue
             success = 0
             time = 0
-            generations = 0
+            solutions = 0
             distance = 0
             angle = 0
             # Sum the data.
             for index, data in df.iterrows():
-                generations += data["Generations"]
+                solutions += data["Solutions"]
                 # Only add the time when the move was successful.
                 if data["Success"] is True:
                     success += 1
@@ -45,28 +45,28 @@ def evaluate():
                     angle += data["Angle"]
             # Calculate the averages.
             time = "-" if success == 0 else time / success
-            generations /= rows
+            solutions /= rows
             distance = "-" if success == rows else distance / (rows - success)
             angle = "-" if success == rows else angle / (rows - success)
             success = success / rows * 100
             # Determine the mode.
             strings = robot.split()
             mode = strings[len(strings) - 2].replace("-", " ")
-            max_generations = int(strings[len(strings) - 1].replace(".csv", ""))
+            generations = int(strings[len(strings) - 1].replace(".csv", ""))
             # Output to console.
-            output = f"{name} | {max_generations} | {mode} | {success}%"
+            output = f"{name} | {generations} | {mode} | {success}%"
             if time != "-":
                 output += f" | {time} s"
-            output += f" | {generations}"
+            output += f" | {solutions}"
             if distance != "-":
                 output += f" | {distance} m"
             if angle != "-":
                 output += f" | {angle} °"
             outputs.append(output)
             # Append for file output.
-            if max_generations not in results:
-                results[max_generations] = {}
-            results[max_generations][mode] = {"Success": success, "Time": time, "Generations": generations, "Distance": distance, "Angle": angle}
+            if generations not in results:
+                results[generations] = {}
+            results[generations][mode] = {"Success": success, "Time": time, "Solutions": solutions, "Distance": distance, "Angle": angle}
         # If there was no data to be written, exit.
         if len(results) == 0:
             continue
@@ -78,9 +78,9 @@ def evaluate():
         if not os.path.exists(root):
             os.mkdir(root)
         # Write the data to file.
-        for max_generations in results:
-            data = "Mode,Success Rate,Time,Generations,Distance,Angle"
-            temp = results[max_generations]
+        for generations in results:
+            data = "Mode,Success Rate,Time,Solutions,Distance,Angle"
+            temp = results[generations]
             for mode in temp:
                 result = temp[mode]
                 data += f"\n{mode.replace('-', ' ')},{result['Success']}%"
@@ -88,10 +88,10 @@ def evaluate():
                     data += ",-"
                 else:
                     data += f",{result['Time']} s"
-                if result["Generations"] == "-":
+                if result["Solutions"] == "-":
                     data += ",-"
                 else:
-                    data += f",{result['Generations']}"
+                    data += f",{result['Solutions']}"
                 if result["Distance"] == "-":
                     data += ",-"
                 else:
@@ -100,7 +100,7 @@ def evaluate():
                     data += ",-"
                 else:
                     data += f",{result['Angle']} °"
-            f = open(os.path.join(root, f"{robot} {max_generations}.csv"), "w")
+            f = open(os.path.join(root, f"{robot} {generations}.csv"), "w")
             f.write(data)
             f.close()
         outputs.sort()
@@ -111,6 +111,6 @@ def evaluate():
 
 
 if __name__ == '__main__':
-    desc = "Inverse Kinematics Evaluator"
+    desc = "Fusion-IK Evaluator"
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
     evaluate()

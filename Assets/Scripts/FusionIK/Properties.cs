@@ -139,7 +139,7 @@ namespace FusionIK
         /// </summary>
         /// <param name="inputs">The inputs to write.</param>
         /// <param name="outputs">The outputs to write.</param>
-        /// <param name="networkIndex">The level of network data was generated from.</param>
+        /// <param name="robot">The robot the data is from.</param>
         public void AddTrainingData(float[] inputs, float[] outputs, Robot robot)
         {
             // If already generated required amount, exit.
