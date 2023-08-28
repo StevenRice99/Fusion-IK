@@ -5,8 +5,11 @@ using UnityEngine;
 
 namespace FusionIK
 {
+    /// <summary>
+    /// Generate training data for Fusion-IK.
+    /// </summary>
     [DisallowMultipleComponent]
-    public sealed class Generator : Controller
+    public sealed class Trainer : Controller
     {
         [Tooltip("The number of generations Bio IK is allowed to run for.")]
         [Min(1)]

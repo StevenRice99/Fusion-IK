@@ -365,7 +365,7 @@ GameObject:
   - component: {fileID: 1227029004}
   - component: {fileID: 1227029005}
   m_Layer: 0
-  m_Name: Tester
+  m_Name: Visualizer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -399,7 +399,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   robotPrefab: {fileID: 1215757785776615163, guid: 641358d386454424db09d1121e4e416f, type: 3}
-  maxGenerations: 100
+  generations: 100
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
