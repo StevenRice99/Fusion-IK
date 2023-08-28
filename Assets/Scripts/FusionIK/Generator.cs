@@ -30,6 +30,9 @@ namespace FusionIK
             {
                 Destroy(gameObject);
             }
+
+            // Start in Bio IK mode.
+            _robot.mode = Robot.SolverMode.BioIk;
             
             // Don't need visuals during this process.
             NoVisuals();

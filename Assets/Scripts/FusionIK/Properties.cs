@@ -145,9 +145,16 @@ namespace FusionIK
             // If already generated required amount, exit.
             if (_generatedCount >= generationTotal)
             {
+                // If there are more networks to create data from then do so.
                 if (networks.Length > 0 && robot.networkIndex < networks.Length)
                 {
+                    // Reset the amount generated.
                     _generatedCount = -1;
+                    
+                    // Reset the last pose.
+                    LastPose = null;
+                    
+                    // Switch to Fusion-IK mode if it was in Bio IK or otherwise switch to the next network.
                     if (robot.mode == Robot.SolverMode.BioIk)
                     {
                         robot.mode = Robot.SolverMode.FusionIk;
@@ -234,7 +241,7 @@ namespace FusionIK
                 
             File.AppendAllText(path, s);
             
-            Debug.Log($"{Name} | {networkIndex} of {networks.Length} - Generated {++_generatedCount} of {generationTotal}.");
+            Debug.Log($"{Name} | {networkIndex} of {networks.Length} | Generated {++_generatedCount} of {generationTotal}.");
         }
         
         /// <summary>
@@ -291,7 +298,7 @@ namespace FusionIK
                 File.AppendAllText(file, $"\n{result.success},{result.time},{result.solutions},{result.distance},{result.angle}");
             }
             
-            Debug.Log($"{Name} - Evaluated {++_resultsCount} of {resultsTotal}.");
+            Debug.Log($"{Name} | Evaluated {++_resultsCount} of {resultsTotal}.");
         }
 
         private void OnValidate()
