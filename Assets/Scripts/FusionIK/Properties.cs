@@ -135,27 +135,32 @@ namespace FusionIK
         }
 
         /// <summary>
-        /// Write generated training data to CSV.
+        /// Write training data to CSV.
         /// </summary>
         /// <param name="inputs">The inputs to write.</param>
         /// <param name="outputs">The outputs to write.</param>
-        public void AddGenerationData(float[] inputs, float[] outputs)
+        /// <param name="networkIndex">The level of network data was generated from.</param>
+        public void AddTrainingData(float[] inputs, float[] outputs, Robot robot)
         {
             // If already generated required amount, exit.
             if (_generatedCount >= generationTotal)
             {
-#if UNITY_EDITOR
-                EditorApplication.ExitPlaymode();
-#else
-                Application.Quit();
-#endif
-                return;
-            }
-            
-            // Ensure folder exists.
-            string path = DirectoryPath("Datasets");
-            if (path == null)
-            {
+                if (networks.Length > 0 && robot.networkIndex < networks.Length)
+                {
+                    _generatedCount = -1;
+                    if (robot.mode == Robot.SolverMode.BioIk)
+                    {
+                        robot.mode = Robot.SolverMode.FusionIk;
+                        robot.networkIndex = 0;
+                    }
+                    else
+                    {
+                        robot.networkIndex++;
+                    }
+                    
+                    return;
+                }
+                
                 Debug.Log("Finished generation.");
 #if UNITY_EDITOR
                 EditorApplication.ExitPlaymode();
@@ -165,7 +170,20 @@ namespace FusionIK
                 return;
             }
             
-            path = Path.Combine(path, $"{Name}.csv");
+            // Ensure folder exists.
+            string path = DirectoryPath(new[] {"Training", Name});
+            if (path == null)
+            {
+#if UNITY_EDITOR
+                EditorApplication.ExitPlaymode();
+#else
+                Application.Quit();
+#endif
+                return;
+            }
+
+            int networkIndex = robot.mode == Robot.SolverMode.BioIk ? 0 : robot.networkIndex + 1;
+            path = Path.Combine(path, $"{networkIndex}.csv");
             
             // Read total from file in case it exceeds amount.
             if (_generatedCount < 0)
@@ -216,7 +234,7 @@ namespace FusionIK
                 
             File.AppendAllText(path, s);
             
-            Debug.Log($"{name} - Generated {++_generatedCount} of {generationTotal}.");
+            Debug.Log($"{Name} | {networkIndex} of {networks.Length} - Generated {++_generatedCount} of {generationTotal}.");
         }
         
         /// <summary>
@@ -238,7 +256,7 @@ namespace FusionIK
             }
             
             // Ensure folder exists.
-            string path = DirectoryPath("Evaluation");
+            string path = DirectoryPath(new[] {"Testing", Name});
             if (path == null)
             {
 #if UNITY_EDITOR
@@ -252,7 +270,8 @@ namespace FusionIK
             // Add all results.
             foreach (Result result in results)
             {
-                string file = Path.Combine(path, $"{Name} {Robot.Name(result.robot.mode).Replace(" ", "-")} {result.maxGenerations}.csv");
+                int networkIndex = result.robot.mode == Robot.SolverMode.BioIk ? 0 : result.robot.networkIndex + 1;
+                string file = Path.Combine(path, $"{Robot.Name(result.robot.mode).Replace(" ", "-")} {networkIndex} {result.maxGenerations}.csv");
 
                 // If file exceeds what is needed, return.
                 if (_resultsCount < 0)
@@ -266,13 +285,13 @@ namespace FusionIK
 
                 if (!File.Exists(file))
                 {
-                    File.WriteAllText(file, "Success,Time,Generations,Distance,Angle");
+                    File.WriteAllText(file, "Success,Time,Solutions,Distance,Angle");
                 }
                 
                 File.AppendAllText(file, $"\n{result.success},{result.time},{result.solutions},{result.distance},{result.angle}");
             }
             
-            Debug.Log($"{name} - Evaluated {++_resultsCount} of {resultsTotal}.");
+            Debug.Log($"{Name} - Evaluated {++_resultsCount} of {resultsTotal}.");
         }
 
         private void OnValidate()
@@ -287,9 +306,9 @@ namespace FusionIK
         /// <summary>
         /// Ensure a directory exists.
         /// </summary>
-        /// <param name="directory">The name of the directory.</param>
+        /// <param name="directories">The names of the directories.</param>
         /// <returns>The path to the directory if it exists or was made, null otherwise.</returns>
-        public string DirectoryPath(string directory)
+        public string DirectoryPath(string[] directories)
         {
             DirectoryInfo full = Directory.GetParent(Application.dataPath);
             if (full == null)
@@ -319,19 +338,22 @@ namespace FusionIK
                 }
             }
 
-            path = Path.Combine(path, directory);
-            if (!Directory.Exists(path))
+            foreach (string directory in directories)
             {
-                DirectoryInfo result = Directory.CreateDirectory(path);
-                if (!result.Exists)
+                path = Path.Combine(path, directory);
+                if (!Directory.Exists(path))
                 {
-                    Debug.LogError($"{name} - Cannot find or create directory {path}.");
+                    DirectoryInfo result = Directory.CreateDirectory(path);
+                    if (!result.Exists)
+                    {
+                        Debug.LogError($"{name} - Cannot find or create directory {path}.");
 #if UNITY_EDITOR
-                    EditorApplication.ExitPlaymode();
+                        EditorApplication.ExitPlaymode();
 #else
                     Application.Quit();
 #endif
-                    return null;
+                        return null;
+                    }
                 }
             }
 

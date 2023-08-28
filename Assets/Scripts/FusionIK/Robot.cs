@@ -333,6 +333,12 @@ namespace FusionIK
         /// <returns>The move to the destination which takes the least amount of time.</returns>
         public List<float> Optimize(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, float[] starting, int attempts, out bool hasReached)
         {
+            // Run through networks if it should.
+            if (mode != SolverMode.BioIk)
+            {
+                starting = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting.ToList())).ToArray();
+            }
+            
             // Move to the start.
             SnapRadians(starting.ToList());
             

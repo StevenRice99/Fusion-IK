@@ -66,7 +66,7 @@ namespace FusionIK
             go.name = $"{r.Properties.name} {Robot.Name(r.mode)}";
             if (solverMode != Robot.SolverMode.BioIk && r.Properties.networks.Length > 1)
             {
-                go.name += $" {networkIndex}";
+                go.name += $" {networkIndex + 1}";
             }
             
             return r;

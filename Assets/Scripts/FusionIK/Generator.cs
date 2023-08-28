@@ -73,7 +73,7 @@ namespace FusionIK
             }
 
             // If reached, add the result, update the last pose, and set the start of the next generation to the result.
-            _robot.Properties.AddGenerationData(_robot.PrepareInputs(_robot.EndTransform.position, _robot.EndTransform.rotation, _starting), _robot.NetScaledJoints(ending).ToArray());
+            _robot.Properties.AddTrainingData(_robot.PrepareInputs(_robot.EndTransform.position, _robot.EndTransform.rotation, _starting), _robot.NetScaledJoints(ending).ToArray(), _robot);
             _robot.Properties.SetLastPose(_starting);
             _starting = _robot.GetJoints();
         }
@@ -84,13 +84,14 @@ namespace FusionIK
         /// <returns></returns>
         private List<float> Load()
         {
-            string path = _robot.Properties.DirectoryPath("Data");
+            string path = _robot.Properties.DirectoryPath(new[]{"Data", _robot.Properties.Name});
             if (path == null)
             {
                 return null;
             }
             
-            path = Path.Combine(path, $"{_robot.Properties.Name}.csv");
+            int networkIndex = _robot.mode == Robot.SolverMode.BioIk ? 0 : _robot.networkIndex + 1;
+            path = Path.Combine(path, $"{networkIndex}.csv");
             if (!File.Exists(path))
             {
                 return null;
