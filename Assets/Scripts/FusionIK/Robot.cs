@@ -526,9 +526,9 @@ namespace FusionIK
             List<float> starting = GetJoints();
             List<float> results = null;
             solutions = 0;
-            fitness = 0;
             reached = false;
             moveTime = float.MaxValue;
+            fitness = double.MaxValue;
 
             if (mode != SolverMode.BioIk)
             {
@@ -574,12 +574,15 @@ namespace FusionIK
                     }
                     else
                     {
-                        if (!attemptReached && attemptFitness >= fitness)
+                        switch (attemptReached)
                         {
-                            continue;
+                            case false when attemptFitness >= fitness:
+                                continue;
+                            case true:
+                                reached = true;
+                                break;
                         }
 
-                        reached = true;
                         results = attemptResults;
                         moveTime = CalculateTime(starting, results);
                         fitness = attemptFitness;
