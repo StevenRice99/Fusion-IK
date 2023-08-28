@@ -6,9 +6,9 @@
     public struct Result
     {
         /// <summary>
-        /// How many generations were allowed.
+        /// The number of generations Bio IK is allowed to run for.
         /// </summary>
-        public readonly int maxGenerations;
+        public readonly int generations;
         
         /// <summary>
         /// The robot that did the move.
@@ -23,7 +23,7 @@
         /// <summary>
         /// The time it took for the joints to reach their destinations.
         /// </summary>
-        public readonly float time;
+        public readonly double time;
 
         /// <summary>
         /// The number of solutions reached.
@@ -48,7 +48,7 @@
         /// <summary>
         /// Store a move result.
         /// </summary>
-        /// <param name="maxGenerations">How many generations were allowed.</param>
+        /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
         /// <param name="robot">The robot that did the move.</param>
         /// <param name="success">If the move was successful.</param>
         /// <param name="time">The time it took for the joints to reach their destinations.</param>
@@ -56,9 +56,9 @@
         /// <param name="distance">How far off in meters was the end effectors from reaching the target.</param>
         /// <param name="angle">How far off in degrees was the end effector from reaching the target.</param>
         /// <param name="fitness">The fitness score of the result.</param>
-        public Result(int maxGenerations, Robot robot, bool success, float time, int solutions, float distance, float angle, double fitness)
+        public Result(int generations, Robot robot, bool success, double time, int solutions, float distance, float angle, double fitness)
         {
-            this.maxGenerations = maxGenerations;
+            this.generations = generations;
             this.robot = robot;
             this.success = success;
             this.time = time;

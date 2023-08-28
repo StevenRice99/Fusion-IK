@@ -208,15 +208,15 @@ namespace FusionIK
         /// </summary>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">The maximum generations for the solving algorithm.</param>
+        /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
         /// <param name="reached">If the target was reached.</param>
         /// <param name="moveTime">The time for the joints to reach the destination.</param>
         /// <param name="solutions">The generations required.</param>
         /// <param name="fitness">The fitness score of the result.</param>
         /// <param name="seed">The seed for the random numbers of the solver.</param>
-        public void Snap(Vector3 position, Quaternion rotation, int maxGenerations, out bool reached, out float moveTime, out int solutions, out double fitness, uint seed = 0)
+        public void Snap(Vector3 position, Quaternion rotation, int generations, out bool reached, out double moveTime, out int solutions, out double fitness, uint seed = 0)
         {
-            SnapRadians(RequestSolution(position, rotation, maxGenerations, out reached, out moveTime, out solutions, out fitness, seed));
+            SnapRadians(Solve(position, rotation, generations, out reached, out moveTime, out solutions, out fitness, seed));
         }
 
         /// <summary>
@@ -307,6 +307,8 @@ namespace FusionIK
         /// <returns>The time to complete the move.</returns>
         public float CalculateTime(IEnumerable<float> starting, IReadOnlyList<float> ending) => starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
 
+        public double CalculateTime(IEnumerable<double> starting, IReadOnlyList<double> ending) => starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
+        
         /// <summary>
         /// Get a position relative to the root of the robot.
         /// </summary>
@@ -320,103 +322,6 @@ namespace FusionIK
         /// <param name="rotation">The rotation in global rotation.</param>
         /// <returns>The relative rotation.</returns>
         private Quaternion RelativeRotation(Quaternion rotation) => Quaternion.Inverse(Root.transform.rotation) * rotation;
-
-        /// <summary>
-        /// Optimize a robot movement from a starting position to a destination.
-        /// </summary>
-        /// <param name="targetPosition">The position to reach.</param>
-        /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">The number of generations for each attempt.</param>
-        /// <param name="starting">The starting joint values.</param>
-        /// <param name="attempts">The number of Bio IK attempts to perform.</param>
-        /// <param name="hasReached">If the robot reached the destination.</param>
-        /// <returns>The move to the destination which takes the least amount of time.</returns>
-        public List<float> Optimize(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, float[] starting, int attempts, out bool hasReached)
-        {
-            // Run through networks if it should.
-            if (mode != SolverMode.BioIk)
-            {
-                starting = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting.ToList())).ToArray();
-            }
-            
-            // Move to the start.
-            SnapRadians(starting.ToList());
-            
-            // If already at the destination, no need to move and return.
-            if (Reached(targetPosition, targetRotation))
-            {
-                hasReached = true;
-                return starting.ToList();
-            }
-            
-            // Default values to check against.
-            List<float>best = null;
-            float bestTime = float.MaxValue;
-
-            // Go for every Bio IK attempt.
-            for (int attempt = 0; attempt < attempts; attempt++)
-            {
-                // Move to the Bio IK solution.
-                Unity.Mathematics.Random random = new((uint) Random.Range(1, int.MaxValue));
-                SnapRadians(BioIkSolve(targetPosition, targetRotation, starting, maxGenerations, ref random, out bool reached, out _, out _));
-                PhysicsStep();
-
-                // Only care if reached.
-                if (!reached)
-                {
-                    continue;
-                }
-
-                List<float> solution = GetJoints();
-
-                // If the new joints move faster than the exiting best solution, update it.
-                float time = CalculateTime(starting, solution);
-                if (time >= bestTime)
-                {
-                    continue;
-                }
-
-                best = solution;
-                bestTime = time;
-            }
-
-            // No solution was found.
-            if (best == null)
-            {
-                hasReached = false;
-                return starting.ToList();
-            }
-            
-            // Move to the best solution.
-            hasReached = true;
-            SnapRadians(best);
-            PhysicsStep();
-            return GetJoints();
-        }
-
-        /// <summary>
-        /// Run Bio IK.
-        /// </summary>
-        /// <param name="targetPosition">The position to reach.</param>
-        /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="starting">The starting joint values.</param>
-        /// <param name="maxGenerations">The number of generations for each attempt.</param>
-        /// <param name="random">The random number generator.</param>
-        /// <param name="reached">If the robot reached the destination.</param>
-        /// <param name="generations">The number of generations needed to reach the solution.</param>
-        /// <param name="fitness">The fitness score of the result.</param>
-        /// <returns>The joints to move the robot to.</returns>
-        private List<float> BioIkSolve(Vector3 targetPosition, Quaternion targetRotation, IReadOnlyList<float> starting, int maxGenerations, ref Unity.Mathematics.Random random, out bool reached, out int generations, out double fitness)
-        {
-            double[] seed = new double[_limits.Length];
-            for (int i = 0; i < _limits.Length; i++)
-            {
-                seed[i] = starting[i];
-            }
-            
-            double[] solution = _bioIk.Optimise(seed, targetPosition, targetRotation, maxGenerations, ref random, out reached, out generations, out fitness);
-            return solution.Select(t => (float) t).ToList();
-        }
 
         /// <summary>
         /// Stop the robot at a position.
@@ -501,14 +406,14 @@ namespace FusionIK
         /// </summary>
         /// <param name="targetPosition">The position to reach.</param>
         /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">The number of generations the solving mode can be run for.</param>
+        /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
         /// <param name="reached">If the robot reached the destination.</param>
         /// <param name="moveTime">How long it took for the robot to perform the move.</param>
         /// <param name="solutions">The number of solutions reached.</param>
         /// <param name="fitness">The fitness score of the result.</param>
         /// <param name="seed">The seed for random number generation</param>
         /// <returns>The joints to move the robot to.</returns>
-        private List<float> RequestSolution(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, out bool reached, out float moveTime, out int solutions, out double fitness, uint seed = 0)
+        public List<float> Solve(Vector3 targetPosition, Quaternion targetRotation, int generations, out bool reached, out double moveTime, out int solutions, out double fitness, uint seed = 0)
         {
             // If already at the destination do nothing.
             if (Reached(targetPosition, targetRotation))
@@ -529,6 +434,7 @@ namespace FusionIK
             // Initialize random number generation.
             Unity.Mathematics.Random random = new(seed);
             
+            // Initialize other variables.
             List<float> starting = GetJoints();
             List<float> results = null;
             solutions = 0;
@@ -536,6 +442,7 @@ namespace FusionIK
             moveTime = float.MaxValue;
             fitness = double.MaxValue;
 
+            // Run through neural networks if it should.
             if (mode != SolverMode.BioIk)
             {
                 results = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting));
@@ -548,35 +455,54 @@ namespace FusionIK
                 }
             }
 
+            // Use Bio IK if it should.
             if (mode != SolverMode.Network)
             {
+                // Convert to doubles.
+                double[] initial = new double[starting.Count];
+                for (int i = 0; i < starting.Count; i++)
+                {
+                    initial[i] = starting[i];
+                }
+            
+                double[] solution = initial;
+            
+                // Utilize all available generations.
                 do
                 {
-                    List<float> attemptResults = BioIkSolve(targetPosition, targetRotation, results ?? starting, maxGenerations, ref random, out bool attemptReached, out int generations, out double attemptFitness);
-                    maxGenerations -= generations;
+                    // Run Bio IK.
+                    double[] attemptSolution = _bioIk.Optimise(initial, targetPosition, targetRotation, generations, ref random, out bool attemptReached, out int used, out double attemptFitness);
+                    
+                    // Take away the generations that were used.
+                    generations -= used;
 
+                    // Count how many solutions were reached.
                     if (attemptReached)
                     {
                         solutions += 1;
                     }
-                    
+                
+                    // If have already reached.
                     if (reached)
                     {
+                        // If the current attempt did not reach, discard it.
                         if (!attemptReached)
                         {
                             continue;
                         }
 
-                        float attemptMoveTime = CalculateTime(starting, attemptResults);
+                        // If the new solutions is faster than the existing solution, update it.
+                        double attemptMoveTime = CalculateTime(initial, attemptSolution);
                         if (attemptMoveTime >= moveTime)
                         {
                             continue;
                         }
 
-                        results = attemptResults;
+                        solution = attemptSolution;
                         moveTime = attemptMoveTime;
                         fitness = 0;
                     }
+                    // If there has never been a successful solution and the current attempt was successful or closer, update it.
                     else
                     {
                         switch (attemptReached)
@@ -588,13 +514,16 @@ namespace FusionIK
                                 break;
                         }
 
-                        results = attemptResults;
-                        moveTime = CalculateTime(starting, results);
+                        solution = attemptSolution;
+                        moveTime = CalculateTime(initial, solution);
                         fitness = attemptFitness;
                     }
-                } while (maxGenerations > 0);
+                } while (generations > 0);
+            
+                results = solution.Select(t => (float) t).ToList();
             }
             
+            // Fitness should be zero if it was reached.
             if (reached)
             {
                 fitness = 0;

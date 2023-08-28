@@ -35,25 +35,49 @@ namespace FusionIK
         /// </summary>
         private static Material _lineMaterial;
         
-        [Tooltip("The maximum number of generations Bio IK is allowed to run for.")]
+        [Tooltip("The number of generations Bio IK is allowed to run for.")]
         [Min(1)]
         [SerializeField]
-        private int maxGenerations = 100;
+        private int generations = 100;
         
+        /// <summary>
+        /// Normal robot materials.
+        /// </summary>
         private readonly List<Material> _normalMaterials = new();
         
+        /// <summary>
+        /// Transparent robot materials.
+        /// </summary>
         private readonly List<Material> _transparentMaterials = new();
 
+        /// <summary>
+        /// Robot mesh renderers.
+        /// </summary>
         private readonly List<MeshRenderer[]> _meshRenderers = new();
 
-        private Vector3? _endPosition;
+        /// <summary>
+        /// Target position.
+        /// </summary>
+        private Vector3? _targetPosition;
 
-        private Quaternion? _endRotation;
+        /// <summary>
+        /// Target rotation.
+        /// </summary>
+        private Quaternion? _targetRotation;
 
+        /// <summary>
+        /// Robots ordered by performance.
+        /// </summary>
         private Result[] _ordered;
 
+        /// <summary>
+        /// Robot movement paths.
+        /// </summary>
         private List<Vector3>[] _paths;
 
+        /// <summary>
+        /// Which robots are visible.
+        /// </summary>
         private bool[] _visible;
 
         /// <summary>
@@ -254,13 +278,13 @@ namespace FusionIK
 
         private void Move()
         {
-            if (_endPosition == null || _endRotation == null)
+            if (_targetPosition == null || _targetRotation == null)
             {
                 return;
             }
             
             List<float> starting = GetStarting();
-            MovePerform(starting, MoveResults(starting, _endPosition.Value, _endRotation.Value, new [] {maxGenerations}));
+            MovePerform(starting, MoveResults(starting, _targetPosition.Value, _targetRotation.Value, new [] {generations}));
         }
 
         /// <summary>
@@ -271,9 +295,9 @@ namespace FusionIK
             List<float> starting = GetStarting();
 
             // Solve for random target.
-            Result[] results = RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, maxGenerations);
-            _endPosition = position;
-            _endRotation = rotation;
+            Result[] results = RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, generations);
+            _targetPosition = position;
+            _targetRotation = rotation;
 
             MovePerform(starting, results);
         }
@@ -348,34 +372,36 @@ namespace FusionIK
 
         private void OnGUI()
         {
-            // Display input to change the max number of generations.
             GUI.color = Color.white;
             
+            // Display input to change the number of generations.
             GUI.Label(new(10, 10, 100, 20), "Generations");
-            string s = maxGenerations.ToString();
+            string s = generations.ToString();
             s = GUI.TextField(new(10, 30, 100, 20), s, 5);
             s = new(s.Where(char.IsDigit).ToArray());
             if (string.IsNullOrWhiteSpace(s))
             {
-                maxGenerations = 1;
+                generations = 1;
             }
             else
             {
                 try
                 {
                     int input = int.Parse(s);
-                    maxGenerations = input <= 0 ? 1 : input;
+                    generations = input <= 0 ? 1 : input;
                 }
                 catch
                 {
-                    maxGenerations = 1;
+                    generations = 1;
                 }
             }
 
-            if (_endPosition == null || _endRotation == null)
+            // At the beginning, just call to move.
+            if (_targetPosition == null || _targetRotation == null)
             {
-                _endPosition = Robot.EndTransform.position;
-                _endRotation = Robot.EndTransform.rotation;
+                _targetPosition = Robot.EndTransform.position;
+                _targetRotation = Robot.EndTransform.rotation;
+                Move();
             }
 
             // Button to move the robot randomly.
@@ -390,10 +416,12 @@ namespace FusionIK
                 Move();
             }
 
+            // Cartesian jog constants.
             const int controlsWidth = 200;
             const int controlsHeight = 20;
             const int labelWidth = 90;
             
+            // Cartesian jog labels.
             GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, 10, labelWidth, controlsHeight), "Position X");
             GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight + 10 * 2, labelWidth, controlsHeight), "Position Y");
             GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 2 + 10 * 3, labelWidth, controlsHeight), "Position Z");
@@ -401,22 +429,20 @@ namespace FusionIK
             GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 4 + 10 * 5, labelWidth, controlsHeight), "Rotation Y");
             GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 5 + 10 * 6, labelWidth, controlsHeight), "Rotation Z");
 
+            // Cartesian jog position sliders.
             Transform robotTransform = Robot.transform;
             Vector3 robotPosition = robotTransform.position;
-            
-            float x = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, 10, controlsWidth, controlsHeight), _endPosition.Value.x, robotPosition.x - Robot.ChainLength, robotPosition.x + Robot.ChainLength);
-            float y = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight + 10 * 2, controlsWidth, controlsHeight), _endPosition.Value.y, robotPosition.y - Robot.ChainLength, robotPosition.y + Robot.ChainLength);
-            float z = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 2 + 10 * 3, controlsWidth, controlsHeight), _endPosition.Value.z, robotPosition.z - Robot.ChainLength, robotPosition.z + Robot.ChainLength);
-            
-            _endPosition = new(x, y, z);
+            float x = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, 10, controlsWidth, controlsHeight), _targetPosition.Value.x, robotPosition.x - Robot.ChainLength, robotPosition.x + Robot.ChainLength);
+            float y = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight + 10 * 2, controlsWidth, controlsHeight), _targetPosition.Value.y, robotPosition.y - Robot.ChainLength, robotPosition.y + Robot.ChainLength);
+            float z = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 2 + 10 * 3, controlsWidth, controlsHeight), _targetPosition.Value.z, robotPosition.z - Robot.ChainLength, robotPosition.z + Robot.ChainLength);
+            _targetPosition = new(x, y, z);
 
-            Vector3 euler = _endRotation.Value.eulerAngles;
-            
+            // Cartesian jog rotation sliders.
+            Vector3 euler = _targetRotation.Value.eulerAngles;
             x = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 3 + 10 * 4, controlsWidth, controlsHeight), euler.x, 0, 360);
             y = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 4 + 10 * 5, controlsWidth, controlsHeight), euler.y, 0, 360);
             z = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 5 + 10 * 6, controlsWidth, controlsHeight), euler.z, 0, 360);
-            
-            _endRotation = Quaternion.Euler(x, y, z);
+            _targetRotation = Quaternion.Euler(x, y, z);
             
             if (_ordered == null)
             {
@@ -442,9 +468,9 @@ namespace FusionIK
             GL.Begin(GL.LINES);
 
             // Draw the end target.
-            if (_endPosition != null && _endRotation != null)
+            if (_targetPosition != null && _targetRotation != null)
             {
-                DrawAxis(_endPosition.Value, _endRotation.Value);
+                DrawAxis(_targetPosition.Value, _targetRotation.Value);
             }
 
             // Draw all robot paths and their axis gizmos.

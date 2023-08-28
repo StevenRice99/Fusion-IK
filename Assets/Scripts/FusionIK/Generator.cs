@@ -8,15 +8,10 @@ namespace FusionIK
     [DisallowMultipleComponent]
     public sealed class Generator : Controller
     {
-        [Tooltip("The maximum number of generations Bio IK is allowed to run for.")]
+        [Tooltip("The number of generations Bio IK is allowed to run for.")]
         [Min(1)]
         [SerializeField]
-        private int maxGenerations = 100;
-        
-        [Tooltip("The number of times to run the Bio IK algorithm.")]
-        [Min(1)]
-        [SerializeField]
-        private int attempts = 10;
+        private int generations = 100;
         
         // The joints to start at for the next attempt.
         private List<float> _starting;
@@ -64,16 +59,20 @@ namespace FusionIK
             Robot.PhysicsStep();
 
             // Get the best result to reach the target.
-            List<float> ending = _robot.Optimize(target.position, target.rotation, maxGenerations, _starting.ToArray(), attempts, out bool hasReached);
+            List<float> results = _robot.Solve(target.position, target.rotation, generations, out bool reached, out double moveTime, out int _, out double _);
             
             // If failed to reach or the random move is faster, use the random joint values.
-            if (!hasReached || _robot.CalculateTime(_starting, randomJoints) < _robot.CalculateTime(_starting, ending))
+            if (!reached || _robot.CalculateTime(_starting, randomJoints) < moveTime)
             {
-                ending = randomJoints;
+                results = randomJoints;
             }
+            
+            // Snap to the results.
+            _robot.SnapRadians(results);
+            Robot.PhysicsStep();
 
             // If reached, add the result, update the last pose, and set the start of the next generation to the result.
-            _robot.Properties.AddTrainingData(_robot.PrepareInputs(_robot.EndTransform.position, _robot.EndTransform.rotation, _starting), _robot.NetScaledJoints(ending).ToArray(), _robot);
+            _robot.Properties.AddTrainingData(_robot.PrepareInputs(_robot.EndTransform.position, _robot.EndTransform.rotation, _starting), _robot.NetScaledJoints(results).ToArray(), _robot);
             _robot.Properties.SetLastPose(_starting);
             _starting = _robot.GetJoints();
         }

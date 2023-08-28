@@ -78,11 +78,11 @@ namespace FusionIK
         /// <param name="starting">The starting joint values.</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">The maximum number of generations to run each algorithm for.</param>
+        /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
         /// <returns>The results of all robots.</returns>
-        protected Result[] RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation, int maxGenerations)
+        protected Result[] RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation, int generations)
         {
-            return RandomMoveResults(starting, out position, out rotation, new[] {maxGenerations});
+            return RandomMoveResults(starting, out position, out rotation, new[] {generations});
         }
 
         /// <summary>
@@ -91,9 +91,9 @@ namespace FusionIK
         /// <param name="starting">The starting joint values.</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">All the maximum number of generations to run each algorithm for.</param>
+        /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
         /// <returns>The results of all robots.</returns>
-        protected Result[] RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation, int[] maxGenerations)
+        protected Result[] RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation, int[] generations)
         {
             // Move to robot to a random position.
             Robot.SnapRadians(Robot.RandomJoints());
@@ -104,7 +104,7 @@ namespace FusionIK
             position = target.position;
             rotation = target.rotation;
 
-            return MoveResults(starting, position, rotation, maxGenerations);
+            return MoveResults(starting, position, rotation, generations);
         }
 
         /// <summary>
@@ -113,16 +113,16 @@ namespace FusionIK
         /// <param name="starting">The starting joint values.</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">All the maximum number of generations to run each algorithm for.</param>
+        /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
         /// <returns>The results of all robots.</returns>
-        protected Result[] MoveResults(List<float> starting, Vector3 position, Quaternion rotation, int[] maxGenerations)
+        protected Result[] MoveResults(List<float> starting, Vector3 position, Quaternion rotation, int[] generations)
         {
             // Generate the seed for random number generation.
             uint seed = (uint) Random.Range(1, int.MaxValue);
 
             // Test at every generation value.
             List<Result> results = new(robots.Length);
-            for (int i = 0; i < maxGenerations.Length; i++)
+            for (int i = 0; i < generations.Length; i++)
             {
                 // Move every robot to the starting position.
                 for (int j = 0; j < robots.Length; j++)
@@ -141,12 +141,12 @@ namespace FusionIK
                     }
 
                     // Can only test the network if zero max generations.
-                    if (maxGenerations[i] == 0 && robots[j].mode != Robot.SolverMode.Network)
+                    if (generations[i] == 0 && robots[j].mode != Robot.SolverMode.Network)
                     {
                         continue;
                     }
                     
-                    results.Add(EvaluateRobot(robots[j], position, rotation, maxGenerations[i], seed));
+                    results.Add(EvaluateRobot(robots[j], position, rotation, generations[i], seed));
                 }
             }
 
@@ -178,15 +178,15 @@ namespace FusionIK
         /// <param name="r">The robot to test.</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="maxGenerations">All the maximum number of generations to run each algorithm for.</param>
+        /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
         /// <param name="seed">The seed for random number generation.</param>
         /// <returns>The results of the robot trying to reach the target.</returns>
-        private static Result EvaluateRobot(Robot r, Vector3 position, Quaternion rotation, int maxGenerations, uint seed)
+        private static Result EvaluateRobot(Robot r, Vector3 position, Quaternion rotation, int generations, uint seed)
         {
-            r.Snap(position, rotation, maxGenerations, out bool reached, out float moveTime, out int solutions, out double fitness, seed);
+            r.Snap(position, rotation, generations, out bool reached, out double moveTime, out int solutions, out double fitness, seed);
             Robot.PhysicsStep();
 
-            return new(r.mode == Robot.SolverMode.Network ? 0 : maxGenerations, r, reached, moveTime, solutions, Robot.PositionAccuracy(position, r.EndTransform.position), Robot.RotationAccuracy(rotation, r.EndTransform.rotation), fitness);
+            return new(r.mode == Robot.SolverMode.Network ? 0 : generations, r, reached, moveTime, solutions, reached ? 0 : Robot.PositionAccuracy(position, r.EndTransform.position), reached ? 0 : Robot.RotationAccuracy(rotation, r.EndTransform.rotation), fitness);
         }
     }
 }

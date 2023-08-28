@@ -9,9 +9,9 @@ namespace FusionIK
     [DisallowMultipleComponent]
     public class Evaluator : ControllerMultiple
     {
-        [Tooltip("The maximum number of generations Bio IK is allowed to run for.")]
+        [Tooltip("The number of generations Bio IK is allowed to run for.")]
         [SerializeField]
-        protected int[] maxGenerations = Array.Empty<int>();
+        protected int[] generations = Array.Empty<int>();
         
         private void Start()
         {
@@ -22,7 +22,7 @@ namespace FusionIK
         private void Update()
         {
             // Get all results.
-            Result[] results = RandomMoveResults(Robot.Properties.LastPose ?? Robot.GetJoints(), out Vector3 _, out Quaternion _, maxGenerations);
+            Result[] results = RandomMoveResults(Robot.Properties.LastPose ?? Robot.GetJoints(), out Vector3 _, out Quaternion _, generations);
 
             // Export results.
             Robot.Properties.AddTestingData(results);

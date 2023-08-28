@@ -271,7 +271,7 @@ namespace FusionIK
             foreach (Result result in results)
             {
                 string networkIndex = result.robot.mode == Robot.SolverMode.BioIk ? string.Empty : $"-{result.robot.networkIndex}";
-                string file = Path.Combine(path, $"{Robot.Name(result.robot.mode).Replace(" ", "-")}{networkIndex} {result.maxGenerations}.csv");
+                string file = Path.Combine(path, $"{Robot.Name(result.robot.mode).Replace(" ", "-")}{networkIndex} {result.generations}.csv");
 
                 // If file exceeds what is needed, return.
                 if (_resultsCount < 0)
@@ -321,40 +321,30 @@ namespace FusionIK
 #endif
                 return null;
             }
-            
-            string path = Path.Combine(full.FullName, "IK-Trainer");
-            if (!Directory.Exists(path))
-            {
-                DirectoryInfo result = Directory.CreateDirectory(path);
-                if (!result.Exists)
-                {
-                    Debug.LogError($"{name} - Cannot find or create directory {path}.");
-#if UNITY_EDITOR
-                    EditorApplication.ExitPlaymode();
-#else
-                    Application.Quit();
-#endif
-                    return null;
-                }
-            }
+
+            string path = full.FullName;
 
             foreach (string directory in directories)
             {
                 path = Path.Combine(path, directory);
-                if (!Directory.Exists(path))
+                if (Directory.Exists(path))
                 {
-                    DirectoryInfo result = Directory.CreateDirectory(path);
-                    if (!result.Exists)
-                    {
-                        Debug.LogError($"{name} - Cannot find or create directory {path}.");
+                    continue;
+                }
+
+                DirectoryInfo result = Directory.CreateDirectory(path);
+                if (result.Exists)
+                {
+                    continue;
+                }
+
+                Debug.LogError($"{name} - Cannot find or create directory {path}.");
 #if UNITY_EDITOR
-                        EditorApplication.ExitPlaymode();
+                EditorApplication.ExitPlaymode();
 #else
                     Application.Quit();
 #endif
-                        return null;
-                    }
-                }
+                return null;
             }
 
             return path;
