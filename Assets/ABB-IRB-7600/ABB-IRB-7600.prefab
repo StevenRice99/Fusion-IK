@@ -1155,7 +1155,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   properties: {fileID: 11400000, guid: 785bff8a9fa739a4ca5fdbf16b4a203d, type: 2}
-  mode: 0
+  mode: 1
   networkIndex: 0
 --- !u!1 &1215757786050013922
 GameObject:

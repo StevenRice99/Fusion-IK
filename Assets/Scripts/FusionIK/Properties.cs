@@ -84,15 +84,15 @@ namespace FusionIK
         private int steps = 100;
 
         [Header("Datasets")]
-        [Tooltip("The total number of entries to generate.")]
+        [Tooltip("The total number of entries to generate for training.")]
         [Min(1)]
         [SerializeField]
-        private int generationTotal = 250000;
+        private int trainingTotal = 250000;
         
-        [Tooltip("The total number of results to test.")]
+        [Tooltip("The total number of results to generate for testing.")]
         [Min(1)]
         [SerializeField]
-        private int resultsTotal = 100000;
+        private int testingTotal = 100000;
 
         [Header("Materials")]
         [Tooltip("Material to apply to the best robot during visualization.")]
@@ -143,7 +143,7 @@ namespace FusionIK
         public void AddTrainingData(float[] inputs, float[] outputs, Robot robot)
         {
             // If already generated required amount, exit.
-            if (_generatedCount >= generationTotal)
+            if (_generatedCount >= trainingTotal)
             {
                 // If there are more networks to create data from then do so.
                 if (networks.Length > 0 && robot.networkIndex < networks.Length)
@@ -196,7 +196,7 @@ namespace FusionIK
             if (_generatedCount < 0)
             {
                 _generatedCount = CountLines(path);
-                if (_generatedCount >= generationTotal)
+                if (_generatedCount >= trainingTotal)
                 {
                     return;
                 }
@@ -241,7 +241,7 @@ namespace FusionIK
                 
             File.AppendAllText(path, s);
             
-            Debug.Log($"{Name} | {networkIndex} of {networks.Length} | Generated {++_generatedCount} of {generationTotal}.");
+            Debug.Log($"{Name} | {networkIndex} of {networks.Length} | Generated {++_generatedCount} of {trainingTotal}.");
         }
         
         /// <summary>
@@ -251,7 +251,7 @@ namespace FusionIK
         public void AddTestingData(Result[] results)
         {
             // If already evaluated required amount, exit.
-            if (_resultsCount >= resultsTotal)
+            if (_resultsCount >= testingTotal)
             {
                 Debug.Log("Finished evaluation.");
 #if UNITY_EDITOR
@@ -284,7 +284,7 @@ namespace FusionIK
                 if (_resultsCount < 0)
                 {
                     _resultsCount = CountLines(file);
-                    if (_resultsCount >= resultsTotal)
+                    if (_resultsCount >= testingTotal)
                     {
                         return;
                     }
@@ -298,7 +298,7 @@ namespace FusionIK
                 File.AppendAllText(file, $"\n{result.success},{result.time},{result.solutions},{result.distance},{result.angle}");
             }
             
-            Debug.Log($"{Name} | Evaluated {++_resultsCount} of {resultsTotal}.");
+            Debug.Log($"{Name} | Evaluated {++_resultsCount} of {testingTotal}.");
         }
 
         private void OnValidate()
