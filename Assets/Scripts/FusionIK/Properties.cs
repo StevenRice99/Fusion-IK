@@ -238,10 +238,10 @@ namespace FusionIK
         }
         
         /// <summary>
-        /// Write evaluation data to CSV.
+        /// Write testing data to CSV.
         /// </summary>
         /// <param name="results"></param>
-        public void AddResultsData(Result[] results)
+        public void AddTestingData(Result[] results)
         {
             // If already evaluated required amount, exit.
             if (_resultsCount >= resultsTotal)
@@ -270,8 +270,8 @@ namespace FusionIK
             // Add all results.
             foreach (Result result in results)
             {
-                int networkIndex = result.robot.mode == Robot.SolverMode.BioIk ? 0 : result.robot.networkIndex + 1;
-                string file = Path.Combine(path, $"{Robot.Name(result.robot.mode).Replace(" ", "-")} {networkIndex} {result.maxGenerations}.csv");
+                string networkIndex = result.robot.mode == Robot.SolverMode.BioIk ? string.Empty : $"-{result.robot.networkIndex}";
+                string file = Path.Combine(path, $"{Robot.Name(result.robot.mode).Replace(" ", "-")}{networkIndex} {result.maxGenerations}.csv");
 
                 // If file exceeds what is needed, return.
                 if (_resultsCount < 0)

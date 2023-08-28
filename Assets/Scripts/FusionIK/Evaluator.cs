@@ -25,7 +25,7 @@ namespace FusionIK
             Result[] results = RandomMoveResults(Robot.Properties.LastPose ?? Robot.GetJoints(), out Vector3 _, out Quaternion _, maxGenerations);
 
             // Export results.
-            Robot.Properties.AddResultsData(results);
+            Robot.Properties.AddTestingData(results);
 
             // Start at the best result for the next test.
             Robot.Properties.SetLastPose(Best(results, out _).GetJoints());
