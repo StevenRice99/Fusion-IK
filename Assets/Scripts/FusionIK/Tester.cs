@@ -54,6 +54,8 @@ namespace FusionIK
 
         private List<Vector3>[] _paths;
 
+        private bool[] _visible;
+
         /// <summary>
         /// Setup the material for line rendering.
         /// </summary>
@@ -84,39 +86,34 @@ namespace FusionIK
         private void Start()
         {
             // Create path visualization lists for every robot.
+            _visible = new bool[robots.Length];
             _paths = new List<Vector3>[robots.Length];
             for (int i = 0; i < robots.Length; i++)
             {
                 _paths[i] = new();
             }
 
-            if (robots.Length > 1)
+            if (robots.Length <= 1)
             {
-                SetMaterials();
+                return;
             }
-        }
 
-        /// <summary>
-        /// Set the materials to be used for the visualization.
-        /// </summary>
-        private void SetMaterials()
-        {
             // Apply for every robot.
             for (int i = 0; i < robots.Length; i++)
             {
                 // Get the color for the robot.
                 Color color = robots[i].RobotColor();
-                
+            
                 // Create the normal material for the robot when it is the best.
                 Material material = Instantiate(Robot.Properties.Normal);
                 material.color = new(color.r, color.g, color.b, material.color.a);
                 _normalMaterials.Add(material);
-                
+            
                 // Create the transparent material for the robot when it is not the best.
                 material = Instantiate(Robot.Properties.Transparent);
                 material.color = new(color.r, color.g, color.b, material.color.a);
                 _transparentMaterials.Add(material);
-                
+            
                 // Set the materials for all the mesh renderers and store the renderers.
                 _meshRenderers.Add(robots[i].GetComponentsInChildren<MeshRenderer>());
                 for (int j = 0; j < _meshRenderers[i].Length; j++)
@@ -140,7 +137,7 @@ namespace FusionIK
         private void AddToPath(Robot robot, int index)
         {
             // Only add new points from if it was moving.
-            if (!robot.IsMoving)
+            if (!robot.IsMoving || !_visible[index])
             {
                 return;
             }
@@ -187,6 +184,31 @@ namespace FusionIK
         {
             // Get the best robot and order the rest.
             Robot best = Best(results, out _ordered);
+            
+            bool bestNetwork = false;
+            bool bestFusionIk = false;
+            
+            // Only show the best robot for network and Fusion-IK moves to reduce visual clutter.
+            foreach (Result result in _ordered)
+            {
+                int index = Array.IndexOf(robots, result.robot);
+                
+                switch (robots[index].mode)
+                {
+                    case Robot.SolverMode.Network:
+                        _visible[index] = !bestNetwork;
+                        bestNetwork = true;
+                        break;
+                    case Robot.SolverMode.FusionIk:
+                        _visible[index] = !bestFusionIk;
+                        bestFusionIk = true;
+                        break;
+                    case Robot.SolverMode.BioIk:
+                    default:
+                        _visible[index] = true;
+                        break;
+                }
+            }
 
             if (robots.Length > 1)
             {
@@ -195,8 +217,11 @@ namespace FusionIK
                 {
                     // Regular if best, transparent otherwise.
                     Material material = robots[i] == best ? _normalMaterials[i] : _transparentMaterials[i];
+                    
                     for (int j = 0; j < _meshRenderers[i].Length; j++)
                     {
+                        _meshRenderers[i][j].enabled = _visible[i];
+                        
                         Material[] materials = _meshRenderers[i][j].materials;
                         for (int k = 0; k < materials.Length; k++)
                         {
@@ -229,8 +254,12 @@ namespace FusionIK
 
         private void Move()
         {
-            List<float> starting = GetStarting();
+            if (_endPosition == null || _endRotation == null)
+            {
+                return;
+            }
             
+            List<float> starting = GetStarting();
             MovePerform(starting, MoveResults(starting, _endPosition.Value, _endRotation.Value, new [] {maxGenerations}));
         }
 

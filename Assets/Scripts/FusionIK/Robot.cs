@@ -153,7 +153,7 @@ namespace FusionIK
                 case SolverMode.Network:
                     return Color.magenta;
                 case SolverMode.BioIk:
-                    return Color.yellow;
+                    return Color.cyan;
                 case SolverMode.FusionIk:
                 default:
                     return Color.white;
@@ -554,7 +554,6 @@ namespace FusionIK
                 {
                     List<float> attemptResults = BioIkSolve(targetPosition, targetRotation, results ?? starting, maxGenerations, ref random, out bool attemptReached, out int generations, out double attemptFitness);
                     maxGenerations -= generations;
-                    random.state = random.NextUInt();
 
                     if (attemptReached)
                     {
