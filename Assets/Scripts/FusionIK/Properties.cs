@@ -269,7 +269,7 @@ namespace FusionIK
                     File.WriteAllText(file, "Success,Time,Generations,Distance,Angle");
                 }
                 
-                File.AppendAllText(file, $"\n{result.success},{result.time},{result.generations},{result.distance},{result.angle}");
+                File.AppendAllText(file, $"\n{result.success},{result.time},{result.solutions},{result.distance},{result.angle}");
             }
             
             Debug.Log($"{name} - Evaluated {++_resultsCount} of {resultsTotal}.");

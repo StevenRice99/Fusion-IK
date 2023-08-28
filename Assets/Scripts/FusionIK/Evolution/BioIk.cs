@@ -159,8 +159,9 @@ namespace FusionIK.Evolution
         /// <param name="random">The random number generator.</param>
         /// <param name="reached">If the target is reached.</param>
         /// <param name="generations">The number of generations used.</param>
+        /// <param name="fitness">The fitness score of the result.</param>
         /// <returns>The joint values to reach the solution.</returns>
-        public double[] Optimise(double[] seed, Vector3 position, Quaternion rotation, int maxGenerations, Unity.Mathematics.Random random, out bool reached, out int generations)
+        public double[] Optimise(double[] seed, Vector3 position, Quaternion rotation, int maxGenerations, ref Unity.Mathematics.Random random, out bool reached, out int generations, out double fitness)
         {
             _random = random;
             
@@ -206,10 +207,14 @@ namespace FusionIK.Evolution
             {
                 Evolve();
                 reached = _model.CheckConvergence(_solution);
-                if (++generations + 1 > maxGenerations || reached)
+                if (++generations + 1 <= maxGenerations && !reached)
                 {
-                    return _solution;
+                    continue;
                 }
+
+                random = _random;
+                fitness = _fitness;
+                return _solution;
             } while (true);
         }
 

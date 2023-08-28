@@ -26,9 +26,9 @@
         public readonly float time;
 
         /// <summary>
-        /// The number of generations required to reach the solution.
+        /// The number of solutions reached.
         /// </summary>
-        public readonly int generations;
+        public readonly int solutions;
 
         /// <summary>
         /// How far off in meters was the end effectors from reaching the target.
@@ -41,24 +41,31 @@
         public readonly float angle;
 
         /// <summary>
+        /// The fitness score of the result.
+        /// </summary>
+        public readonly double fitness;
+
+        /// <summary>
         /// Store a move result.
         /// </summary>
         /// <param name="maxGenerations">How many generations were allowed.</param>
         /// <param name="robot">The robot that did the move.</param>
         /// <param name="success">If the move was successful.</param>
         /// <param name="time">The time it took for the joints to reach their destinations.</param>
-        /// <param name="generations">The number of generations required to reach the solution.</param>
+        /// <param name="solutions">The number of solutions reached.</param>
         /// <param name="distance">How far off in meters was the end effectors from reaching the target.</param>
         /// <param name="angle">How far off in degrees was the end effector from reaching the target.</param>
-        public Result(int maxGenerations, Robot robot, bool success, float time, int generations, float distance, float angle)
+        /// <param name="fitness">The fitness score of the result.</param>
+        public Result(int maxGenerations, Robot robot, bool success, float time, int solutions, float distance, float angle, double fitness)
         {
             this.maxGenerations = maxGenerations;
             this.robot = robot;
             this.success = success;
             this.time = time;
-            this.generations = generations;
+            this.solutions = solutions;
             this.distance = distance;
             this.angle = angle;
+            this.fitness = fitness;
         }
     }
 }

@@ -211,11 +211,12 @@ namespace FusionIK
         /// <param name="maxGenerations">The maximum generations for the solving algorithm.</param>
         /// <param name="reached">If the target was reached.</param>
         /// <param name="moveTime">The time for the joints to reach the destination.</param>
-        /// <param name="generations">The generations required.</param>
+        /// <param name="solutions">The generations required.</param>
+        /// <param name="fitness">The fitness score of the result.</param>
         /// <param name="seed">The seed for the random numbers of the solver.</param>
-        public void Snap(Vector3 position, Quaternion rotation, int maxGenerations, out bool reached, out float moveTime, out int generations, uint seed = 0)
+        public void Snap(Vector3 position, Quaternion rotation, int maxGenerations, out bool reached, out float moveTime, out int solutions, out double fitness, uint seed = 0)
         {
-            SnapRadians(RequestSolution(position, rotation, maxGenerations, out reached, out moveTime, out generations, seed));
+            SnapRadians(RequestSolution(position, rotation, maxGenerations, out reached, out moveTime, out solutions, out fitness, seed));
         }
 
         /// <summary>
@@ -296,7 +297,7 @@ namespace FusionIK
         /// <param name="targetRotation">The rotation to check.</param>
         /// <param name="rotation">The root rotation.</param>
         /// <returns>True if reached, false otherwise.</returns>
-        public float RotationAccuracy(Quaternion targetRotation, Quaternion rotation) => Quaternion.Angle(targetRotation, rotation) / 360;
+        public static float RotationAccuracy(Quaternion targetRotation, Quaternion rotation) => Quaternion.Angle(targetRotation, rotation) / 360;
 
         /// <summary>
         /// Calculate the time needed for a robot to move from its starting to ending joint values.
@@ -350,7 +351,8 @@ namespace FusionIK
             for (int attempt = 0; attempt < attempts; attempt++)
             {
                 // Move to the Bio IK solution.
-                SnapRadians(BioIkSolve(targetPosition, targetRotation, starting, maxGenerations, new((uint) Random.Range(1, int.MaxValue)), out bool reached, out _));
+                Unity.Mathematics.Random random = new((uint) Random.Range(1, int.MaxValue));
+                SnapRadians(BioIkSolve(targetPosition, targetRotation, starting, maxGenerations, ref random, out bool reached, out _, out _));
                 PhysicsStep();
 
                 // Only care if reached.
@@ -396,8 +398,9 @@ namespace FusionIK
         /// <param name="random">The random number generator.</param>
         /// <param name="reached">If the robot reached the destination.</param>
         /// <param name="generations">The number of generations needed to reach the solution.</param>
+        /// <param name="fitness">The fitness score of the result.</param>
         /// <returns>The joints to move the robot to.</returns>
-        private List<float> BioIkSolve(Vector3 targetPosition, Quaternion targetRotation, IReadOnlyList<float> starting, int maxGenerations, Unity.Mathematics.Random random, out bool reached, out int generations)
+        private List<float> BioIkSolve(Vector3 targetPosition, Quaternion targetRotation, IReadOnlyList<float> starting, int maxGenerations, ref Unity.Mathematics.Random random, out bool reached, out int generations, out double fitness)
         {
             double[] seed = new double[_limits.Length];
             for (int i = 0; i < _limits.Length; i++)
@@ -405,7 +408,7 @@ namespace FusionIK
                 seed[i] = starting[i];
             }
             
-            double[] solution = _bioIk.Optimise(seed, targetPosition, targetRotation, maxGenerations, random, out reached, out generations);
+            double[] solution = _bioIk.Optimise(seed, targetPosition, targetRotation, maxGenerations, ref random, out reached, out generations, out fitness);
             return solution.Select(t => (float) t).ToList();
         }
 
@@ -495,17 +498,19 @@ namespace FusionIK
         /// <param name="maxGenerations">The number of generations the solving mode can be run for.</param>
         /// <param name="reached">If the robot reached the destination.</param>
         /// <param name="moveTime">How long it took for the robot to perform the move.</param>
-        /// <param name="generations">The number of generations needed to reach the solution.</param>
+        /// <param name="solutions">The number of solutions reached.</param>
+        /// <param name="fitness">The fitness score of the result.</param>
         /// <param name="seed">The seed for random number generation</param>
         /// <returns>The joints to move the robot to.</returns>
-        private List<float> RequestSolution(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, out bool reached, out float moveTime, out int generations, uint seed = 0)
+        private List<float> RequestSolution(Vector3 targetPosition, Quaternion targetRotation, int maxGenerations, out bool reached, out float moveTime, out int solutions, out double fitness, uint seed = 0)
         {
             // If already at the destination do nothing.
             if (Reached(targetPosition, targetRotation))
             {
                 reached = true;
                 moveTime = 0;
-                generations = 0;
+                solutions = 1;
+                fitness = 0;
                 return GetJoints();
             }
             
@@ -520,19 +525,71 @@ namespace FusionIK
             
             List<float> starting = GetJoints();
             List<float> results = null;
-            generations = 0;
-
+            solutions = 0;
+            fitness = 0;
             reached = false;
+            moveTime = float.MaxValue;
 
             if (mode != SolverMode.BioIk)
             {
                 results = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting));
                 reached = Reached(targetPosition, targetRotation);
+                if (reached)
+                {
+                    moveTime = CalculateTime(starting, results);
+                    solutions = 1;
+                    return results;
+                }
             }
 
             if (mode != SolverMode.Network)
             {
-                results = BioIkSolve(targetPosition, targetRotation, results ?? starting, maxGenerations, random, out reached, out generations);
+                do
+                {
+                    List<float> attemptResults = BioIkSolve(targetPosition, targetRotation, results ?? starting, maxGenerations, ref random, out bool attemptReached, out int generations, out double attemptFitness);
+                    maxGenerations -= generations;
+                    random.state = random.NextUInt();
+
+                    if (attemptReached)
+                    {
+                        solutions += 1;
+                    }
+                    
+                    if (reached)
+                    {
+                        if (!attemptReached)
+                        {
+                            continue;
+                        }
+
+                        float attemptMoveTime = CalculateTime(starting, attemptResults);
+                        if (attemptMoveTime >= moveTime)
+                        {
+                            continue;
+                        }
+
+                        results = attemptResults;
+                        moveTime = attemptMoveTime;
+                        fitness = 0;
+                    }
+                    else
+                    {
+                        if (!attemptReached && attemptFitness >= fitness)
+                        {
+                            continue;
+                        }
+
+                        reached = true;
+                        results = attemptResults;
+                        moveTime = CalculateTime(starting, results);
+                        fitness = attemptFitness;
+                    }
+                } while (maxGenerations > 0);
+            }
+            
+            if (reached)
+            {
+                fitness = 0;
             }
             
             moveTime = CalculateTime(starting, results);

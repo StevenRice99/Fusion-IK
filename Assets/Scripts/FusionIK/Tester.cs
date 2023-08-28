@@ -300,18 +300,17 @@ namespace FusionIK
 
             string success;
             string description;
-
-            string generations = data.Value.generations > 0 ? $" | {data.Value.generations} Generations" : string.Empty;
             
             if (data.Value.success)
             {
                 success = "Success";
-                description = $"{data.Value.time} Seconds{generations}";
+                string solutions = data.Value.solutions > 0 ? $" | {data.Value.solutions} Solutions" : string.Empty;
+                description = $"{data.Value.time} Seconds{solutions}";
             }
             else
             {
                 success = "Failed";
-                description = $"{data.Value.distance} Meters | {data.Value.angle} Degrees{generations}";
+                description = $"{data.Value.distance} Meters | {data.Value.angle} Degrees";
             }
             
             GUI.Label(new(145, y, 55, 20), success);
@@ -323,7 +322,7 @@ namespace FusionIK
             // Display input to change the max number of generations.
             GUI.color = Color.white;
             
-            GUI.Label(new(10, 10, 100, 20), "Max Generations");
+            GUI.Label(new(10, 10, 100, 20), "Generations");
             string s = maxGenerations.ToString();
             s = GUI.TextField(new(10, 30, 100, 20), s, 5);
             s = new(s.Where(char.IsDigit).ToArray());

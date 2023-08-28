@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -162,11 +161,11 @@ namespace FusionIK
         /// <returns>The robot which did the best.</returns>
         protected static Robot Best(Result[] results, out Result[] ordered)
         {
-            // Get the robots that reached ordered by their move time, then generations, then mode.
-            Result[] reached = results.Where(x => x.success).OrderBy(x => x.time).ThenBy(x => x.generations).ThenBy(x => x.robot.mode).ToArray();
+            // Get the robots that reached ordered by their move time, then solutions, then mode.
+            Result[] reached = results.Where(x => x.success).OrderBy(x => x.time).ThenByDescending(x => x.solutions).ThenBy(x => x.robot.mode).ToArray();
             
-            // Get the robots that did not reached ordered by their distance, then angle, then mode.
-            Result[] notReached = results.Where(x => !x.success).OrderBy(x => x.distance).ThenBy(x => x.angle).ThenBy(x => x.robot.mode).ToArray();
+            // Get the robots that did not reached ordered by their fitness, then distance, then angle, then mode.
+            Result[] notReached = results.Where(x => !x.success).OrderBy(x => x.fitness).ThenBy(x => x.distance).ThenBy(x => x.angle).ThenBy(x => x.robot.mode).ToArray();
             
             // Combine both and return the first robot.
             ordered = reached.Concat(notReached).ToArray();
@@ -184,10 +183,10 @@ namespace FusionIK
         /// <returns>The results of the robot trying to reach the target.</returns>
         private static Result EvaluateRobot(Robot r, Vector3 position, Quaternion rotation, int maxGenerations, uint seed)
         {
-            r.Snap(position, rotation, maxGenerations, out bool reached, out float moveTime, out int generations, seed);
+            r.Snap(position, rotation, maxGenerations, out bool reached, out float moveTime, out int solutions, out double fitness, seed);
             Robot.PhysicsStep();
 
-            return new(r.mode == Robot.SolverMode.Network ? 0 : maxGenerations, r, reached, moveTime, generations, Robot.PositionAccuracy(position, r.EndTransform.position), r.RotationAccuracy(rotation, r.EndTransform.rotation));
+            return new(r.mode == Robot.SolverMode.Network ? 0 : maxGenerations, r, reached, moveTime, solutions, Robot.PositionAccuracy(position, r.EndTransform.position), Robot.RotationAccuracy(rotation, r.EndTransform.rotation), fitness);
         }
     }
 }
