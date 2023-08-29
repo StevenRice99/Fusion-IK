@@ -9,7 +9,7 @@ namespace FusionIK
     /// Generate training data for Fusion-IK.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class Trainer : Controller
+    public sealed class Generator : Controller
     {
         [Tooltip("The number of generations Bio IK is allowed to run for.")]
         [Min(1)]
@@ -89,7 +89,7 @@ namespace FusionIK
         /// <returns></returns>
         private List<float> Load()
         {
-            string path = _robot.Properties.DirectoryPath(new[]{"Data", _robot.Properties.Name});
+            string path = Properties.DirectoryPath(new[]{"Data", _robot.Properties.Name});
             if (path == null)
             {
                 return null;

@@ -238,11 +238,11 @@ def train(epochs: int, batch: int):
             continue
         datasets = os.listdir(os.path.join(os.getcwd(), "Training", robot))
         for dataset in datasets:
-            if not os.path.isdir(os.path.join(os.getcwd(), "Training", robot, dataset)):
+            if not os.path.isfile(os.path.join(os.getcwd(), "Training", robot, dataset)):
                 continue
             # Load data.
             print("Loading data...")
-            df = pd.read_csv(dataset)
+            df = pd.read_csv(os.path.join(os.getcwd(), "Training", robot, dataset))
             # We don't need the .csv anymore.
             dataset = dataset.replace(".csv", "")
             # If there are no joints meaning the data is invalid, exit.

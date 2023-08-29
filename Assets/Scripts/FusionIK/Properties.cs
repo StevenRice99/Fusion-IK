@@ -11,7 +11,7 @@ namespace FusionIK
     /// <summary>
     /// Handle properties for a robot.
     /// </summary>
-    [CreateAssetMenu(fileName = "Properties", menuName = "Fusion-IK Properties", order = 0)]
+    [CreateAssetMenu(fileName = "Properties", menuName = "Fusion-IK/Properties", order = 0)]
     public class Properties : ScriptableObject
     {
         /// <summary>
@@ -119,11 +119,53 @@ namespace FusionIK
         /// Formatted name for the robot.
         /// </summary>
         public string Name => name.Replace(" ", "-");
-
+        
         /// <summary>
-        /// Check if all networks are present.
+        /// Ensure a directory exists.
         /// </summary>
-        public bool NetworksCheck => networks.Length != 0 && networks.All(n => n.networks.All(t => t != null));
+        /// <param name="directories">The names of the directories.</param>
+        /// <returns>The path to the directory if it exists or was made, null otherwise.</returns>
+        public static string DirectoryPath(string[] directories)
+        {
+            DirectoryInfo full = Directory.GetParent(Application.dataPath);
+            if (full == null)
+            {
+                Debug.LogError($"Directory {Application.dataPath} does not exist, this should not be possible!");
+#if UNITY_EDITOR
+                EditorApplication.ExitPlaymode();
+#else
+                Application.Quit();
+#endif
+                return null;
+            }
+
+            string path = full.FullName;
+
+            foreach (string directory in directories)
+            {
+                path = Path.Combine(path, directory);
+                if (Directory.Exists(path))
+                {
+                    continue;
+                }
+
+                DirectoryInfo result = Directory.CreateDirectory(path);
+                if (result.Exists)
+                {
+                    continue;
+                }
+
+                Debug.LogError($"Cannot find or create directory {path}.");
+#if UNITY_EDITOR
+                EditorApplication.ExitPlaymode();
+#else
+                    Application.Quit();
+#endif
+                return null;
+            }
+
+            return path;
+        }
 
         /// <summary>
         /// Set the last pose the robot was in.
@@ -301,62 +343,6 @@ namespace FusionIK
             Debug.Log($"{Name} | Evaluated {++_resultsCount} of {testingTotal}.");
         }
 
-        private void OnValidate()
-        {
-            // Cannot have more elites than the population.
-            if (elites > population)
-            {
-                elites = population;
-            }
-        }
-
-        /// <summary>
-        /// Ensure a directory exists.
-        /// </summary>
-        /// <param name="directories">The names of the directories.</param>
-        /// <returns>The path to the directory if it exists or was made, null otherwise.</returns>
-        public string DirectoryPath(string[] directories)
-        {
-            DirectoryInfo full = Directory.GetParent(Application.dataPath);
-            if (full == null)
-            {
-                Debug.LogError($"{name} - Directory {Application.dataPath} does not exist, this should not be possible!");
-#if UNITY_EDITOR
-                EditorApplication.ExitPlaymode();
-#else
-                Application.Quit();
-#endif
-                return null;
-            }
-
-            string path = full.FullName;
-
-            foreach (string directory in directories)
-            {
-                path = Path.Combine(path, directory);
-                if (Directory.Exists(path))
-                {
-                    continue;
-                }
-
-                DirectoryInfo result = Directory.CreateDirectory(path);
-                if (result.Exists)
-                {
-                    continue;
-                }
-
-                Debug.LogError($"{name} - Cannot find or create directory {path}.");
-#if UNITY_EDITOR
-                EditorApplication.ExitPlaymode();
-#else
-                    Application.Quit();
-#endif
-                return null;
-            }
-
-            return path;
-        }
-
         /// <summary>
         /// Count the number of lines in a file.
         /// </summary>
@@ -365,6 +351,15 @@ namespace FusionIK
         private static int CountLines(string path)
         {
             return !File.Exists(path) ? 0 : File.ReadLines(path).Count() - 1;
+        }
+
+        private void OnValidate()
+        {
+            // Cannot have more elites than the population.
+            if (elites > population)
+            {
+                elites = population;
+            }
         }
     }
 }

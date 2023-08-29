@@ -1,6 +1,4 @@
-﻿using System;
-using System.Linq;
-using Unity.Barracuda;
+﻿using Unity.Barracuda;
 using UnityEngine;
 
 namespace FusionIK
@@ -8,8 +6,8 @@ namespace FusionIK
     /// <summary>
     /// Store the networks for a robot.
     /// </summary>
-    [Serializable]
-    public class InverseKinematicsNetwork
+    [CreateAssetMenu(fileName = "Inverse Kinematics Network", menuName = "Fusion-IK/Inverse Kinematics Network", order = 1)]
+    public class InverseKinematicsNetwork : ScriptableObject
     {
         /// <summary>
         /// A network to run inference on.
@@ -18,12 +16,7 @@ namespace FusionIK
         /// <returns>The joint network that is desired.</returns>
         public Model CompiledNetwork(int joint) => networks.Length > 0 && joint < networks.Length && networks[joint] != null ? ModelLoader.Load(networks[joint]) : null;
         
-        /// <summary>
-        /// Check if all networks are present.
-        /// </summary>
-        public bool NetworksCheck => networks.Length > 0 && networks.All(model => model != null);
-        
-        [Tooltip("Network to control the joints.")]
+        [Tooltip("Networks to control the joints.")]
         public NNModel[] networks;
     }
 }

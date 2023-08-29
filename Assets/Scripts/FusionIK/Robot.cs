@@ -802,39 +802,63 @@ namespace FusionIK
             }
 
             // Setup networks.
-            _networks = new Model[properties.networks.Length][];
-            _workers = new IWorker[_networks.Length][];
-            bool networkValid = true;
-            for (int i = 0; i < _networks.Length; i++)
+            if (properties.networks.Length > 0)
             {
-                _networks[i] = new Model[properties.networks[i].networks.Length];
-                _workers[i] = new IWorker[_networks[i].Length];
-
-                for (int j = 0; j < _networks[i].Length; j++)
-                {
-                    _networks[i][j] = properties.CompiledNetwork(i, j);
-                    if (_networks[i][j] != null)
-                    {
-                        _workers[i][j] = WorkerFactory.CreateWorker(_networks[i][j]);
-                        continue;
-                    }
-
-                    networkValid = false;
-                }
-            }
-
-            // Do an initial network run as it is slower on the first inference.
-            if (networkValid)
-            {
-                int currentNetworkIndex = networkIndex;
-                
+                _networks = new Model[properties.networks.Length][];
+                _workers = new IWorker[_networks.Length][];
+                bool networkValid = true;
                 for (int i = 0; i < _networks.Length; i++)
                 {
-                    networkIndex = i;
-                    RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
+                    _networks[i] = new Model[properties.networks[i].networks.Length];
+                    _workers[i] = new IWorker[_networks[i].Length];
+
+                    for (int j = 0; j < _networks[i].Length; j++)
+                    {
+                        _networks[i][j] = properties.CompiledNetwork(i, j);
+                        if (_networks[i][j] != null)
+                        {
+                            _workers[i][j] = WorkerFactory.CreateWorker(_networks[i][j]);
+                            continue;
+                        }
+
+                        networkValid = false;
+                    }
                 }
 
-                networkIndex = currentNetworkIndex;
+                // Do an initial network run as it is slower on the first inference.
+                if (networkValid)
+                {
+                    if (networkIndex >= _networks.Length)
+                    {
+                        networkIndex = _networks.Length - 1;
+                    }
+                    
+                    // Save what network we currently want.
+                    int currentNetworkIndex = networkIndex;
+                
+                    // Run every network for the initial speed limits.
+                    for (int i = 0; i < _networks.Length; i++)
+                    {
+                        networkIndex = i;
+                        RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
+                    }
+
+                    // Switch to the desired network.
+                    networkIndex = currentNetworkIndex;
+                }
+                else
+                {
+                    mode = SolverMode.BioIk;
+                    networkIndex = 0;
+                    _networks = null;
+                    CleanupWorkers();
+                    _workers = null;
+                }
+            }
+            else
+            {
+                networkIndex = 0;
+                mode = SolverMode.BioIk;
             }
 
             // Configure the Bio IK solver.
@@ -885,6 +909,14 @@ namespace FusionIK
         }
 
         private void OnDestroy()
+        {
+            CleanupWorkers();
+        }
+
+        /// <summary>
+        /// Cleanup all network workers.
+        /// </summary>
+        private void CleanupWorkers()
         {
             if (_workers  == null)
             {

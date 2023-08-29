@@ -134,7 +134,7 @@ GameObject:
   - component: {fileID: 573790082}
   - component: {fileID: 573790081}
   m_Layer: 0
-  m_Name: Trainer
+  m_Name: Generator
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
