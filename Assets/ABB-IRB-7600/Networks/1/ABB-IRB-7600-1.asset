@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77c1efe943374893bb9f533aff273c2e, type: 3}
+  m_Name: ABB-IRB-7600-1
+  m_EditorClassIdentifier: 
+  networks:
+  - {fileID: 5022602860645237092, guid: 18fd96c25a7c1e34c92da103772d0fc3, type: 3}
+  - {fileID: 5022602860645237092, guid: 6e9ba58f6f8a20349b30570f52502ed4, type: 3}
+  - {fileID: 5022602860645237092, guid: 0602216f74a79f74892eff0d28a59b80, type: 3}
+  - {fileID: 5022602860645237092, guid: 058546bd2d4ebf74b981fa65b2d0ec70, type: 3}
+  - {fileID: 5022602860645237092, guid: f980394c78c477d4f9d1eda647f830f2, type: 3}
+  - {fileID: 5022602860645237092, guid: 51372e58fc5b7964fab7d306ab7f6bce, type: 3}

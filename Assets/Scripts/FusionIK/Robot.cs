@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using FusionIK.Evolution;
 using Unity.Barracuda;
@@ -211,22 +212,22 @@ namespace FusionIK
         /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
         /// <param name="reached">If the target was reached.</param>
         /// <param name="moveTime">The time for the joints to reach the destination.</param>
-        /// <param name="solutions">The generations required.</param>
         /// <param name="fitness">The fitness score of the result.</param>
+        /// <param name="milliseconds">The time it took to solve.</param>
         /// <param name="seed">The seed for the random numbers of the solver.</param>
-        public void Snap(Vector3 position, Quaternion rotation, int generations, out bool reached, out double moveTime, out int solutions, out double fitness, uint seed = 0)
+        public void Snap(Vector3 position, Quaternion rotation, int generations, out bool reached, out double moveTime, out double fitness, out long milliseconds, uint seed = 0)
         {
-            SnapRadians(Solve(position, rotation, generations, out reached, out moveTime, out solutions, out fitness, seed));
+            Snap(Solve(position, rotation, generations, out reached, out moveTime, out fitness, out milliseconds, seed));
         }
 
         /// <summary>
         /// Snap joints to radian values.
         /// </summary>
         /// <param name="radians">The radians to snap to.</param>
-        public void SnapRadians(List<float> radians)
+        public void Snap(List<float> radians)
         {
             IsMoving = false;
-            Snap(radians);
+            Snap((IEnumerable<float>) radians);
         }
 
         /// <summary>
@@ -409,19 +410,21 @@ namespace FusionIK
         /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
         /// <param name="reached">If the robot reached the destination.</param>
         /// <param name="moveTime">How long it took for the robot to perform the move.</param>
-        /// <param name="solutions">The number of solutions reached.</param>
         /// <param name="fitness">The fitness score of the result.</param>
+        /// <param name="milliseconds">The time it took to solve.</param>
         /// <param name="seed">The seed for random number generation</param>
         /// <returns>The joints to move the robot to.</returns>
-        public List<float> Solve(Vector3 targetPosition, Quaternion targetRotation, int generations, out bool reached, out double moveTime, out int solutions, out double fitness, uint seed = 0)
+        public List<float> Solve(Vector3 targetPosition, Quaternion targetRotation, int generations, out bool reached, out double moveTime, out double fitness, out long milliseconds, uint seed = 0)
         {
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            
             // If already at the destination do nothing.
             if (Reached(targetPosition, targetRotation))
             {
                 reached = true;
                 moveTime = 0;
-                solutions = 1;
                 fitness = 0;
+                milliseconds = stopwatch.ElapsedMilliseconds;
                 return GetJoints();
             }
             
@@ -437,7 +440,6 @@ namespace FusionIK
             // Initialize other variables.
             List<float> starting = GetJoints();
             List<float> results = null;
-            solutions = 0;
             reached = false;
             moveTime = float.MaxValue;
             fitness = double.MaxValue;
@@ -450,7 +452,7 @@ namespace FusionIK
                 if (reached)
                 {
                     moveTime = CalculateTime(starting, results);
-                    solutions = 1;
+                    milliseconds = stopwatch.ElapsedMilliseconds;
                     return results;
                 }
             }
@@ -475,12 +477,6 @@ namespace FusionIK
                     
                     // Take away the generations that were used.
                     generations -= used;
-
-                    // Count how many solutions were reached.
-                    if (attemptReached)
-                    {
-                        solutions += 1;
-                    }
                 
                     // If have already reached.
                     if (reached)
@@ -530,6 +526,7 @@ namespace FusionIK
             }
             
             moveTime = CalculateTime(starting, results);
+            milliseconds = stopwatch.ElapsedMilliseconds;
             return results;
         }
 
@@ -905,7 +902,7 @@ namespace FusionIK
             }
 
             // Set to position.
-            Snap(delta);
+            Snap((IEnumerable<float>) delta);
         }
 
         private void OnDestroy()

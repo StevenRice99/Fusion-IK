@@ -187,6 +187,16 @@ namespace FusionIK
             // If already generated required amount, exit.
             if (_generatedCount >= trainingTotal)
             {
+                // Switch to Fusion-IK mode if it was in Bio IK or otherwise switch to the next network.
+                if (robot.mode == Robot.SolverMode.BioIk)
+                {
+                    robot.mode = Robot.SolverMode.FusionIk;
+                }
+                else
+                {
+                    robot.networkIndex++;
+                }
+                
                 // If there are more networks to create data from then do so.
                 if (networks.Length > 0 && robot.networkIndex < networks.Length)
                 {
@@ -195,17 +205,6 @@ namespace FusionIK
                     
                     // Reset the last pose.
                     LastPose = null;
-                    
-                    // Switch to Fusion-IK mode if it was in Bio IK or otherwise switch to the next network.
-                    if (robot.mode == Robot.SolverMode.BioIk)
-                    {
-                        robot.mode = Robot.SolverMode.FusionIk;
-                        robot.networkIndex = 0;
-                    }
-                    else
-                    {
-                        robot.networkIndex++;
-                    }
                     
                     return;
                 }
@@ -334,10 +333,10 @@ namespace FusionIK
 
                 if (!File.Exists(file))
                 {
-                    File.WriteAllText(file, "Success,Time,Solutions,Distance,Angle");
+                    File.WriteAllText(file, "Success,Time,Distance,Angle,Milliseconds");
                 }
                 
-                File.AppendAllText(file, $"\n{result.success},{result.time},{result.solutions},{result.distance},{result.angle}");
+                File.AppendAllText(file, $"\n{result.success},{result.time},{result.distance},{result.angle},{result.milliseconds}");
             }
             
             Debug.Log($"{Name} | Evaluated {++_resultsCount} of {testingTotal}.");

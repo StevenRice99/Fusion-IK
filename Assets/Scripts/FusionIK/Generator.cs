@@ -54,18 +54,18 @@ namespace FusionIK
             List<float> randomJoints = _robot.RandomJoints();
             
             // Randomly move the robot.
-            _robot.SnapRadians(_robot.RandomJoints());
+            _robot.Snap(_robot.RandomJoints());
             Robot.PhysicsStep();
 
             // Get the position and rotation to reach.
             (Vector3 position, Quaternion rotation) target = _robot.EndTransform;
             
             // Reset the robot back to its starting position.
-            _robot.SnapRadians(_starting);
+            _robot.Snap(_starting);
             Robot.PhysicsStep();
 
             // Get the best result to reach the target.
-            List<float> results = _robot.Solve(target.position, target.rotation, generations, out bool reached, out double moveTime, out int _, out double _);
+            List<float> results = _robot.Solve(target.position, target.rotation, generations, out bool reached, out double moveTime, out double _, out long _);
             
             // If failed to reach or the random move is faster, use the random joint values.
             if (!reached || _robot.CalculateTime(_starting, randomJoints) < moveTime)
@@ -74,7 +74,7 @@ namespace FusionIK
             }
             
             // Snap to the results.
-            _robot.SnapRadians(results);
+            _robot.Snap(results);
             Robot.PhysicsStep();
 
             // If reached, add the result, update the last pose, and set the start of the next generation to the result.

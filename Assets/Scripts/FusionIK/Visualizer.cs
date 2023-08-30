@@ -268,7 +268,7 @@ namespace FusionIK
             for (int i = 0; i < robots.Length; i++)
             {
                 endings[i] = robots[i].GetJoints();
-                robots[i].SnapRadians(starting);
+                robots[i].Snap(starting);
             }
             Robot.PhysicsStep();
 
@@ -360,8 +360,7 @@ namespace FusionIK
             if (data.Value.success)
             {
                 success = "Success";
-                string solutions = data.Value.solutions > 0 ? $" | {data.Value.solutions} Solutions" : string.Empty;
-                description = $"{data.Value.time} Seconds{solutions}";
+                description = $"{data.Value.time} Seconds";
             }
             else
             {
@@ -456,7 +455,12 @@ namespace FusionIK
             float offset = robots.Length * 20 + 10;
             foreach (Result data in _ordered)
             {
-                RobotLabel(Screen.height - offset, data, Robot.Name(data.robot.mode), Robot.RobotColor(data.robot.mode));
+                string title = Robot.Name(data.robot.mode);
+                if (robots.Length > 3 && data.robot.mode != Robot.SolverMode.BioIk)
+                {
+                    title += $" {data.robot.networkIndex + 1}";
+                }
+                RobotLabel(Screen.height - offset, data, title, Robot.RobotColor(data.robot.mode));
                 offset -= 20;
             }
         }
@@ -488,7 +492,7 @@ namespace FusionIK
                     }
 
                     int i = Array.IndexOf(robots, robot);
-                    if (i < 0)
+                    if (i < 0 || !_visible[i])
                     {
                         continue;
                     }

@@ -96,7 +96,7 @@ namespace FusionIK
         protected Result[] RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation, int[] generations)
         {
             // Move to robot to a random position.
-            Robot.SnapRadians(Robot.RandomJoints());
+            Robot.Snap(Robot.RandomJoints());
             Robot.PhysicsStep();
 
             // Get the position and rotation of the robot to be those to reach.
@@ -127,7 +127,7 @@ namespace FusionIK
                 // Move every robot to the starting position.
                 for (int j = 0; j < robots.Length; j++)
                 {
-                    robots[j].SnapRadians(starting);
+                    robots[j].Snap(starting);
                 }
                 Robot.PhysicsStep();
                 
@@ -162,7 +162,7 @@ namespace FusionIK
         protected static Robot Best(Result[] results, out Result[] ordered)
         {
             // Get the robots that reached ordered by their move time, then solutions, then mode.
-            Result[] reached = results.Where(x => x.success).OrderBy(x => x.time).ThenByDescending(x => x.solutions).ThenBy(x => x.robot.mode).ToArray();
+            Result[] reached = results.Where(x => x.success).OrderBy(x => x.time).ThenBy(x => x.robot.mode).ToArray();
             
             // Get the robots that did not reached ordered by their fitness, then distance, then angle, then mode.
             Result[] notReached = results.Where(x => !x.success).OrderBy(x => x.fitness).ThenBy(x => x.distance).ThenBy(x => x.angle).ThenBy(x => x.robot.mode).ToArray();
@@ -183,10 +183,10 @@ namespace FusionIK
         /// <returns>The results of the robot trying to reach the target.</returns>
         private static Result EvaluateRobot(Robot r, Vector3 position, Quaternion rotation, int generations, uint seed)
         {
-            r.Snap(position, rotation, generations, out bool reached, out double moveTime, out int solutions, out double fitness, seed);
+            r.Snap(position, rotation, generations, out bool reached, out double moveTime, out double fitness, out long milliseconds, seed);
             Robot.PhysicsStep();
 
-            return new(r.mode == Robot.SolverMode.Network ? 0 : generations, r, reached, moveTime, solutions, reached ? 0 : Robot.PositionAccuracy(position, r.EndTransform.position), reached ? 0 : Robot.RotationAccuracy(rotation, r.EndTransform.rotation), fitness);
+            return new(r.mode == Robot.SolverMode.Network ? 0 : generations, r, reached, moveTime, reached ? 0 : Robot.PositionAccuracy(position, r.EndTransform.position), reached ? 0 : Robot.RotationAccuracy(rotation, r.EndTransform.rotation), fitness, milliseconds);
         }
     }
 }
