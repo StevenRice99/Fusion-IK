@@ -174,7 +174,7 @@ namespace FusionIK
         /// Set the radians to move to.
         /// </summary>
         /// <param name="radians">The radians to move to.</param>
-        public void MoveRadians(List<float> radians)
+        public void Move(List<float> radians)
         {
             // Set the targets.
             _targets = radians;
@@ -262,7 +262,7 @@ namespace FusionIK
         public static void PhysicsStep()
         {
             Physics.simulationMode = SimulationMode.Script;
-            Physics.Simulate(1);
+            Physics.Simulate(Time.fixedDeltaTime);
             Physics.simulationMode = SimulationMode.FixedUpdate;
         }
 
@@ -344,27 +344,29 @@ namespace FusionIK
         /// <returns>The joints scaled for network inference.</returns>
         public List<float> NetScaledJoints(List<float> joints)
         {
+            List<float> scaled = new(joints.Count);
             for (int i = 0; i < joints.Count; i++)
             {
-                joints[i] = (joints[i] - _limits[i].lower) / (_limits[i].upper - _limits[i].lower);
+                scaled.Add((joints[i] - _limits[i].lower) / (_limits[i].upper - _limits[i].lower));
             }
 
-            return joints;
+            return scaled;
         }
         
         /// <summary>
-        /// Scale network inference back to network values.
+        /// Scale network inference back to joint values.
         /// </summary>
         /// <param name="joints">The joints as received from network inference.</param>
         /// <returns>The joints scaled to their real values.</returns>
         public List<float> ResultsScaled(List<float> joints)
         {
+            List<float> scaled = new(joints.Count);
             for (int i = 0; i < joints.Count; i++)
             {
-                joints[i] = math.clamp(joints[i] * (_limits[i].upper - _limits[i].lower) + _limits[i].lower, _limits[i].lower, _limits[i].upper);
+                scaled.Add(math.clamp(joints[i] * (_limits[i].upper - _limits[i].lower) + _limits[i].lower, _limits[i].lower, _limits[i].upper));
             }
 
-            return joints;
+            return scaled;
         }
 
         /// <summary>
@@ -377,11 +379,11 @@ namespace FusionIK
         public float[] PrepareInputs(Vector3 targetPosition, Quaternion targetRotation, List<float> starting)
         {
             // Scale and add joints.
-            starting = NetScaledJoints(starting);
-            float[] inputs = new float[starting.Count + 7];
-            for (int i = 0; i < starting.Count; i++)
+            List<float> scaled = NetScaledJoints(starting);
+            float[] inputs = new float[scaled.Count + 7];
+            for (int i = 0; i < scaled.Count; i++)
             {
-                inputs[i] = starting[i];
+                inputs[i] = scaled[i];
             }
 
             // Get relative values.
@@ -389,15 +391,15 @@ namespace FusionIK
             targetRotation = RelativeRotation(targetRotation);
             
             // Add scaled position.
-            inputs[starting.Count] = (targetPosition.x + 1) / 2;
-            inputs[starting.Count + 1] = (targetPosition.y + 1) / 2;
-            inputs[starting.Count + 2] = (targetPosition.z + 1) / 2;
+            inputs[scaled.Count] = (targetPosition.x + 1) / 2;
+            inputs[scaled.Count + 1] = (targetPosition.y + 1) / 2;
+            inputs[scaled.Count + 2] = (targetPosition.z + 1) / 2;
             
             // Add scaled rotation.
-            inputs[starting.Count + 3] = (targetRotation.x + 1) / 2;
-            inputs[starting.Count + 4] = (targetRotation.y + 1) / 2;
-            inputs[starting.Count + 5] = (targetRotation.z + 1) / 2;
-            inputs[starting.Count + 6] = (targetRotation.w + 1) / 2;
+            inputs[scaled.Count + 3] = (targetRotation.x + 1) / 2;
+            inputs[scaled.Count + 4] = (targetRotation.y + 1) / 2;
+            inputs[scaled.Count + 5] = (targetRotation.z + 1) / 2;
+            inputs[scaled.Count + 6] = (targetRotation.w + 1) / 2;
 
             return inputs;
         }
@@ -438,30 +440,21 @@ namespace FusionIK
             if (mode != SolverMode.BioIk)
             {
                 results = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting));
-                reached = Reached(targetPosition, targetRotation);
-                if (reached)
-                {
-                    moveTime = CalculateTime(starting, results);
-                    fitness = 0;
-                    milliseconds = stopwatch.ElapsedMilliseconds;
-                    return results;
-                }
-
-                // Start from the network's results.
-                starting = results;
             }
 
             // Use Bio IK if it should.
             if (mode != SolverMode.Network)
             {
                 // Convert to doubles.
+                double[] doubles = new double[starting.Count];
                 double[] initial = new double[starting.Count];
+                double[] solution = new double[starting.Count];
                 for (int i = 0; i < starting.Count; i++)
                 {
-                    initial[i] = starting[i];
+                    doubles[i] = starting[i];
+                    initial[i] = results != null ? results[i] : starting[i];
+                    solution[i] = initial[i];
                 }
-            
-                double[] solution = initial;
             
                 // If no seed was passed, create a random one.
                 if (seed == 0)
@@ -491,7 +484,7 @@ namespace FusionIK
                         }
 
                         // If the new solutions is faster than the existing solution, update it.
-                        double attemptMoveTime = CalculateTime(initial, attemptSolution);
+                        double attemptMoveTime = CalculateTime(doubles, attemptSolution);
                         if (attemptMoveTime >= moveTime)
                         {
                             continue;
@@ -503,22 +496,25 @@ namespace FusionIK
                         
                         continue;
                     }
-                    
-                    // If there has never been a successful solution and the current attempt was successful or closer, update it.
+
                     switch (attemptReached)
                     {
                         case false when attemptFitness >= fitness:
+                            solution = attemptSolution;
+                            moveTime = CalculateTime(doubles, solution);
+                            fitness = attemptFitness;
                             continue;
-                        case true:
-                            reached = true;
-                            break;
+                        case false:
+                            continue;
                     }
 
+                    reached = true;
                     solution = attemptSolution;
-                    moveTime = CalculateTime(initial, solution);
-                    fitness = attemptFitness;
+                    moveTime = CalculateTime(doubles, solution);
+                    fitness = 0;
                 } while (generations > 0);
-            
+
+                moveTime = CalculateTime(doubles, solution);
                 results = solution.Select(t => (float) t).ToList();
             }
             
@@ -528,7 +524,6 @@ namespace FusionIK
                 fitness = 0;
             }
             
-            moveTime = CalculateTime(starting, results);
             milliseconds = stopwatch.ElapsedMilliseconds;
             return results;
         }

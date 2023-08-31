@@ -275,7 +275,7 @@ namespace FusionIK
             // Call to move robots in real time.
             for (int i = 0; i < robots.Length; i++)
             {
-                robots[i].MoveRadians(endings[i]);
+                robots[i].Move(endings[i]);
             }
         }
 
