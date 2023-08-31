@@ -43,7 +43,7 @@ namespace FusionIK.Evolution
 		/// <summary>
 		/// Helper position and rotation values.
 		/// </summary>
-		private double _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9;
+		private float _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9;
 
 		/// <summary>
 		/// Setup initial joint values.
@@ -69,15 +69,15 @@ namespace FusionIK.Evolution
 		/// </summary>
 		public void UpdateData()
 		{
-			_r1 = 1.0 - 2.0 * (_dry * _dry + _drz * _drz);
-			_r2 = 2.0 * (_drx * _dry + _drw * _drz);
-			_r3 = 2.0 * (_drx * _drz - _drw * _dry);
-			_r4 = 2.0 * (_drx * _dry - _drw * _drz);
-			_r5 = 1.0 - 2.0 * (_drx * _drx + _drz * _drz);
-			_r6 = 2.0 * (_dry * _drz + _drw * _drx);
-			_r7 = 2.0 * (_drx * _drz + _drw * _dry);
-			_r8 = 2.0 * (_dry * _drz - _drw * _drx);
-			_r9 = 1.0 - 2.0 * (_drx * _drx + _dry * _dry);
+			_r1 = 1f - 2f * (_dry * _dry + _drz * _drz);
+			_r2 = 2f * (_drx * _dry + _drw * _drz);
+			_r3 = 2f * (_drx * _drz - _drw * _dry);
+			_r4 = 2f * (_drx * _dry - _drw * _drz);
+			_r5 = 1f - 2f * (_drx * _drx + _drz * _drz);
+			_r6 = 2f * (_dry * _drz + _drw * _drx);
+			_r7 = 2f * (_drx * _drz + _drw * _dry);
+			_r8 = 2f * (_dry * _drz - _drw * _drx);
+			_r9 = 1f - 2f * (_drx * _drx + _dry * _dry);
 		}
 
 		/// <summary>
@@ -282,13 +282,13 @@ namespace FusionIK.Evolution
 			public bool enabled;
 			
 			[Tooltip("The lower limit of this joint in meters (for prismatic joints) or radians (for rotational joints).")]
-			public double lowerLimit;
+			public float lowerLimit;
 			
 			[Tooltip("The upper limit of this joint in meters (for prismatic joints) or radians (for rotational joints).")]
-			public double upperLimit;
+			public float upperLimit;
 
 			[Tooltip("The target value for this joint in meters (for prismatic joints) or radians (for rotational joints).")]
-			public double targetValue;
+			public float targetValue;
 
 			/// <summary>
 			/// Attach this to a joint.
@@ -317,25 +317,25 @@ namespace FusionIK.Evolution
 			/// Set the lower limit of the joint.
 			/// </summary>
 			/// <param name="value">The value to set as the lower limit.</param>
-			public void SetLowerLimit(double value)
+			public void SetLowerLimit(float value)
 			{
-				lowerLimit = math.min(0.0, value);
+				lowerLimit = value;
 			}
 
 			/// <summary>
 			/// Set the upper limit of the joint.
 			/// </summary>
 			/// <param name="value">The value to set as the upper limit.</param>
-			public void SetUpperLimit(double value)
+			public void SetUpperLimit(float value)
 			{
-				upperLimit = math.max(0.0, value);
+				upperLimit = value;
 			}
 
 			/// <summary>
 			/// Get the target of the joint.
 			/// </summary>
 			/// <returns>The target of the joint.</returns>
-			public double GetTargetValue()
+			public float GetTargetValue()
 			{
 				return joint.rotational ? math.radians(targetValue) : targetValue;
 			}
@@ -344,7 +344,7 @@ namespace FusionIK.Evolution
 			/// Set the target of the joint.
 			/// </summary>
 			/// <param name="value">The value to set as the target.</param>
-			public void SetTargetValue(double value)
+			public void SetTargetValue(float value)
 			{
 				targetValue = math.clamp(value, lowerLimit, upperLimit);
 			}

@@ -186,7 +186,7 @@ namespace FusionIK.Evolution
                 _lowerBounds[i] = _model.motionPointers[i].motion.GetLowerLimit();
                 _upperBounds[i] = _model.motionPointers[i].motion.GetUpperLimit();
                 _solution[i] = seed[i];
-                _model.motionPointers[i].motion.SetTargetValue(_solution[i]);
+                _model.motionPointers[i].motion.SetTargetValue((float) _solution[i]);
             }
 
             // Initialize the population.
@@ -206,7 +206,12 @@ namespace FusionIK.Evolution
             do
             {
                 Evolve();
-                reached = _model.CheckConvergence(_solution);
+                for (int i = 0; i < _solution.Length; i++)
+                {
+                    _solution[i] = math.clamp(_solution[i], _lowerBounds[i], _upperBounds[i]);
+                }
+                
+                reached = _model.CheckConvergence(_solution, position, rotation);
                 if (++used + 1 <= generations && !reached)
                 {
                     continue;

@@ -27,12 +27,12 @@ namespace FusionIK.Evolution
 		/// <summary>
 		/// World offset position.
 		/// </summary>
-		private double _opx, _opy, _opz;
+		private float _opx, _opy, _opz;
 		
 		/// <summary>
 		/// World offset rotation.
 		/// </summary>
-		private double _orx, _ory, _orz, _orw;
+		private float _orx, _ory, _orz, _orw;
 		
 		/// <summary>
 		/// All nodes that make up the ghost robot.
@@ -42,7 +42,7 @@ namespace FusionIK.Evolution
 		/// <summary>
 		/// Current configuration.
 		/// </summary>
-		private readonly double[] _configuration;
+		private readonly float[] _configuration;
 		
 		/// <summary>
 		/// Current gradient.
@@ -57,12 +57,12 @@ namespace FusionIK.Evolution
 		/// <summary>
 		/// Simulated position.
 		/// </summary>
-		private double _px, _py, _pz;
+		private float _px, _py, _pz;
 		
 		/// <summary>
 		/// Simulated rotation.
 		/// </summary>
-		private double _rx, _ry, _rz, _rw;
+		private float _rx, _ry, _rz, _rw;
 		
 		/// <summary>
 		/// Simulated loss.
@@ -72,12 +72,12 @@ namespace FusionIK.Evolution
 		/// <summary>
 		/// Target position.
 		/// </summary>
-		private double _tpx, _tpy, _tpz;
+		private float _tpx, _tpy, _tpz;
 
 		/// <summary>
 		/// Target rotation.
 		/// </summary>
-		private double _trx, _try, _trz, _trw;
+		private float _trx, _try, _trz, _trw;
 
 		/// <summary>
 		/// Configure a new ghost robot based off an actual robot chain.
@@ -97,7 +97,7 @@ namespace FusionIK.Evolution
 			}
 
 			dof = motionPointers.Length;
-			_configuration = new double[motionPointers.Length];
+			_configuration = new float[motionPointers.Length];
 			_gradient = new double[motionPointers.Length];
 
 			// Update the configuration.
@@ -109,8 +109,8 @@ namespace FusionIK.Evolution
 			// Update offset from world to the root.
 			if (_robot.GhostJoints[0].transform.root == _robot.transform)
 			{
-				_opx = _opy = _opz = _orx = _ory = _orz = 0.0;
-				_orw = 1.0;
+				_opx = _opy = _opz = _orx = _ory = _orz = 0f;
+				_orw = 1f;
 			}
 			else
 			{
@@ -213,13 +213,12 @@ namespace FusionIK.Evolution
 		/// Check if the ghost robot has reached the target.
 		/// </summary>
 		/// <param name="configuration">The joint values.</param>
+		/// <param name="targetPosition">The target position.</param>
+		/// <param name="targetRotation">The target rotation.</param>
 		/// <returns>True if reached, false otherwise.</returns>
-		public bool CheckConvergence(double[] configuration)
+		public bool CheckConvergence(double[] configuration, Vector3 targetPosition, Quaternion targetRotation)
 		{
 			ForwardKinematics(configuration);			
-
-			Vector3 targetPosition = new((float) _tpx, (float) _tpy, (float) _tpz);
-			Quaternion targetRotation = new((float) _trx, (float) _try, (float) _trz, (float) _trw);
 
 			Vector3 position = new((float) _nodes[^1].wpx, (float) _nodes[^1].wpy, (float) _nodes[^1].wpz);
 			Quaternion rotation = new((float) _nodes[^1].wrx, (float) _nodes[^1].wry, (float) _nodes[^1].wrz, (float) _nodes[^1].wrw);
@@ -287,9 +286,9 @@ namespace FusionIK.Evolution
 			double oldLoss = ComputeLoss(configuration);
 			for (int j = 0; j < dof; j++)
 			{
-				_configuration[j] += resolution;
+				_configuration[j] += (float) resolution;
 				motionPointers[j].node.SimulateModification(_configuration);
-				_configuration[j] -= resolution;
+				_configuration[j] -= (float) resolution;
 				_gradient[j] = (math.sqrt(_simulatedLoss) - oldLoss) / resolution;
 			}
 			return _gradient;
@@ -303,7 +302,8 @@ namespace FusionIK.Evolution
 		{
 			for (int i = 0; i < _configuration.Length; i++)
 			{
-				_configuration[i] = configuration[i];
+				// Cast to float to limit accuracy to how it would be in Unity.
+				_configuration[i] = (float) configuration[i];
 			}
 			_nodes[0].FeedForwardConfiguration(configuration);
 		}
@@ -513,7 +513,7 @@ namespace FusionIK.Evolution
 			/// Simulates a single transform modification without changing actual values.
 			/// </summary>
 			/// <param name="configuration">The joint configuration.</param>
-			public void SimulateModification(double[] configuration)
+			public void SimulateModification(float[] configuration)
 			{
 				Node node = _ghostRobot.motionPointers[^1].node;
 				ghostJoint.ComputeLocalTransformation(

@@ -262,7 +262,7 @@ namespace FusionIK
         public static void PhysicsStep()
         {
             Physics.simulationMode = SimulationMode.Script;
-            Physics.Simulate(Time.fixedDeltaTime);
+            Physics.Simulate(1);
             Physics.simulationMode = SimulationMode.FixedUpdate;
         }
 
@@ -307,9 +307,20 @@ namespace FusionIK
         /// <param name="ending">Ending joint positions.</param>
         /// <returns>The time to complete the move.</returns>
         public float CalculateTime(IEnumerable<float> starting, IReadOnlyList<float> ending) => starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
-
-        public double CalculateTime(IEnumerable<double> starting, IReadOnlyList<double> ending) => starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
         
+        public double CalculateTime(double[] starting, double[] ending)
+        {
+            float[] startingFloats = new float[starting.Length];
+            float[] endingFloats = new float[starting.Length];
+            for (int i = 0; i < starting.Length; i++)
+            {
+                startingFloats[i] = (float) starting[i];
+                endingFloats[i] = (float) ending[i];
+            }
+            
+            return CalculateTime(startingFloats, endingFloats);
+        }
+
         /// <summary>
         /// Get a position relative to the root of the robot.
         /// </summary>
@@ -332,9 +343,9 @@ namespace FusionIK
         {
             List<float> list = radians.ToList();
             Root.SetDriveTargets(list);
+            Root.SetJointPositions(list);
             Root.SetJointVelocities(_zeros);
             Root.SetJointForces(_zeros);
-            Root.SetJointPositions(list);
         }
 
         /// <summary>
@@ -447,13 +458,13 @@ namespace FusionIK
             {
                 // Convert to doubles.
                 double[] doubles = new double[starting.Count];
-                double[] initial = new double[starting.Count];
+                double[] bioSeed = new double[starting.Count];
                 double[] solution = new double[starting.Count];
                 for (int i = 0; i < starting.Count; i++)
                 {
                     doubles[i] = starting[i];
-                    initial[i] = results != null ? results[i] : starting[i];
-                    solution[i] = initial[i];
+                    bioSeed[i] = results != null ? results[i] : starting[i];
+                    solution[i] = bioSeed[i];
                 }
             
                 // If no seed was passed, create a random one.
@@ -469,7 +480,7 @@ namespace FusionIK
                 do
                 {
                     // Run Bio IK.
-                    double[] attemptSolution = _bioIk.Optimise(initial, targetPosition, targetRotation, generations, ref random, out bool attemptReached, out int used, out double attemptFitness);
+                    double[] attemptSolution = _bioIk.Optimise(bioSeed, targetPosition, targetRotation, generations, ref random, out bool attemptReached, out int used, out double attemptFitness);
                     
                     // Take away the generations that were used.
                     generations -= used;
@@ -492,29 +503,32 @@ namespace FusionIK
 
                         solution = attemptSolution;
                         moveTime = attemptMoveTime;
-                        fitness = 0;
-                        
                         continue;
                     }
 
-                    switch (attemptReached)
+                    // If the attempt did not reach the target.
+                    if (!attemptReached)
                     {
-                        case false when attemptFitness >= fitness:
-                            solution = attemptSolution;
-                            moveTime = CalculateTime(doubles, solution);
-                            fitness = attemptFitness;
+                        // If the fitness of this attempt was worse than other failed attempts, discard it.
+                        if (attemptFitness >= fitness)
+                        {
                             continue;
-                        case false:
-                            continue;
+                        }
+
+                        // Otherwise this is the best failure so store it.
+                        solution = attemptSolution;
+                        moveTime = CalculateTime(doubles, solution);
+                        fitness = attemptFitness;
+                        continue;
                     }
 
+                    // This is the first successful reach so store it.
                     reached = true;
                     solution = attemptSolution;
                     moveTime = CalculateTime(doubles, solution);
                     fitness = 0;
                 } while (generations > 0);
 
-                moveTime = CalculateTime(doubles, solution);
                 results = solution.Select(t => (float) t).ToList();
             }
             
