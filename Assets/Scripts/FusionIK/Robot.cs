@@ -455,6 +455,9 @@ namespace FusionIK
                     milliseconds = stopwatch.ElapsedMilliseconds;
                     return results;
                 }
+
+                // Start from the network's results.
+                starting = results;
             }
 
             // Use Bio IK if it should.
