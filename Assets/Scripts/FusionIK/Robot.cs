@@ -480,6 +480,7 @@ namespace FusionIK
                 do
                 {
                     // Run Bio IK.
+                    _bioIk = new(this, properties.Population, properties.Elites, properties.Steps);
                     double[] attemptSolution = _bioIk.Optimise(bioSeed, targetPosition, targetRotation, generations, ref random, out bool attemptReached, out int used, out double attemptFitness);
                     
                     // Take away the generations that were used.
@@ -869,9 +870,6 @@ namespace FusionIK
                 networkIndex = 0;
                 mode = SolverMode.BioIk;
             }
-
-            // Configure the Bio IK solver.
-            _bioIk = new(this, properties.Population, properties.Elites, properties.Steps);
         }
 
         private void FixedUpdate()
