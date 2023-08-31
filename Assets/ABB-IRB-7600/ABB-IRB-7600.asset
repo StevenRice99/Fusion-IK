@@ -15,7 +15,6 @@ MonoBehaviour:
   repeatability: 0.00008
   networks:
   - {fileID: 11400000, guid: e6321447d75fcf44a8a22c97a0fc5090, type: 2}
-  - {fileID: 11400000, guid: f3e6abad2e96f5b4199165e17224915e, type: 2}
   population: 120
   elites: 3
   steps: 100

@@ -419,28 +419,18 @@ namespace FusionIK
             Stopwatch stopwatch = Stopwatch.StartNew();
             
             // If already at the destination do nothing.
-            if (Reached(targetPosition, targetRotation))
+            reached = Reached(targetPosition, targetRotation);
+            if (reached)
             {
-                reached = true;
                 moveTime = 0;
                 fitness = 0;
                 milliseconds = stopwatch.ElapsedMilliseconds;
                 return GetJoints();
             }
             
-            // If no seed was passed, create a random one.
-            if (seed == 0)
-            {
-                seed = (uint) Random.Range(1, int.MaxValue);
-            }
-            
-            // Initialize random number generation.
-            Unity.Mathematics.Random random = new(seed);
-            
             // Initialize other variables.
             List<float> starting = GetJoints();
             List<float> results = null;
-            reached = false;
             moveTime = float.MaxValue;
             fitness = double.MaxValue;
 
@@ -472,6 +462,15 @@ namespace FusionIK
                 }
             
                 double[] solution = initial;
+            
+                // If no seed was passed, create a random one.
+                if (seed == 0)
+                {
+                    seed = (uint) Random.Range(1, int.MaxValue);
+                }
+            
+                // Initialize random number generation.
+                Unity.Mathematics.Random random = new(seed);
             
                 // Utilize all available generations.
                 do
