@@ -452,6 +452,7 @@ namespace FusionIK
                 if (reached)
                 {
                     moveTime = CalculateTime(starting, results);
+                    fitness = 0;
                     milliseconds = stopwatch.ElapsedMilliseconds;
                     return results;
                 }
@@ -500,23 +501,23 @@ namespace FusionIK
                         solution = attemptSolution;
                         moveTime = attemptMoveTime;
                         fitness = 0;
+                        
+                        continue;
                     }
+                    
                     // If there has never been a successful solution and the current attempt was successful or closer, update it.
-                    else
+                    switch (attemptReached)
                     {
-                        switch (attemptReached)
-                        {
-                            case false when attemptFitness >= fitness:
-                                continue;
-                            case true:
-                                reached = true;
-                                break;
-                        }
-
-                        solution = attemptSolution;
-                        moveTime = CalculateTime(initial, solution);
-                        fitness = attemptFitness;
+                        case false when attemptFitness >= fitness:
+                            continue;
+                        case true:
+                            reached = true;
+                            break;
                     }
+
+                    solution = attemptSolution;
+                    moveTime = CalculateTime(initial, solution);
+                    fitness = attemptFitness;
                 } while (generations > 0);
             
                 results = solution.Select(t => (float) t).ToList();
