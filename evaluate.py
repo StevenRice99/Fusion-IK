@@ -54,7 +54,7 @@ def evaluate():
             mode = strings[len(strings) - 2].replace("-", " ")
             generations = int(strings[len(strings) - 1].replace(".csv", ""))
             # Output to console.
-            output = f"{name} | {generations} | {mode} | {success}%"
+            output = f"{robot} | {name} | {generations} | {mode} | {success}%"
             if time != "-":
                 output += f" | {time} s"
             if distance != "-":

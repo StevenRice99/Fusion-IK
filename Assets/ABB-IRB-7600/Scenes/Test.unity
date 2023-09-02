@@ -153,7 +153,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   robotPrefab: {fileID: 1215757785776615163, guid: 641358d386454424db09d1121e4e416f, type: 3}
-  generations: 00000000010000000a00000064000000
+  generations: 00000000010000000a000000140000003200000064000000
 --- !u!4 &1763950136
 Transform:
   m_ObjectHideFlags: 0
