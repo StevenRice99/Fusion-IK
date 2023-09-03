@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -155,15 +156,15 @@ namespace FusionIK.Evolution
         /// <param name="seed">The starting seed joint values.,</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="generations">The number of generations the algorithm can run for.</param>
+        /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
         /// <param name="random">The random number generator.</param>
         /// <param name="reached">If the target is reached.</param>
-        /// <param name="used">The number of generations used.</param>
         /// <param name="fitness">The fitness score of the result.</param>
         /// <returns>The joint values to reach the solution.</returns>
-        public double[] Optimise(double[] seed, Vector3 position, Quaternion rotation, int generations, ref Unity.Mathematics.Random random, out bool reached, out int used, out double fitness)
+        public double[] Optimise(double[] seed, Vector3 position, Quaternion rotation, long milliseconds, ref Unity.Mathematics.Random random, out bool reached, out double fitness)
         {
             _random = random;
+            Stopwatch stopwatch = Stopwatch.StartNew();
             
             // Set the target.
             _model.SetTargetPosition(position);
@@ -201,8 +202,7 @@ namespace FusionIK.Evolution
                 _optimisers[i].upperBounds = _upperBounds;
             }
 
-            // Loop until a solution is reached or all generations used.
-            used = 0;
+            // Loop until a solution is reached or out of time.
             do
             {
                 Evolve();
@@ -212,7 +212,7 @@ namespace FusionIK.Evolution
                 }
                 
                 reached = _model.CheckConvergence(_solution, position, rotation);
-                if (++used + 1 <= generations && !reached)
+                if (stopwatch.ElapsedMilliseconds < milliseconds && !reached)
                 {
                     continue;
                 }

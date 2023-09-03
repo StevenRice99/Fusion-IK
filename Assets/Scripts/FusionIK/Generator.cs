@@ -11,10 +11,10 @@ namespace FusionIK
     [DisallowMultipleComponent]
     public sealed class Generator : Controller
     {
-        [Tooltip("The number of generations Bio IK is allowed to run for.")]
+        [Tooltip("The time the algorithm is allowed to run for.")]
         [Min(1)]
         [SerializeField]
-        private int generations = 100;
+        private long milliseconds = 100;
         
         // The joints to start at for the next attempt.
         private List<float> _starting;
@@ -65,7 +65,7 @@ namespace FusionIK
             Robot.PhysicsStep();
 
             // Get the best result to reach the target.
-            List<float> results = _robot.Solve(target.position, target.rotation, generations, out bool reached, out double moveTime, out double _, out long _);
+            List<float> results = _robot.Solve(target.position, target.rotation, milliseconds, out bool reached, out double moveTime, out double _);
             
             // If failed to reach or the random move is faster, use the random joint values.
             if (!reached || _robot.CalculateTime(_starting, randomJoints) < moveTime)

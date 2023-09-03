@@ -9,9 +9,9 @@ namespace FusionIK
     [DisallowMultipleComponent]
     public class Tester : ControllerMultiple
     {
-        [Tooltip("The number of generations Bio IK is allowed to run for.")]
+        [Tooltip("The time the algorithms are allowed to run for.")]
         [SerializeField]
-        protected int[] generations = Array.Empty<int>();
+        protected long[] milliseconds = Array.Empty<long>();
         
         private void Start()
         {
@@ -22,7 +22,7 @@ namespace FusionIK
         private void Update()
         {
             // Get all results.
-            Result[] results = RandomMoveResults(Robot.Properties.LastPose ?? Robot.GetJoints(), out Vector3 _, out Quaternion _, generations);
+            Result[] results = RandomMoveResults(Robot.Properties.LastPose ?? Robot.GetJoints(), out Vector3 _, out Quaternion _, milliseconds);
 
             // Export results.
             Robot.Properties.AddTestingData(results);

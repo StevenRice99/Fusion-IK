@@ -209,15 +209,14 @@ namespace FusionIK
         /// </summary>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
+        /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
         /// <param name="reached">If the target was reached.</param>
         /// <param name="moveTime">The time for the joints to reach the destination.</param>
         /// <param name="fitness">The fitness score of the result.</param>
-        /// <param name="milliseconds">The time it took to solve.</param>
         /// <param name="seed">The seed for the random numbers of the solver.</param>
-        public void Snap(Vector3 position, Quaternion rotation, int generations, out bool reached, out double moveTime, out double fitness, out long milliseconds, uint seed = 0)
+        public void Snap(Vector3 position, Quaternion rotation, long milliseconds, out bool reached, out double moveTime, out double fitness, uint seed = 0)
         {
-            Snap(Solve(position, rotation, generations, out reached, out moveTime, out fitness, out milliseconds, seed));
+            Snap(Solve(position, rotation, milliseconds, out reached, out moveTime, out fitness, seed));
         }
 
         /// <summary>
@@ -420,14 +419,13 @@ namespace FusionIK
         /// </summary>
         /// <param name="targetPosition">The position to reach.</param>
         /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
+        /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
         /// <param name="reached">If the robot reached the destination.</param>
         /// <param name="moveTime">How long it took for the robot to perform the move.</param>
         /// <param name="fitness">The fitness score of the result.</param>
-        /// <param name="milliseconds">The time it took to solve.</param>
         /// <param name="seed">The seed for random number generation</param>
         /// <returns>The joints to move the robot to.</returns>
-        public List<float> Solve(Vector3 targetPosition, Quaternion targetRotation, int generations, out bool reached, out double moveTime, out double fitness, out long milliseconds, uint seed = 0)
+        public List<float> Solve(Vector3 targetPosition, Quaternion targetRotation, long milliseconds, out bool reached, out double moveTime, out double fitness, uint seed = 0)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
             
@@ -437,7 +435,6 @@ namespace FusionIK
             {
                 moveTime = 0;
                 fitness = 0;
-                milliseconds = stopwatch.ElapsedMilliseconds;
                 return GetJoints();
             }
             
@@ -481,10 +478,7 @@ namespace FusionIK
                 {
                     // Run Bio IK.
                     _bioIk = new(this, properties.Population, properties.Elites, properties.Steps);
-                    double[] attemptSolution = _bioIk.Optimise(bioSeed, targetPosition, targetRotation, generations, ref random, out bool attemptReached, out int used, out double attemptFitness);
-                    
-                    // Take away the generations that were used.
-                    generations -= used;
+                    double[] attemptSolution = _bioIk.Optimise(bioSeed, targetPosition, targetRotation, milliseconds - stopwatch.ElapsedMilliseconds, ref random, out bool attemptReached, out double attemptFitness);
                 
                     // If have already reached.
                     if (reached)
@@ -528,7 +522,7 @@ namespace FusionIK
                     solution = attemptSolution;
                     moveTime = CalculateTime(doubles, solution);
                     fitness = 0;
-                } while (generations > 0);
+                } while (stopwatch.ElapsedMilliseconds < milliseconds);
 
                 results = solution.Select(t => (float) t).ToList();
             }
@@ -538,8 +532,7 @@ namespace FusionIK
             {
                 fitness = 0;
             }
-            
-            milliseconds = stopwatch.ElapsedMilliseconds;
+
             return results;
         }
 

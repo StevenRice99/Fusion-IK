@@ -38,10 +38,10 @@ namespace FusionIK
         /// </summary>
         private static Material _lineMaterial;
         
-        [Tooltip("The number of generations Bio IK is allowed to run for.")]
+        [Tooltip("The time the algorithm is allowed to run for.")]
         [Min(1)]
         [SerializeField]
-        private int generations = 100;
+        private long milliseconds = 100;
         
         /// <summary>
         /// Normal robot materials.
@@ -287,7 +287,7 @@ namespace FusionIK
             }
             
             List<float> starting = GetStarting();
-            MovePerform(starting, MoveResults(starting, _targetPosition.Value, _targetRotation.Value, new [] {generations}));
+            MovePerform(starting, MoveResults(starting, _targetPosition.Value, _targetRotation.Value, new [] {milliseconds}));
         }
 
         /// <summary>
@@ -298,7 +298,7 @@ namespace FusionIK
             List<float> starting = GetStarting();
 
             // Solve for random target.
-            Result[] results = RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, generations);
+            Result[] results = RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, milliseconds);
             _targetPosition = position;
             _targetRotation = rotation;
 
@@ -376,25 +376,25 @@ namespace FusionIK
         {
             GUI.color = Color.white;
             
-            // Display input to change the number of generations.
-            GUI.Label(new(10, 10, 100, 20), "Generations");
-            string s = generations.ToString();
+            // Display input to change the milliseconds.
+            GUI.Label(new(10, 10, 100, 20), "Milliseconds");
+            string s = milliseconds.ToString();
             s = GUI.TextField(new(10, 30, 100, 20), s, 5);
             s = new(s.Where(char.IsDigit).ToArray());
             if (string.IsNullOrWhiteSpace(s))
             {
-                generations = 1;
+                milliseconds = 1;
             }
             else
             {
                 try
                 {
                     int input = int.Parse(s);
-                    generations = input <= 0 ? 1 : input;
+                    milliseconds = input <= 0 ? 1 : input;
                 }
                 catch
                 {
-                    generations = 1;
+                    milliseconds = 1;
                 }
             }
 

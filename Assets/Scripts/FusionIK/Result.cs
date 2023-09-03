@@ -6,9 +6,9 @@
     public struct Result
     {
         /// <summary>
-        /// The number of generations Bio IK is allowed to run for.
+        /// The time the algorithm is allowed to run for.
         /// </summary>
-        public readonly int generations;
+        public readonly long milliseconds;
         
         /// <summary>
         /// The robot that did the move.
@@ -41,31 +41,24 @@
         public readonly double fitness;
 
         /// <summary>
-        /// The time it took to solve.
-        /// </summary>
-        public readonly long milliseconds;
-
-        /// <summary>
         /// Store a move result.
         /// </summary>
-        /// <param name="generations">The number of generations Bio IK is allowed to run for.</param>
+        /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
         /// <param name="robot">The robot that did the move.</param>
         /// <param name="success">If the move was successful.</param>
         /// <param name="time">The time it took for the joints to reach their destinations.</param>
         /// <param name="distance">How far off in meters was the end effectors from reaching the target.</param>
         /// <param name="angle">How far off in degrees was the end effector from reaching the target.</param>
         /// <param name="fitness">The fitness score of the result.</param>
-        /// <param name="milliseconds">The time it took to solve.</param>
-        public Result(int generations, Robot robot, bool success, double time, float distance, float angle, double fitness, long milliseconds)
+        public Result(long milliseconds, Robot robot, bool success, double time, float distance, float angle, double fitness)
         {
-            this.generations = generations;
+            this.milliseconds = milliseconds;
             this.robot = robot;
             this.success = success;
             this.time = time;
             this.distance = distance;
             this.angle = angle;
             this.fitness = fitness;
-            this.milliseconds = milliseconds;
         }
     }
 }
