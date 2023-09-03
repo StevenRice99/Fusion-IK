@@ -50,9 +50,6 @@ namespace FusionIK
                 _starting = lastOutput ?? _robot.GetJoints();
             }
             
-            // Get the random joints;
-            List<float> randomJoints = _robot.RandomJoints();
-            
             // Randomly move the robot.
             _robot.Snap(_robot.RandomJoints());
             Robot.PhysicsStep();
@@ -65,12 +62,14 @@ namespace FusionIK
             Robot.PhysicsStep();
 
             // Get the best result to reach the target.
-            List<float> results = _robot.Solve(target.position, target.rotation, milliseconds, out bool reached, out double moveTime, out double _);
+            List<float> results = _robot.Solve(target.position, target.rotation, milliseconds, out bool reached, out double _, out double _);
             
-            // If failed to reach or the random move is faster, use the random joint values.
-            if (!reached || _robot.CalculateTime(_starting, randomJoints) < moveTime)
+            // If failed to reach, don't use this data.
+            if (!reached)
             {
-                results = randomJoints;
+                _robot.Snap(_starting);
+                Robot.PhysicsStep();
+                return;
             }
             
             // Snap to the results.
