@@ -31,10 +31,8 @@ def evaluate():
             time = 0
             distance = 0
             angle = 0
-            milliseconds = 0
             # Sum the data.
             for index, data in df.iterrows():
-                milliseconds += data["Milliseconds"]
                 # Only add the time when the move was successful.
                 if data["Success"] is True:
                     success += 1
@@ -48,7 +46,6 @@ def evaluate():
             distance = "-" if success == rows else distance / (rows - success)
             angle = "-" if success == rows else angle / (rows - success)
             success = success / rows * 100
-            milliseconds /= rows
             # Determine the mode.
             strings = name.split()
             mode = strings[len(strings) - 2].replace("-", " ")
@@ -61,12 +58,11 @@ def evaluate():
                 output += f" | {distance} m"
             if angle != "-":
                 output += f" | {angle} °"
-            output += f" | {milliseconds}"
             outputs.append(output)
             # Append for file output.
             if generations not in results:
                 results[generations] = {}
-            results[generations][mode] = {"Success": success, "Time": time, "Distance": distance, "Angle": angle, "Milliseconds": milliseconds}
+            results[generations][mode] = {"Success": success, "Time": time, "Distance": distance, "Angle": angle}
         # If there was no data to be written, exit.
         if len(results) == 0:
             continue
@@ -79,7 +75,7 @@ def evaluate():
             os.mkdir(root)
         # Write the data to file.
         for generations in results:
-            data = "Mode,Success Rate,Time,Distance,Angle,Milliseconds"
+            data = "Mode,Success Rate,Time,Distance,Angle"
             temp = results[generations]
             for mode in temp:
                 result = temp[mode]
@@ -96,7 +92,6 @@ def evaluate():
                     data += ",-"
                 else:
                     data += f",{result['Angle']} °"
-                data += f",{result['Milliseconds']}"
             f = open(os.path.join(root, f"{robot} {generations}.csv"), "w")
             f.write(data)
             f.close()

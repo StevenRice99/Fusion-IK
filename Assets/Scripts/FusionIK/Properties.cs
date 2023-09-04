@@ -282,7 +282,7 @@ namespace FusionIK
                 
             File.AppendAllText(path, s);
             
-            Debug.Log($"{Name} | {networkIndex} of {networks.Length} | Generated {++_generatedCount} of {trainingTotal}.");
+            Debug.Log($"{Name} | Network {networkIndex} of {networks.Length} | Generated {++_generatedCount} of {trainingTotal}.");
         }
         
         /// <summary>
@@ -333,10 +333,10 @@ namespace FusionIK
 
                 if (!File.Exists(file))
                 {
-                    File.WriteAllText(file, "Success,Time,Distance,Angle,Milliseconds");
+                    File.WriteAllText(file, "Success,Time,Distance,Angle");
                 }
                 
-                File.AppendAllText(file, $"\n{result.success},{result.time},{result.distance},{result.angle},{result.milliseconds}");
+                File.AppendAllText(file, $"\n{result.success},{result.time},{result.distance},{result.angle}");
             }
             
             Debug.Log($"{Name} | Evaluated {++_resultsCount} of {testingTotal}.");
