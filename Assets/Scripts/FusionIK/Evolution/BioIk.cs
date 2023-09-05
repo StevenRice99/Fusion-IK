@@ -107,9 +107,9 @@ namespace FusionIK.Evolution
         private Unity.Mathematics.Random _random;
 
         /// <summary>
-        /// Number of steps allowed to be taken during the optimization process.
+        /// The duration to optimise for.
         /// </summary>
-        private readonly int _steps;
+        private double _duration;
 
 		/// <summary>
 		/// Initialize the solver.
@@ -117,14 +117,12 @@ namespace FusionIK.Evolution
 		/// <param name="robot">The robot this solver is for.</param>
 		/// <param name="populationSize">The population size.</param>
 		/// <param name="elites">The number of elites.</param>
-		/// <param name="steps">The number of steps allowed to be taken during the optimization process.</param>
-		public BioIk(Robot robot, int populationSize, int elites, int steps)
+		public BioIk(Robot robot, int populationSize, int elites)
         {
 			_model = new(robot);
 			_populationSize = populationSize;
 			_elites = elites;
 			_dimensionality = _model.dof;
-            _steps = steps;
 
 			_population = new Individual[_populationSize];
 			_offspring = new Individual[_populationSize];
@@ -259,6 +257,8 @@ namespace FusionIK.Evolution
 			_pool.AddRange(_population);
 			_poolCount = _populationSize;
             
+            DateTime timestamp = DateTime.Now;
+            
             // Evolve offspring.
             for (int i = _elites; i < _populationSize; i++)
             {
@@ -289,6 +289,8 @@ namespace FusionIK.Evolution
                     RandomMember(_offspring[i]);
                 }
             }
+
+            _duration = ElapsedTime(timestamp);
 
             // Exploit the elites.
 #if UNITY_WEBGL
@@ -323,6 +325,11 @@ namespace FusionIK.Evolution
             {
                 ComputeExtinctions();
             }
+        }
+
+        public static double ElapsedTime(DateTime timestamp)
+        {
+            return (DateTime.Now - timestamp).Duration().TotalSeconds;
         }
 
 		/// <summary>
@@ -412,7 +419,7 @@ namespace FusionIK.Evolution
 
             // Exploit.
             double fitness = _models[index].ComputeLoss(elite.genes);
-            _optimisers[index].Minimise(elite.genes, _steps);
+            _optimisers[index].Minimise(elite.genes, _duration);
             if (_optimisers[index].value < fitness)
             {
                 for (int i = 0; i < _dimensionality; i++)
@@ -752,8 +759,8 @@ namespace FusionIK.Evolution
         /// Perform minimization.
         /// </summary>
         /// <param name="values">The values to perform.</param>
-        /// <param name="steps">The number of steps.</param>
-        public void Minimise(double[] values, int steps)
+        /// <param name="duration">The duration to optimise for.</param>
+        public void Minimise(double[] values, double duration)
         {
             for (int i = 0; i < _dimensionality; i++)
             {
@@ -772,7 +779,8 @@ namespace FusionIK.Evolution
             _newF = 0;
             _newG = null;
 
-            for (int step = 0; step < steps; step++)
+            DateTime timestamp = DateTime.Now;
+            while (BioIk.ElapsedTime(timestamp) < duration)
             {
                 Setup(_dimensionality, solution, lowerBounds, upperBounds, _nbd, ref _f, _g, _work, _iwa, ref _task, ref _cSave, _lSave, _save, _dSave);
 

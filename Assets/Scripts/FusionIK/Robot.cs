@@ -451,7 +451,7 @@ namespace FusionIK
             }
 
             // Use Bio IK if it should.
-            if (mode != SolverMode.Network)
+            if (stopwatch.ElapsedMilliseconds < milliseconds && mode != SolverMode.Network)
             {
                 // Convert to doubles.
                 double[] doubles = new double[starting.Count];
@@ -477,7 +477,7 @@ namespace FusionIK
                 do
                 {
                     // Run Bio IK.
-                    _bioIk = new(this, properties.Population, properties.Elites, properties.Steps);
+                    _bioIk = new(this, properties.Population, properties.Elites);
                     double[] attemptSolution = _bioIk.Optimise(bioSeed, targetPosition, targetRotation, milliseconds - stopwatch.ElapsedMilliseconds, ref random, out bool attemptReached, out double attemptFitness);
                 
                     // If have already reached.

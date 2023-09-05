@@ -30,11 +30,6 @@ namespace FusionIK
         public int Elites => elites;
 
         /// <summary>
-        /// The number of steps during the Bio IK minimise process.
-        /// </summary>
-        public int Steps => steps;
-
-        /// <summary>
         /// Material to apply to the best robot during visualization
         /// </summary>
         public Material Normal => normal;
@@ -77,11 +72,6 @@ namespace FusionIK
         [Min(1)]
         [SerializeField]
         private int elites = 3;
-
-        [Tooltip("The number of steps during the Bio IK minimise process.")]
-        [Min(1)]
-        [SerializeField]
-        private int steps = 100;
 
         [Header("Datasets")]
         [Tooltip("The total number of entries to generate for training.")]
