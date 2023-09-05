@@ -309,7 +309,7 @@ namespace FusionIK
             foreach (Result result in results)
             {
                 string networkIndex = result.robot.mode == Robot.SolverMode.BioIk ? string.Empty : $"-{result.robot.networkIndex}";
-                string file = Path.Combine(path, $"{Robot.Name(result.robot.mode).Replace(" ", "-")}{networkIndex} {result.milliseconds}.csv");
+                string file = Path.Combine(path, $"{Robot.Name(result.robot.mode).Replace(" ", "-")}{networkIndex} {result.milliseconds:0000}.csv");
 
                 // If file exceeds what is needed, return.
                 if (_resultsCount < 0)
