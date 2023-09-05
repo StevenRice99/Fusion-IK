@@ -305,13 +305,19 @@ namespace FusionIK
         /// <param name="starting">Starting joint position.s</param>
         /// <param name="ending">Ending joint positions.</param>
         /// <returns>The time to complete the move.</returns>
-        public float CalculateTime(IEnumerable<float> starting, IReadOnlyList<float> ending) => starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
-        
-        public double CalculateTime(double[] starting, double[] ending)
+        private float CalculateTime(IEnumerable<float> starting, IReadOnlyList<float> ending) => starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
+
+        /// <summary>
+        /// Calculate the time needed for a robot to move from its starting to ending joint values.
+        /// </summary>
+        /// <param name="starting">Starting joint position.s</param>
+        /// <param name="ending">Ending joint positions.</param>
+        /// <returns>The time to complete the move.</returns>
+        private double CalculateTime(IReadOnlyList<double> starting, IReadOnlyList<double> ending)
         {
-            float[] startingFloats = new float[starting.Length];
-            float[] endingFloats = new float[starting.Length];
-            for (int i = 0; i < starting.Length; i++)
+            float[] startingFloats = new float[starting.Count];
+            float[] endingFloats = new float[starting.Count];
+            for (int i = 0; i < starting.Count; i++)
             {
                 startingFloats[i] = (float) starting[i];
                 endingFloats[i] = (float) ending[i];
@@ -451,7 +457,7 @@ namespace FusionIK
             }
 
             // Use Bio IK if it should.
-            if (stopwatch.ElapsedMilliseconds < milliseconds && mode != SolverMode.Network)
+            if (mode != SolverMode.Network)
             {
                 // Convert to doubles.
                 double[] doubles = new double[starting.Count];
@@ -474,7 +480,7 @@ namespace FusionIK
                 Unity.Mathematics.Random random = new(seed);
             
                 // Utilize all available generations.
-                do
+                while (stopwatch.ElapsedMilliseconds < milliseconds)
                 {
                     // Run Bio IK.
                     _bioIk = new(this, properties.Population, properties.Elites);
@@ -489,7 +495,7 @@ namespace FusionIK
                             continue;
                         }
 
-                        // If the new solutions is faster than the existing solution, update it.
+                        // If the new solution is faster than the existing solution, update it.
                         double attemptMoveTime = CalculateTime(doubles, attemptSolution);
                         if (attemptMoveTime >= moveTime)
                         {
@@ -522,7 +528,7 @@ namespace FusionIK
                     solution = attemptSolution;
                     moveTime = CalculateTime(doubles, solution);
                     fitness = 0;
-                } while (stopwatch.ElapsedMilliseconds < milliseconds);
+                }
 
                 results = solution.Select(t => (float) t).ToList();
             }
