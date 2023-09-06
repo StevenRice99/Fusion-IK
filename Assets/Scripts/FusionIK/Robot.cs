@@ -450,24 +450,32 @@ namespace FusionIK
             moveTime = float.MaxValue;
             fitness = double.MaxValue;
 
+            double[][] bioSeed = mode != SolverMode.BioIk ? new double[2][] : new double[1][];
+            bioSeed[0] = new double[starting.Count];
+            for (int i = 0; i < starting.Count; i++)
+            {
+                bioSeed[0][i] = starting[i];
+            }
+
             // Run through neural networks if it should.
             if (mode != SolverMode.BioIk)
             {
                 results = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting));
+                bioSeed[1] = new double[results.Count];
+                for (int i = 1; i < results.Count; i++)
+                {
+                    bioSeed[1][i] = results[i];
+                }
             }
 
             // Use Bio IK if it should.
             if (mode != SolverMode.Network)
             {
-                // Convert to doubles.
-                double[] doubles = new double[starting.Count];
-                double[] bioSeed = new double[starting.Count];
+                // Store the solution.
                 double[] solution = new double[starting.Count];
                 for (int i = 0; i < starting.Count; i++)
                 {
-                    doubles[i] = starting[i];
-                    bioSeed[i] = results != null ? results[i] : starting[i];
-                    solution[i] = bioSeed[i];
+                    solution[i] = bioSeed[^1][i];
                 }
             
                 // If no seed was passed, create a random one.
@@ -496,7 +504,7 @@ namespace FusionIK
                         }
 
                         // If the new solution is faster than the existing solution, update it.
-                        double attemptMoveTime = CalculateTime(doubles, attemptSolution);
+                        double attemptMoveTime = CalculateTime(bioSeed[0], attemptSolution);
                         if (attemptMoveTime >= moveTime)
                         {
                             continue;
@@ -518,7 +526,7 @@ namespace FusionIK
 
                         // Otherwise this is the best failure so store it.
                         solution = attemptSolution;
-                        moveTime = CalculateTime(doubles, solution);
+                        moveTime = CalculateTime(bioSeed[0], solution);
                         fitness = attemptFitness;
                         continue;
                     }
@@ -526,7 +534,7 @@ namespace FusionIK
                     // This is the first successful reach so store it.
                     reached = true;
                     solution = attemptSolution;
-                    moveTime = CalculateTime(doubles, solution);
+                    moveTime = CalculateTime(bioSeed[0], solution);
                     fitness = 0;
                 }
 
@@ -553,19 +561,21 @@ namespace FusionIK
             float[] forwards = inputs.ToArray();
             List<float> outputs = new(_workers[networkIndex].Length);
             
+            Tensor input = new(1, 1, 1, forwards.Length, forwards, "INPUTS");
+            
             // Go through every joint's network.
             for (int i = 0; i < _workers[networkIndex].Length; i++)
             {
                 // Run the current joint network.
-                Tensor input = new(1, 1, 1, forwards.Length, forwards, "INPUTS");
                 Tensor output = _workers[networkIndex][i].Execute(input).PeekOutput();
-                input.Dispose();
                 
                 // Add the output and replace the input for the next joint's network.
-                outputs.Add(math.clamp(output[0, 0, 0, 0], 0, 1));
+                outputs.Add(output[0, 0, 0, 0]);
                 output.Dispose();
-                forwards[i] = outputs[i];
+                input[i] = outputs[i];
             }
+            
+            input.Dispose();
 
             return ResultsScaled(outputs);
         }

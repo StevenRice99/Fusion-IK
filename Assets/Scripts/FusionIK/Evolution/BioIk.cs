@@ -159,7 +159,7 @@ namespace FusionIK.Evolution
         /// <param name="reached">If the target is reached.</param>
         /// <param name="fitness">The fitness score of the result.</param>
         /// <returns>The joint values to reach the solution.</returns>
-        public double[] Optimise(double[] seed, Vector3 position, Quaternion rotation, long milliseconds, ref Unity.Mathematics.Random random, out bool reached, out double fitness)
+        public double[] Optimise(double[][] seed, Vector3 position, Quaternion rotation, long milliseconds, ref Unity.Mathematics.Random random, out bool reached, out double fitness)
         {
             _random = random;
             Stopwatch stopwatch = Stopwatch.StartNew();
@@ -179,18 +179,22 @@ namespace FusionIK.Evolution
                 _optimisers[i].Reset();
             }
             
-            // Set the solution to start as the seed.
+            // Set the limits.
             for (int i = 0; i < _dimensionality; i++)
             {
                 _lowerBounds[i] = _model.motionPointers[i].motion.GetLowerLimit();
                 _upperBounds[i] = _model.motionPointers[i].motion.GetUpperLimit();
-                _solution[i] = seed[i];
-                _model.motionPointers[i].motion.SetTargetValue((float) _solution[i]);
             }
 
             // Initialize the population.
             _fitness = double.MaxValue;
             Initialise(seed);
+
+            // Start from the best seed.
+            for (int i = 0; i < _dimensionality; i++)
+            {
+                _model.motionPointers[i].motion.SetTargetValue((float) _solution[i]);
+            }
             
             // Setup the elites.
             for (int i = 0; i < _elites; i++)
@@ -203,12 +207,7 @@ namespace FusionIK.Evolution
             // Loop until a solution is reached or out of time.
             do
             {
-                Evolve();
-                for (int i = 0; i < _solution.Length; i++)
-                {
-                    _solution[i] = math.clamp(_solution[i], _lowerBounds[i], _upperBounds[i]);
-                }
-                
+                Evolve(seed);
                 reached = _model.CheckConvergence(_solution, position, rotation);
                 if (stopwatch.ElapsedMilliseconds < milliseconds && !reached)
                 {
@@ -225,19 +224,22 @@ namespace FusionIK.Evolution
 		/// Initialize the population.
 		/// </summary>
 		/// <param name="seed">The starting joint values.</param>
-		private void Initialise(double[] seed)
+		private void Initialise(double[][] seed)
         {
             // Set the seed as the first member of the population.
-            for (int j = 0; j < _dimensionality; j++)
+            for (int i = 0; i < seed.Length; i++)
             {
-                _population[0].genes[j] = seed[j];
-                _population[0].momentum[j] = 0.0;
+                for (int j = 0; j < _dimensionality; j++)
+                {
+                    _population[i].genes[j] = seed[i][j];
+                    _population[i].momentum[j] = 0.0;
+                }
+                
+                _population[i].fitness = _model.ComputeLoss(_population[i].genes);
             }
-            
-            _population[0].fitness = _model.ComputeLoss(_population[0].genes);
 
             // Randomize the rest of the population.
-			for (int i = 1; i < _populationSize; i++)
+			for (int i = seed.Length; i < _populationSize; i++)
             {
 				RandomMember(_population[i]);
 			}
@@ -249,8 +251,9 @@ namespace FusionIK.Evolution
 
 		/// <summary>
 		/// Evolve the population.
+        /// <param name="seed">The starting seed joint values.,</param>
 		/// </summary>
-		private void Evolve()
+		private void Evolve(double[][] seed)
         {
 			// Create the mating pool.
 			_pool.Clear();
@@ -319,7 +322,7 @@ namespace FusionIK.Evolution
 			// Check for improvement and reset if there has been no improvement.
 			if (!TryUpdateSolution() && !HasAnyEliteImproved())
             {
-				Initialise(_solution);
+				Initialise(seed);
 			}
             else
             {
