@@ -21,6 +21,11 @@ namespace FusionIK
         /// </summary>
         protected Robot Robot => robots[^1];
 
+        /// <summary>
+        /// The last pose the best robot was in.
+        /// </summary>
+        protected List<float> lastPose;
+
         protected override void Awake()
         {
             base.Awake();
@@ -28,19 +33,19 @@ namespace FusionIK
             // Create a robot for every movement type.
             List<Robot> robotsLists = new();
 
-            Robot r = CreateRobot(Robot.SolverMode.BioIk, 0);
+            Robot r = CreateRobot(Robot.SolverMode.BioIk);
             if (r != null)
             {
                 robotsLists.Add(r);
-                for (int i = 0; i < r.Properties.networks.Length; i++)
+                if (r.Properties.network != null)
                 {
-                    r = CreateRobot(Robot.SolverMode.Network, i);
+                    r = CreateRobot(Robot.SolverMode.Network);
                     if (r != null)
                     {
                         robotsLists.Add(r);
                     }
                     
-                    r = CreateRobot(Robot.SolverMode.FusionIk, i);
+                    r = CreateRobot(Robot.SolverMode.FusionIk);
                     if (r != null)
                     {
                         robotsLists.Add(r);
@@ -51,7 +56,7 @@ namespace FusionIK
             robots = robotsLists.ToArray();
         }
 
-        private Robot CreateRobot(Robot.SolverMode solverMode, int networkIndex)
+        private Robot CreateRobot(Robot.SolverMode solverMode)
         {
             GameObject go = Instantiate(robotPrefab, Vector3.zero, Quaternion.identity);
             Robot r = go.GetComponent<Robot>();
@@ -62,12 +67,7 @@ namespace FusionIK
             }
 
             r.mode = solverMode;
-            r.networkIndex = networkIndex;
             go.name = $"{r.Properties.name} {Robot.Name(r.mode)}";
-            if (solverMode != Robot.SolverMode.BioIk && r.Properties.networks.Length > 1)
-            {
-                go.name += $" {networkIndex + 1}";
-            }
             
             return r;
         }

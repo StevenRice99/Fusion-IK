@@ -204,7 +204,7 @@ namespace FusionIK
             }
             
             // Start at the last position.
-            return Robot.Properties.LastPose ?? Robot.GetJoints();
+            return lastPose ?? Robot.GetJoints();
         }
 
         private void MovePerform(List<float> starting, Result[] results)
@@ -261,7 +261,7 @@ namespace FusionIK
             }
 
             // Store the best result.
-            Robot.Properties.SetLastPose(best.GetJoints());
+            lastPose = best.GetJoints();
 
             // Store the endings and snap back to the start.
             List<float>[] endings = new List<float>[robots.Length];
@@ -360,7 +360,7 @@ namespace FusionIK
             if (data.Value.success)
             {
                 success = "Success";
-                description = $"{data.Value.time} Seconds";
+                description = $"{data.Value.time} Seconds from Middle";
             }
             else
             {
@@ -456,10 +456,6 @@ namespace FusionIK
             foreach (Result data in _ordered)
             {
                 string title = Robot.Name(data.robot.mode);
-                if (robots.Length > 3 && data.robot.mode != Robot.SolverMode.BioIk)
-                {
-                    title += $" {data.robot.networkIndex + 1}";
-                }
                 RobotLabel(Screen.height - offset, data, title, Robot.RobotColor(data.robot.mode));
                 offset -= 20;
             }

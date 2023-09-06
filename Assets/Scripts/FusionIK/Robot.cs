@@ -69,10 +69,6 @@ namespace FusionIK
         [Tooltip("Mode to perform solving in.")]
         public SolverMode mode = SolverMode.BioIk;
 
-        [Tooltip("The index of neural networks to use for Fusion-IK")]
-        [Min(0)]
-        public int networkIndex;
-
         /// <summary>
         /// The root joint of the robot.
         /// </summary>
@@ -109,19 +105,24 @@ namespace FusionIK
         private float[] _currentSpeeds;
 
         /// <summary>
-        /// The networks to control the joints.
+        /// The network to control the joints.
         /// </summary>
-        private Model[][] _networks;
+        private Model _network;
 
         /// <summary>
-        /// The network workers.
+        /// The network worker.
         /// </summary>
-        private IWorker[][] _workers;
+        private IWorker _worker;
 
         /// <summary>
         /// The Bio IK controller.
         /// </summary>
         private BioIk _bioIk;
+
+        /// <summary>
+        /// The middle joint values.
+        /// </summary>
+        private double[] _middle;
 
         /// <summary>
         /// Get a name for display.
@@ -390,32 +391,25 @@ namespace FusionIK
         /// </summary>
         /// <param name="targetPosition">The position to reach.</param>
         /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="starting">The starting joint values.</param>
         /// <returns>The values to be passed to the networks.</returns>
-        public float[] PrepareInputs(Vector3 targetPosition, Quaternion targetRotation, List<float> starting)
+        public float[] PrepareInputs(Vector3 targetPosition, Quaternion targetRotation)
         {
-            // Scale and add joints.
-            List<float> scaled = NetScaledJoints(starting);
-            float[] inputs = new float[scaled.Count + 7];
-            for (int i = 0; i < scaled.Count; i++)
-            {
-                inputs[i] = scaled[i];
-            }
+            float[] inputs = new float[7];
 
             // Get relative values.
             targetPosition = RelativePosition(targetPosition);
             targetRotation = RelativeRotation(targetRotation);
             
             // Add scaled position.
-            inputs[scaled.Count] = (targetPosition.x + 1) / 2;
-            inputs[scaled.Count + 1] = (targetPosition.y + 1) / 2;
-            inputs[scaled.Count + 2] = (targetPosition.z + 1) / 2;
+            inputs[0] = (targetPosition.x + 1) / 2;
+            inputs[1] = (targetPosition.y + 1) / 2;
+            inputs[2] = (targetPosition.z + 1) / 2;
             
             // Add scaled rotation.
-            inputs[scaled.Count + 3] = (targetRotation.x + 1) / 2;
-            inputs[scaled.Count + 4] = (targetRotation.y + 1) / 2;
-            inputs[scaled.Count + 5] = (targetRotation.z + 1) / 2;
-            inputs[scaled.Count + 6] = (targetRotation.w + 1) / 2;
+            inputs[3] = (targetRotation.x + 1) / 2;
+            inputs[4] = (targetRotation.y + 1) / 2;
+            inputs[5] = (targetRotation.z + 1) / 2;
+            inputs[6] = (targetRotation.w + 1) / 2;
 
             return inputs;
         }
@@ -445,22 +439,17 @@ namespace FusionIK
             }
             
             // Initialize other variables.
-            List<float> starting = GetJoints();
             List<float> results = null;
             moveTime = float.MaxValue;
             fitness = double.MaxValue;
 
             double[][] bioSeed = mode != SolverMode.BioIk ? new double[2][] : new double[1][];
-            bioSeed[0] = new double[starting.Count];
-            for (int i = 0; i < starting.Count; i++)
-            {
-                bioSeed[0][i] = starting[i];
-            }
+            bioSeed[0] = _middle;
 
             // Run through neural networks if it should.
             if (mode != SolverMode.BioIk)
             {
-                results = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting));
+                results = RunNetwork(PrepareInputs(targetPosition, targetRotation));
                 bioSeed[1] = new double[results.Count];
                 for (int i = 1; i < results.Count; i++)
                 {
@@ -472,8 +461,8 @@ namespace FusionIK
             if (mode != SolverMode.Network)
             {
                 // Store the solution.
-                double[] solution = new double[starting.Count];
-                for (int i = 0; i < starting.Count; i++)
+                double[] solution = new double[_middle.Length];
+                for (int i = 0; i < _middle.Length; i++)
                 {
                     solution[i] = bioSeed[^1][i];
                 }
@@ -559,15 +548,15 @@ namespace FusionIK
         {
             // Get initial input values and prepare for outputs.
             float[] forwards = inputs.ToArray();
-            List<float> outputs = new(_workers[networkIndex].Length);
+            List<float> outputs = new(_limits.Length);
             
             Tensor input = new(1, 1, 1, forwards.Length, forwards, "INPUTS");
             
             // Go through every joint's network.
-            for (int i = 0; i < _workers[networkIndex].Length; i++)
+            for (int i = 0; i < _limits.Length; i++)
             {
                 // Run the current joint network.
-                Tensor output = _workers[networkIndex][i].Execute(input).PeekOutput();
+                Tensor output = _worker.Execute(input).PeekOutput();
                 
                 // Add the output and replace the input for the next joint's network.
                 outputs.Add(output[0, 0, 0, 0]);
@@ -650,6 +639,11 @@ namespace FusionIK
             Rescaling = math.PI * math.PI / (ChainLength * ChainLength);
 
             _limits = limits.ToArray();
+            _middle = new double[limits.Count];
+            for (int i = 0; i < _limits.Length; i++)
+            {
+                _middle[i] = (limits[i].upper + _limits[i].lower) / 2f;
+            }
             List<float> joints = GetJoints();
             
             // Get the max speeds.
@@ -821,62 +815,14 @@ namespace FusionIK
             }
 
             // Setup networks.
-            if (properties.networks.Length > 0)
+            if (properties.network != null)
             {
-                _networks = new Model[properties.networks.Length][];
-                _workers = new IWorker[_networks.Length][];
-                bool networkValid = true;
-                for (int i = 0; i < _networks.Length; i++)
-                {
-                    _networks[i] = new Model[properties.networks[i].networks.Length];
-                    _workers[i] = new IWorker[_networks[i].Length];
-
-                    for (int j = 0; j < _networks[i].Length; j++)
-                    {
-                        _networks[i][j] = properties.CompiledNetwork(i, j);
-                        if (_networks[i][j] != null)
-                        {
-                            _workers[i][j] = WorkerFactory.CreateWorker(_networks[i][j]);
-                            continue;
-                        }
-
-                        networkValid = false;
-                    }
-                }
-
-                // Do an initial network run as it is slower on the first inference.
-                if (networkValid)
-                {
-                    if (networkIndex >= _networks.Length)
-                    {
-                        networkIndex = _networks.Length - 1;
-                    }
-                    
-                    // Save what network we currently want.
-                    int currentNetworkIndex = networkIndex;
-                
-                    // Run every network for the initial speed limits.
-                    for (int i = 0; i < _networks.Length; i++)
-                    {
-                        networkIndex = i;
-                        RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
-                    }
-
-                    // Switch to the desired network.
-                    networkIndex = currentNetworkIndex;
-                }
-                else
-                {
-                    mode = SolverMode.BioIk;
-                    networkIndex = 0;
-                    _networks = null;
-                    CleanupWorkers();
-                    _workers = null;
-                }
+                _network = properties.CompiledNetwork();
+                _worker = WorkerFactory.CreateWorker(_network);
+                RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity).ToList());
             }
             else
             {
-                networkIndex = 0;
                 mode = SolverMode.BioIk;
             }
         }
@@ -934,19 +880,7 @@ namespace FusionIK
         /// </summary>
         private void CleanupWorkers()
         {
-            if (_workers  == null)
-            {
-                return;
-            }
-            
-            // Clean up network runners.
-            for (int i = 0; i < _workers.Length; i++)
-            {
-                for (int j = 0; j < _workers[i].Length; j++)
-                {
-                    _workers[i][j]?.Dispose();
-                }
-            }
+            _worker?.Dispose();
         }
     }
 }

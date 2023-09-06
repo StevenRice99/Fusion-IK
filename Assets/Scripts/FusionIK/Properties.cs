@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Unity.Barracuda;
@@ -40,18 +39,10 @@ namespace FusionIK
         public Material Transparent => transparent;
         
         /// <summary>
-        /// A network to run inference on.
+        /// The network to run inference on.
         /// </summary>
-        /// <param name="index">The network index to use.</param>
-        /// <param name="joint">The joint network that is desired.</param>
         /// <returns>The joint network at a given index that is desired.</returns>
-        public Model CompiledNetwork(int index, int joint) => networks.Length > 0 && index < networks.Length && networks[index] != null ? networks[index].CompiledNetwork(joint) : null;
-
-        /// <summary>
-        /// The last pose the robot was in.
-        /// </summary>
-        [field: NonSerialized]
-        public List<float> LastPose { get; private set; }
+        public Model CompiledNetwork() => network!= null ? ModelLoader.Load(network) : null;
 
         [Header("Movement")]
         [Tooltip("How accurate in meters the robot can repeat a movement.")]
@@ -59,8 +50,8 @@ namespace FusionIK
         [SerializeField]
         private float repeatability = 8e-5f;
 
-        [Tooltip("Networks to control the robot.")]
-        public InverseKinematicsNetwork[] networks;
+        [Tooltip("Network to control the robot.")]
+        public NNModel network;
 
         [Header("Bio IK")]
         [Tooltip("The population size of each generation during Bio IK evolution.")]
@@ -158,15 +149,6 @@ namespace FusionIK
         }
 
         /// <summary>
-        /// Set the last pose the robot was in.
-        /// </summary>
-        /// <param name="joints">Joint values.</param>
-        public void SetLastPose(List<float> joints)
-        {
-            LastPose = joints;
-        }
-
-        /// <summary>
         /// Write training data to CSV.
         /// </summary>
         /// <param name="inputs">The inputs to write.</param>
@@ -177,28 +159,6 @@ namespace FusionIK
             // If already generated required amount, exit.
             if (_generatedCount >= trainingTotal)
             {
-                // Switch to Fusion-IK mode if it was in Bio IK or otherwise switch to the next network.
-                if (robot.mode == Robot.SolverMode.BioIk)
-                {
-                    robot.mode = Robot.SolverMode.FusionIk;
-                }
-                else
-                {
-                    robot.networkIndex++;
-                }
-                
-                // If there are more networks to create data from then do so.
-                if (networks.Length > 0 && robot.networkIndex < networks.Length)
-                {
-                    // Reset the amount generated.
-                    _generatedCount = -1;
-                    
-                    // Reset the last pose.
-                    LastPose = null;
-                    
-                    return;
-                }
-                
                 Debug.Log("Finished generation.");
 #if UNITY_EDITOR
                 EditorApplication.ExitPlaymode();
@@ -209,7 +169,7 @@ namespace FusionIK
             }
             
             // Ensure folder exists.
-            string path = DirectoryPath(new[] {"Training", Name});
+            string path = DirectoryPath(new[] {"Training" });
             if (path == null)
             {
 #if UNITY_EDITOR
@@ -220,8 +180,7 @@ namespace FusionIK
                 return;
             }
 
-            int networkIndex = robot.mode == Robot.SolverMode.BioIk ? 0 : robot.networkIndex + 1;
-            path = Path.Combine(path, $"{networkIndex}.csv");
+            path = Path.Combine(path, $"{Name}.csv");
             
             // Read total from file in case it exceeds amount.
             if (_generatedCount < 0)
@@ -272,7 +231,7 @@ namespace FusionIK
                 
             File.AppendAllText(path, s);
             
-            Debug.Log($"{Name} | Network {networkIndex} of {networks.Length} | Generated {++_generatedCount} of {trainingTotal}.");
+            Debug.Log($"{Name} | Generated {++_generatedCount} of {trainingTotal}.");
         }
         
         /// <summary>
@@ -308,8 +267,7 @@ namespace FusionIK
             // Add all results.
             foreach (Result result in results)
             {
-                string networkIndex = result.robot.mode == Robot.SolverMode.BioIk ? string.Empty : $"-{result.robot.networkIndex}";
-                string file = Path.Combine(path, $"{Robot.Name(result.robot.mode).Replace(" ", "-")}{networkIndex} {result.milliseconds:0000}.csv");
+                string file = Path.Combine(path, $"{Robot.Name(result.robot.mode).Replace(" ", "-")} {result.milliseconds:0000}.csv");
 
                 // If file exceeds what is needed, return.
                 if (_resultsCount < 0)
