@@ -45,6 +45,10 @@ namespace FusionIK
             // Get the position and rotation to reach.
             (Vector3 position, Quaternion rotation) target = _robot.EndTransform;
 
+            // Snap to the starting middle pose.
+            _robot.SnapMiddle();
+            Robot.PhysicsStep();
+            
             // Get the best result to reach the target.
             List<float> results = _robot.Solve(target.position, target.rotation, milliseconds, out bool reached, out double _, out double _);
             

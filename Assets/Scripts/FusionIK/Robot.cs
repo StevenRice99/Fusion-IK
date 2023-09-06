@@ -120,9 +120,14 @@ namespace FusionIK
         private BioIk _bioIk;
 
         /// <summary>
-        /// The middle joint values.
+        /// The middle joint values for calculations.
         /// </summary>
         private double[] _middle;
+
+        /// <summary>
+        /// The middle joint values for moving.
+        /// </summary>
+        private List<float> _middleFloats;
 
         /// <summary>
         /// Get a name for display.
@@ -221,13 +226,34 @@ namespace FusionIK
         }
 
         /// <summary>
+        /// Snap the joints to the middle.
+        /// </summary>
+        public void SnapMiddle()
+        {
+            Snap(_middleFloats);
+        }
+
+        /// <summary>
         /// Snap joints to radian values.
         /// </summary>
         /// <param name="radians">The radians to snap to.</param>
-        public void Snap(List<float> radians)
+        public void Snap(IEnumerable<float> radians)
         {
             IsMoving = false;
-            Snap((IEnumerable<float>) radians);
+            SnapPerform(radians);
+        }
+        
+        /// <summary>
+        /// Snap joints to radian values.
+        /// </summary>
+        /// <param name="radians">The radians to snap to.</param>
+        private void SnapPerform(IEnumerable<float> radians)
+        {
+            List<float> list = radians.ToList();
+            Root.SetDriveTargets(list);
+            Root.SetJointPositions(list);
+            Root.SetJointVelocities(_zeros);
+            Root.SetJointForces(_zeros);
         }
 
         /// <summary>
@@ -301,30 +327,13 @@ namespace FusionIK
         public static float RotationAccuracy(Quaternion targetRotation, Quaternion rotation) => Quaternion.Angle(targetRotation, rotation) / 360;
 
         /// <summary>
-        /// Calculate the time needed for a robot to move from its starting to ending joint values.
+        /// Calculate the time needed for a robot to move from its middle to ending joint values.
         /// </summary>
-        /// <param name="starting">Starting joint position.s</param>
         /// <param name="ending">Ending joint positions.</param>
         /// <returns>The time to complete the move.</returns>
-        private float CalculateTime(IEnumerable<float> starting, IReadOnlyList<float> ending) => starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
-
-        /// <summary>
-        /// Calculate the time needed for a robot to move from its starting to ending joint values.
-        /// </summary>
-        /// <param name="starting">Starting joint position.s</param>
-        /// <param name="ending">Ending joint positions.</param>
-        /// <returns>The time to complete the move.</returns>
-        private double CalculateTime(IReadOnlyList<double> starting, IReadOnlyList<double> ending)
+        private double CalculateTime(IReadOnlyList<double> ending)
         {
-            float[] startingFloats = new float[starting.Count];
-            float[] endingFloats = new float[starting.Count];
-            for (int i = 0; i < starting.Count; i++)
-            {
-                startingFloats[i] = (float) starting[i];
-                endingFloats[i] = (float) ending[i];
-            }
-            
-            return CalculateTime(startingFloats, endingFloats);
+            return _middle.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
         }
 
         /// <summary>
@@ -340,19 +349,6 @@ namespace FusionIK
         /// <param name="rotation">The rotation in global rotation.</param>
         /// <returns>The relative rotation.</returns>
         private Quaternion RelativeRotation(Quaternion rotation) => Quaternion.Inverse(Root.transform.rotation) * rotation;
-
-        /// <summary>
-        /// Stop the robot at a position.
-        /// </summary>
-        /// <param name="radians">The joint values in radians to stop at.</param>
-        private void Snap(IEnumerable<float> radians)
-        {
-            List<float> list = radians.ToList();
-            Root.SetDriveTargets(list);
-            Root.SetJointPositions(list);
-            Root.SetJointVelocities(_zeros);
-            Root.SetJointForces(_zeros);
-        }
 
         /// <summary>
         /// Scale joint values between zero and one for network inference.
@@ -493,7 +489,7 @@ namespace FusionIK
                         }
 
                         // If the new solution is faster than the existing solution, update it.
-                        double attemptMoveTime = CalculateTime(bioSeed[0], attemptSolution);
+                        double attemptMoveTime = CalculateTime(attemptSolution);
                         if (attemptMoveTime >= moveTime)
                         {
                             continue;
@@ -515,7 +511,7 @@ namespace FusionIK
 
                         // Otherwise this is the best failure so store it.
                         solution = attemptSolution;
-                        moveTime = CalculateTime(bioSeed[0], solution);
+                        moveTime = CalculateTime(solution);
                         fitness = attemptFitness;
                         continue;
                     }
@@ -523,7 +519,7 @@ namespace FusionIK
                     // This is the first successful reach so store it.
                     reached = true;
                     solution = attemptSolution;
-                    moveTime = CalculateTime(bioSeed[0], solution);
+                    moveTime = CalculateTime(solution);
                     fitness = 0;
                 }
 
@@ -552,19 +548,19 @@ namespace FusionIK
             
             Tensor input = new(1, 1, 1, forwards.Length, forwards, "INPUTS");
             
+            // Run the network.
+            Tensor output = _worker.Execute(input).PeekOutput();
+            input.Dispose();
+            
             // Go through every joint's network.
             for (int i = 0; i < _limits.Length; i++)
             {
-                // Run the current joint network.
-                Tensor output = _worker.Execute(input).PeekOutput();
-                
                 // Add the output and replace the input for the next joint's network.
-                outputs.Add(output[0, 0, 0, 0]);
-                output.Dispose();
-                input[i] = outputs[i];
+                // TODO - likely needs to be changed as I feel this won't work.
+                outputs.Add(output[0, 0, 0, i]);
             }
             
-            input.Dispose();
+            output.Dispose();
 
             return ResultsScaled(outputs);
         }
@@ -640,9 +636,11 @@ namespace FusionIK
 
             _limits = limits.ToArray();
             _middle = new double[limits.Count];
+            _middleFloats = new(_middle.Length);
             for (int i = 0; i < _limits.Length; i++)
             {
                 _middle[i] = (limits[i].upper + _limits[i].lower) / 2f;
+                _middleFloats.Add((float) _middle[i]);
             }
             List<float> joints = GetJoints();
             
@@ -867,7 +865,7 @@ namespace FusionIK
             }
 
             // Set to position.
-            Snap((IEnumerable<float>) delta);
+            SnapPerform(delta);
         }
 
         private void OnDestroy()

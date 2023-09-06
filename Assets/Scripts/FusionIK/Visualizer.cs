@@ -287,7 +287,7 @@ namespace FusionIK
             }
             
             List<float> starting = GetStarting();
-            MovePerform(starting, MoveResults(starting, _targetPosition.Value, _targetRotation.Value, new [] {milliseconds}));
+            MovePerform(starting, MoveResults(_targetPosition.Value, _targetRotation.Value, new [] {milliseconds}));
         }
 
         /// <summary>
@@ -298,7 +298,7 @@ namespace FusionIK
             List<float> starting = GetStarting();
 
             // Solve for random target.
-            Result[] results = RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, milliseconds);
+            Result[] results = RandomMoveResults(out Vector3 position, out Quaternion rotation, new [] {milliseconds});
             _targetPosition = position;
             _targetRotation = rotation;
 

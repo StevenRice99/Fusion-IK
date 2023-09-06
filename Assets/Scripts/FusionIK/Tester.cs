@@ -22,14 +22,8 @@ namespace FusionIK
 
         private void Update()
         {
-            // Get all results.
-            Result[] results = RandomMoveResults(lastPose ?? Robot.GetJoints(), out Vector3 _, out Quaternion _, milliseconds);
-
             // Export results.
-            Robot.Properties.AddTestingData(results);
-
-            // Start at the best result for the next test.
-            lastPose = Best(results, out _).GetJoints();
+            Robot.Properties.AddTestingData(RandomMoveResults(out Vector3 _, out Quaternion _, milliseconds));
         }
     }
 }
