@@ -167,7 +167,116 @@ namespace FusionIK.Evolution
             // Set the target.
             _model.SetTargetPosition(position);
             _model.SetTargetRotation(rotation);
+            
+            // Set the limits.
+            for (int i = 0; i < _dimensionality; i++)
+            {
+                _lowerBounds[i] = _model.motionPointers[i].motion.GetLowerLimit();
+                _upperBounds[i] = _model.motionPointers[i].motion.GetUpperLimit();
+            }
 
+            // Initialize the population.
+            Initialise(seed);
+
+            // Loop until a solution is reached or out of time.
+            do
+            {
+                // Create the mating pool.
+			    _pool.Clear();
+			    _pool.AddRange(_population);
+			    _poolCount = _populationSize;
+                
+                DateTime timestamp = DateTime.Now;
+                
+                // Evolve offspring.
+                for (int i = _elites; i < _populationSize; i++)
+                {
+                    if (_poolCount > 0)
+                    {
+                        Individual parentA = Select(_pool);
+                        Individual parentB = Select(_pool);
+                        Individual prototype = Select(_pool);
+
+                        // Recombination and adoption.
+                        Reproduce(_offspring[i], parentA, parentB, prototype);
+                        
+                        if (_offspring[i].fitness < parentA.fitness)
+                        {
+                            _pool.Remove(parentA);
+                            _poolCount -= 1;
+                        }
+                        
+                        if (_offspring[i].fitness < parentB.fitness)
+                        {
+                            _pool.Remove(parentB);
+                            _poolCount -= 1;
+                        }
+                    }
+                    else
+                    {
+                        // Fill the rest of the population.
+                        RandomMember(_offspring[i]);
+                    }
+                }
+
+                _duration = ElapsedTime(timestamp);
+
+                // Exploit the elites.
+#if UNITY_WEBGL
+                for (int i = 0; i < _elites; i++)
+                {
+                    Survive(i);
+                }
+#else
+                System.Threading.Tasks.Parallel.For(0, _elites, Survive);
+#endif
+                
+			    // Re-roll elite if exploitation was not successful.
+			    for (int i = 0; i < _elites; i++)
+                {
+				    if (!_improved[i])
+                    {
+					    RandomMember(_offspring[i]);
+				    }
+                }
+                
+                // Swap population and offspring.
+                (_population, _offspring) = (_offspring, _population);
+
+			    SortByFitness();
+
+                // Check for improvement.
+                bool improvement = TryUpdateSolution() || HasAnyEliteImproved();
+                
+                // If we reached the target or we are out of time, finish.
+                reached = _model.CheckConvergence(_solution, position, rotation);
+                if (stopwatch.ElapsedMilliseconds >= milliseconds || reached)
+                {
+                    random = _random;
+                    fitness = _fitness;
+                    return _solution;
+                }
+                
+                // Reset if there has been no improvement.
+			    if (!improvement)
+                {
+				    Initialise(seed);
+			    }
+                else
+                {
+                    ComputeExtinctions();
+                }
+            } while (true);
+        }
+
+		/// <summary>
+		/// Initialize the population.
+		/// </summary>
+		/// <param name="seed">The starting joint values.</param>
+		private void Initialise(double[][] seed)
+        {
+            _fitness = double.MaxValue;            
+            
             // Reset any previous values.
             for (int i = 0; i < _populationSize; i++)
             {
@@ -179,53 +288,6 @@ namespace FusionIK.Evolution
                 _optimisers[i].Reset();
             }
             
-            // Set the limits.
-            for (int i = 0; i < _dimensionality; i++)
-            {
-                _lowerBounds[i] = _model.motionPointers[i].motion.GetLowerLimit();
-                _upperBounds[i] = _model.motionPointers[i].motion.GetUpperLimit();
-            }
-
-            // Initialize the population.
-            _fitness = double.MaxValue;
-            Initialise(seed);
-
-            // Start from the best seed.
-            for (int i = 0; i < _dimensionality; i++)
-            {
-                _model.motionPointers[i].motion.SetTargetValue((float) _solution[i]);
-            }
-            
-            // Setup the elites.
-            for (int i = 0; i < _elites; i++)
-            {
-                _models[i].CopyFrom(_model);
-                _optimisers[i].lowerBounds = _lowerBounds;
-                _optimisers[i].upperBounds = _upperBounds;
-            }
-
-            // Loop until a solution is reached or out of time.
-            do
-            {
-                Evolve(seed);
-                reached = _model.CheckConvergence(_solution, position, rotation);
-                if (stopwatch.ElapsedMilliseconds < milliseconds && !reached)
-                {
-                    continue;
-                }
-
-                random = _random;
-                fitness = _fitness;
-                return _solution;
-            } while (true);
-        }
-
-		/// <summary>
-		/// Initialize the population.
-		/// </summary>
-		/// <param name="seed">The starting joint values.</param>
-		private void Initialise(double[][] seed)
-        {
             // Set the seed as the first member of the population.
             for (int i = 0; i < seed.Length; i++)
             {
@@ -247,89 +309,27 @@ namespace FusionIK.Evolution
 			SortByFitness();
             ComputeExtinctions();
             TryUpdateSolution();
-		}
-
-		/// <summary>
-		/// Evolve the population.
-        /// <param name="seed">The starting seed joint values.,</param>
-		/// </summary>
-		private void Evolve(double[][] seed)
-        {
-			// Create the mating pool.
-			_pool.Clear();
-			_pool.AddRange(_population);
-			_poolCount = _populationSize;
             
-            DateTime timestamp = DateTime.Now;
-            
-            // Evolve offspring.
-            for (int i = _elites; i < _populationSize; i++)
+            // Start from the best seed.
+            for (int i = 0; i < _dimensionality; i++)
             {
-                if (_poolCount > 0)
-                {
-                    Individual parentA = Select(_pool);
-                    Individual parentB = Select(_pool);
-                    Individual prototype = Select(_pool);
-
-                    // Recombination and adoption.
-                    Reproduce(_offspring[i], parentA, parentB, prototype);
-                    
-                    if (_offspring[i].fitness < parentA.fitness)
-                    {
-                        _pool.Remove(parentA);
-                        _poolCount -= 1;
-                    }
-                    
-                    if (_offspring[i].fitness < parentB.fitness)
-                    {
-                        _pool.Remove(parentB);
-                        _poolCount -= 1;
-                    }
-                }
-                else
-                {
-                    // Fill the rest of the population.
-                    RandomMember(_offspring[i]);
-                }
+                _model.motionPointers[i].motion.SetTargetValue((float) _solution[i]);
             }
-
-            _duration = ElapsedTime(timestamp);
-
-            // Exploit the elites.
-#if UNITY_WEBGL
+            
+            // Setup the elites.
             for (int i = 0; i < _elites; i++)
             {
-                Survive(i);
+                _models[i].CopyFrom(_model);
+                _optimisers[i].lowerBounds = _lowerBounds;
+                _optimisers[i].upperBounds = _upperBounds;
             }
-#else
-            System.Threading.Tasks.Parallel.For(0, _elites, Survive);
-#endif
-            
-			// Re-roll elite if exploitation was not successful.
-			for (int i = 0; i < _elites; i++)
-            {
-				if (!_improved[i])
-                {
-					RandomMember(_offspring[i]);
-				}
-            }
-            
-            // Swap population and offspring.
-            (_population, _offspring) = (_offspring, _population);
+		}
 
-			SortByFitness();
-
-			// Check for improvement and reset if there has been no improvement.
-			if (!TryUpdateSolution() && !HasAnyEliteImproved())
-            {
-				Initialise(seed);
-			}
-            else
-            {
-                ComputeExtinctions();
-            }
-        }
-
+        /// <summary>
+        /// Get the time elapsed since a timestamp
+        /// </summary>
+        /// <param name="timestamp">The timestamp to check.</param>
+        /// <returns>The time in seconds since the timestamp.</returns>
         public static double ElapsedTime(DateTime timestamp)
         {
             return (DateTime.Now - timestamp).Duration().TotalSeconds;
