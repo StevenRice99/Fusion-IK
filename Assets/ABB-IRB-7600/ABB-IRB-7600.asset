@@ -13,11 +13,9 @@ MonoBehaviour:
   m_Name: ABB-IRB-7600
   m_EditorClassIdentifier: 
   repeatability: 0.00008
-  networks:
-  - {fileID: 11400000, guid: 0e8971634c3da6040a90c6ada6e239d5, type: 2}
+  networks: []
   population: 120
   elites: 3
-  steps: 100
   trainingTotal: 250000
   testingTotal: 100000
   normal: {fileID: 2100000, guid: caa1e16d1366e024bb46efaef55dd1be, type: 2}
