@@ -56,7 +56,7 @@ class JointNetwork(nn.Module):
         :param joints: The number of joints.
         """
         # Define the size of each joint network.
-        hidden_layers = 2
+        hidden_layers = 2 * joints
         hidden_size = 128
         super().__init__()
         # Take in all position and rotation values.
