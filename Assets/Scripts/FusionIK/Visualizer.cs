@@ -196,19 +196,7 @@ namespace FusionIK
             }
         }
 
-        private List<float> GetStarting()
-        {
-            // Clear old paths.
-            foreach (List<Vector3> path in _paths)
-            {
-                path.Clear();
-            }
-            
-            // Start at the last position.
-            return lastPose ?? Robot.GetJoints();
-        }
-
-        private void MovePerform(List<float> starting, Result[] results)
+        private void MovePerform(Result[] results)
         {
             milliseconds = math.max(milliseconds, 1);
             
@@ -271,7 +259,7 @@ namespace FusionIK
             for (int i = 0; i < robots.Length; i++)
             {
                 endings[i] = robots[i].GetJoints();
-                robots[i].Snap(starting);
+                robots[i].SnapMiddle();
             }
             Robot.PhysicsStep();
 
@@ -279,6 +267,11 @@ namespace FusionIK
             for (int i = 0; i < robots.Length; i++)
             {
                 robots[i].Move(endings[i]);
+            }
+
+            foreach (List<Vector3> path in _paths)
+            {
+                path.Clear();
             }
         }
 
@@ -289,8 +282,7 @@ namespace FusionIK
                 return;
             }
             
-            List<float> starting = GetStarting();
-            MovePerform(starting, MoveResults(_targetPosition.Value, _targetRotation.Value, new [] {milliseconds}));
+            MovePerform(MoveResults(_targetPosition.Value, _targetRotation.Value, new [] {milliseconds}));
         }
 
         /// <summary>
@@ -298,14 +290,11 @@ namespace FusionIK
         /// </summary>
         private void RandomMove()
         {
-            List<float> starting = GetStarting();
-
             // Solve for random target.
             Result[] results = RandomMoveResults(out Vector3 position, out Quaternion rotation, new [] {milliseconds});
             _targetPosition = position;
             _targetRotation = rotation;
-
-            MovePerform(starting, results);
+            MovePerform(results);
         }
 
         /// <summary>
