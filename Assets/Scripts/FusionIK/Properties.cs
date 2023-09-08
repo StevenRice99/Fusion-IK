@@ -37,12 +37,6 @@ namespace FusionIK
         /// Material to apply to the non-best robots during visualization.
         /// </summary>
         public Material Transparent => transparent;
-        
-        /// <summary>
-        /// The network to run inference on.
-        /// </summary>
-        /// <returns>The joint network at a given index that is desired.</returns>
-        public Model CompiledNetwork() => network!= null ? ModelLoader.Load(network) : null;
 
         [Header("Movement")]
         [Tooltip("How accurate in meters the robot can repeat a movement.")]
@@ -51,7 +45,7 @@ namespace FusionIK
         private float repeatability = 8e-5f;
 
         [Tooltip("Network to control the robot.")]
-        public NNModel network;
+        public NNModel[] networks;
 
         [Header("Bio IK")]
         [Tooltip("The population size of each generation during Bio IK evolution.")]
@@ -100,6 +94,18 @@ namespace FusionIK
         /// Formatted name for the robot.
         /// </summary>
         public string Name => name.Replace(" ", "-");
+
+        /// <summary>
+        /// Check if networks are valid.
+        /// </summary>
+        public bool NetworksValid => networks != null && networks.All(network => network != null);
+        
+        /// <summary>
+        /// A network to run inference on.
+        /// </summary>
+        /// <param name="index">The network index.</param>
+        /// <returns>The joint network at a given index that is desired.</returns>
+        public Model CompiledNetwork(int index) => networks!= null && index >= 0 && index < networks.Length && networks[index] != null ? ModelLoader.Load(networks[index]) : null;
         
         /// <summary>
         /// Ensure a directory exists.

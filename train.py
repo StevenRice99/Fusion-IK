@@ -13,18 +13,15 @@ class InverseKinematicsDataset(Dataset):
     The datasets built from the CSV data.
     """
 
-    def __init__(self, df, joints: int):
+    def __init__(self, df, joint: int):
         """
         Create the dataset.
-        :param joints: The total number of joints.
+        :param joint: The current joint.
         """
-        self.inputs = []
-        self.outputs = []
-        # Loop through all inputs and outputs.
-        for i in range(7):
-            self.inputs.append(f"I{i + 1}")
-        for i in range(joints):
-            self.outputs.append(f"O{i + 1}")
+        # Inputs are three position and four rotation values.
+        self.inputs = ["I1", "I2", "I3", "I4", "I5", "I6", "I7"]
+        # Solve for the final value of this joint.
+        self.outputs = [f"O{joint + 1}"]
         # Convert for PyTorch.
         self.inputs = torch.tensor(df[self.inputs].to_numpy(), dtype=torch.float32)
         self.outputs = torch.tensor(df[self.outputs].to_numpy(), dtype=torch.float32)
@@ -47,19 +44,18 @@ class InverseKinematicsDataset(Dataset):
 
 class JointNetwork(nn.Module):
     """
-    The neural network to train for each joint.
+    The neural network to train.
     """
 
-    def __init__(self, joints: int):
+    def __init__(self):
         """
         Create the neural network.
-        :param joints: The number of joints.
         """
         # Define the size of each joint network.
-        hidden_layers = 2 * joints
+        hidden_layers = 2
         hidden_size = 128
         super().__init__()
-        # Take in all position and rotation values.
+        # Take in all joint, position, and rotation values.
         self.layers = nn.Sequential(
             nn.Linear(7, hidden_size),
             nn.ReLU()
@@ -70,8 +66,8 @@ class JointNetwork(nn.Module):
             self.layers.append(nn.Linear(hidden_size, hidden_size))
             self.layers.append(nn.ReLU())
             self.layers.append(nn.Dropout())
-        # Output joint values.
-        self.layers.append(nn.Linear(hidden_size, joints))
+        # A single output for the joint this network is for.
+        self.layers.append(nn.Linear(hidden_size, 1))
         self.layers.append(nn.ReLU())
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters())
@@ -165,10 +161,11 @@ def test(model, dataloader):
     return (1 - accuracy / len(dataloader)) * 100
 
 
-def save(robot: str, model, best, epoch: int, score: float):
+def save(robot: str, joint: int, model, best, epoch: int, score: float):
     """
     Save the model and ONNX export.
     :param robot: The robot the network is for.
+    :param joint: The joint the network is for.
     :param model: The network model.
     :param best: The best network model.
     :param epoch: The current epoch.
@@ -181,7 +178,7 @@ def save(robot: str, model, best, epoch: int, score: float):
         'Optimizer': model.optimizer.state_dict(),
         'Epoch': epoch,
         'Score': score
-    }, os.path.join(os.getcwd(), "Networks", f"{robot}.pt"))
+    }, os.path.join(os.getcwd(), "Networks", f"{robot}-{joint}.pt"))
     # Store the current training state.
     old = model.state_dict()
     # Export the best state.
@@ -189,7 +186,7 @@ def save(robot: str, model, best, epoch: int, score: float):
     torch.onnx.export(
         model,
         to_tensor(torch.randn(1, 7, dtype=torch.float32)),
-        os.path.join(os.getcwd(), "Networks", f"{robot}.onnx"),
+        os.path.join(os.getcwd(), "Networks", f"{robot}-{joint}.onnx"),
         export_params=True,
         opset_version=9,
         do_constant_folding=True,
@@ -250,68 +247,73 @@ def train(epochs: int, batch: int):
         # Ensure folder to save models exists.
         if not os.path.exists(os.path.join(os.getcwd(), "Networks")):
             os.mkdir(os.path.join(os.getcwd(), "Networks"))
-        # Create the datasets for this joint.
-        training = DataLoader(InverseKinematicsDataset(df.head(training_size), joints), batch_size=batch, shuffle=False)
-        testing = DataLoader(InverseKinematicsDataset(df.tail(testing_size), joints), batch_size=batch, shuffle=False)
-        # Define the model.
-        model = JointNetwork(joints)
-        best = model.state_dict()
-        # Check if an existing model exists for this joint, load it.
-        if os.path.exists(os.path.join(os.getcwd(), "Networks", f"{robot}.pt")):
-            try:
-                saved = torch.load(os.path.join(os.getcwd(), "Networks", f"{robot}.pt"))
-                epoch = saved['Epoch']
-                best_score = saved['Score']
-                # If already done training this joint, skip to the next.
-                if epoch >= epochs:
-                    total += best_score
-                    print(f"{robot} = {best_score}%")
-                    continue
-                best = saved['Best']
-                model.load_state_dict(saved['Training'])
-                model.optimizer.load_state_dict(saved['Optimizer'])
-                print(f"Continuing training for {robot} from epoch {epoch} with batch size {batch} for {epochs} epochs.")
-            except:
-                print("Unable to load training data, exiting.")
-                return
-        # Otherwise, start a new training.
-        else:
-            epoch = 1
-            print(f"Starting training for {robot} with batch size {batch} for {epochs} epochs.")
-        train_score = test(model, training)
-        score = test(model, testing)
-        # If new training, write initial files.
-        if epoch == 1:
-            best_score = score
-            f = open(os.path.join(os.getcwd(), "Networks", f"{robot}.csv"), "w")
-            f.write("Epoch,Training,Testing,Best")
-            f.close()
-            save(robot, model, best, epoch, best_score)
-        # Train for set epochs.
-        while True:
-            # Exit once done.
-            if epoch > epochs:
-                total += best_score
-                print(f"{robot} = {best_score}%")
-                break
-            msg = f"{robot} | Epoch {epoch}/{epochs} | Training {train_score:.4}% | Testing = {score:.4}% | Best = {best_score:.4}%"
-            # Train on the training dataset.
-            model.train()
-            for inputs, outputs in tqdm(training, msg):
-                model.optimize(to_tensor(inputs), to_tensor(outputs))
-            # Check how well the newest epoch performs.
+        # Train a network for every joint.
+        total = 0
+        for joint in range(joints):
+            # Create the datasets for this joint.
+            training = DataLoader(InverseKinematicsDataset(df.head(training_size), joint), batch_size=batch, shuffle=False)
+            testing = DataLoader(InverseKinematicsDataset(df.tail(testing_size), joint), batch_size=batch, shuffle=False)
+            # Define the model.
+            model = JointNetwork()
+            best = model.state_dict()
+            # Check if an existing model exists for this joint, load it.
+            best_score = 0
+            if os.path.exists(os.path.join(os.getcwd(), "Networks", f"{robot}-{joint}.pt")):
+                try:
+                    saved = torch.load(os.path.join(os.getcwd(), "Networks", f"{robot}-{joint}.pt"))
+                    epoch = saved['Epoch']
+                    best_score = saved['Score']
+                    # If already done training this joint, skip to the next.
+                    if epoch >= epochs:
+                        total += best_score
+                        print(f"{robot} = {best_score}%")
+                        continue
+                    best = saved['Best']
+                    model.load_state_dict(saved['Training'])
+                    model.optimizer.load_state_dict(saved['Optimizer'])
+                    print(f"Continuing training for {robot} joint {joint + 1} of {joints} from epoch {epoch} with batch size {batch} for {epochs} epochs.")
+                except:
+                    print("Unable to load training data, exiting.")
+                    return
+            # Otherwise, start a new training.
+            else:
+                epoch = 1
+                print(f"Starting training for {robot} joint {joint + 1} of {joints} with batch size {batch} for {epochs} epochs.")
             train_score = test(model, training)
             score = test(model, testing)
-            # Check if this is the new best model.
-            if score > best_score:
-                best = model.state_dict()
+            # If new training, write initial files.
+            if epoch == 1:
                 best_score = score
-            # Save data.
-            f = open(os.path.join(os.getcwd(), "Networks", f"{robot}.csv"), "a")
-            f.write(f"\n{epoch},{train_score},{score},{best_score}")
-            f.close()
-            epoch += 1
-            save(robot, model, best, epoch, best_score)
+                f = open(os.path.join(os.getcwd(), "Networks", f"{robot}-{joint}.csv"), "w")
+                f.write("Epoch,Training,Testing,Best")
+                f.close()
+                save(robot, joint, model, best, epoch, best_score)
+            # Train for set epochs.
+            while True:
+                # Exit once done.
+                if epoch > epochs:
+                    total += best_score
+                    print(f"{robot} = {best_score}%")
+                    break
+                msg = f"{robot} | Joint {joint + 1} of {joints} | Epoch {epoch}/{epochs} | Training {train_score:.4}% | Testing = {score:.4}% | Best = {best_score:.4}%"
+                # Train on the training dataset.
+                model.train()
+                for inputs, outputs in tqdm(training, msg):
+                    model.optimize(to_tensor(inputs), to_tensor(outputs))
+                # Check how well the newest epoch performs.
+                train_score = test(model, training)
+                score = test(model, testing)
+                # Check if this is the new best model.
+                if score > best_score:
+                    best = model.state_dict()
+                    best_score = score
+                # Save data.
+                f = open(os.path.join(os.getcwd(), "Networks", f"{robot}-{joint}.csv"), "a")
+                f.write(f"\n{epoch},{train_score},{score},{best_score}")
+                f.close()
+                epoch += 1
+                save(robot, joint, model, best, epoch, best_score)
+        print(f"{robot} Average = {total / joints}%")
 
 
 if __name__ == '__main__':

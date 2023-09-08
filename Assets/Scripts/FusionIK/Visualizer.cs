@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
@@ -39,7 +40,7 @@ namespace FusionIK
         private static Material _lineMaterial;
         
         [Tooltip("The time the algorithm is allowed to run for.")]
-        [Min(1)]
+        [Min(0)]
         [SerializeField]
         private long milliseconds = 100;
         
@@ -209,6 +210,8 @@ namespace FusionIK
 
         private void MovePerform(List<float> starting, Result[] results)
         {
+            milliseconds = math.max(milliseconds, 1);
+            
             // Get the best robot and order the rest.
             Robot best = Best(results, out _ordered);
             
@@ -378,7 +381,7 @@ namespace FusionIK
             
             // Display input to change the milliseconds.
             GUI.Label(new(10, 10, 100, 20), "Milliseconds");
-            string s = milliseconds.ToString();
+            string s = milliseconds > 0 ? milliseconds.ToString() : string.Empty;
             s = GUI.TextField(new(10, 30, 100, 20), s, 5);
             s = new(s.Where(char.IsDigit).ToArray());
             if (string.IsNullOrWhiteSpace(s))
@@ -390,17 +393,19 @@ namespace FusionIK
                 try
                 {
                     int input = int.Parse(s);
-                    milliseconds = input <= 0 ? 1 : input;
+                    milliseconds = input;
                 }
                 catch
                 {
-                    milliseconds = 1;
+                    milliseconds = 0;
                 }
             }
 
             // At the beginning, just call to move.
             if (_targetPosition == null || _targetRotation == null)
             {
+                Robot.SnapMiddle();
+                Robot.PhysicsStep();
                 _targetPosition = Robot.EndTransform.position;
                 _targetRotation = Robot.EndTransform.rotation;
                 Move();

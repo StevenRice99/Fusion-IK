@@ -14,7 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   repeatability: 0.00008
   networks:
-  - {fileID: 11400000, guid: 418e36b772de2154fb22490b4727a093, type: 2}
+  - {fileID: 5022602860645237092, guid: 2741c0c290ef8bf41a2cddf2d7df351a, type: 3}
+  - {fileID: 5022602860645237092, guid: 590410dbcf26da4439b7d9da30f6339a, type: 3}
+  - {fileID: 5022602860645237092, guid: ba606827aecda0c4d9dc519474b9c52e, type: 3}
+  - {fileID: 5022602860645237092, guid: aad9b77b14ec39440b6570f9de01ce3f, type: 3}
+  - {fileID: 5022602860645237092, guid: e3f8839ca0dd6cc419fec2585f5b0524, type: 3}
+  - {fileID: 5022602860645237092, guid: 39dba6927c78dfd4cb519454d0286f36, type: 3}
   population: 120
   elites: 3
   trainingTotal: 250000

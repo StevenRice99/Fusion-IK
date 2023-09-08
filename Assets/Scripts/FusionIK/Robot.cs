@@ -105,19 +105,9 @@ namespace FusionIK
         private float[] _currentSpeeds;
 
         /// <summary>
-        /// The network to control the joints.
+        /// The network workers.
         /// </summary>
-        private Model _network;
-
-        /// <summary>
-        /// The network worker.
-        /// </summary>
-        private IWorker _worker;
-
-        /// <summary>
-        /// The Bio IK controller.
-        /// </summary>
-        private BioIk _bioIk;
+        private IWorker[] _workers;
 
         /// <summary>
         /// The middle joint values for calculations.
@@ -476,8 +466,7 @@ namespace FusionIK
                 while (stopwatch.ElapsedMilliseconds < milliseconds)
                 {
                     // Run Bio IK.
-                    _bioIk = new(this, properties.Population, properties.Elites);
-                    double[] attemptSolution = _bioIk.Optimise(bioSeed, targetPosition, targetRotation, milliseconds - stopwatch.ElapsedMilliseconds, ref random, out bool attemptReached, out double attemptFitness);
+                    double[] attemptSolution = BioIk.Solve(this, properties.Population, properties.Elites, bioSeed, targetPosition, targetRotation, milliseconds - stopwatch.ElapsedMilliseconds, ref random, out bool attemptReached, out double attemptFitness);
                 
                     // If have already reached.
                     if (reached)
@@ -544,23 +533,22 @@ namespace FusionIK
         {
             // Get initial input values and prepare for outputs.
             float[] forwards = inputs.ToArray();
-            List<float> outputs = new(_limits.Length);
-            
+            List<float> outputs = new(_workers.Length);
             Tensor input = new(1, 1, 1, forwards.Length, forwards, "INPUTS");
             
-            // Run the network.
-            Tensor output = _worker.Execute(input).PeekOutput();
-            input.Dispose();
-            
             // Go through every joint's network.
-            for (int i = 0; i < _limits.Length; i++)
+            for (int i = 0; i < _workers.Length; i++)
             {
+                // Run the current joint network.
+                Tensor output = _workers[i].Execute(input).PeekOutput();
+                
                 // Add the output and replace the input for the next joint's network.
-                // TODO - likely needs to be changed as I feel this won't work.
-                outputs.Add(output[0, 0, 0, i]);
+                outputs.Add(math.clamp(output[0, 0, 0, 0], 0, 1));
+                input[0, 0, 0, i] = output[0, 0, 0, 0];
+                output.Dispose();
             }
             
-            output.Dispose();
+            input.Dispose();
 
             return ResultsScaled(outputs);
         }
@@ -813,11 +801,31 @@ namespace FusionIK
             }
 
             // Setup networks.
-            if (properties.network != null)
+            if (properties.NetworksValid)
             {
-                _network = properties.CompiledNetwork();
-                _worker = WorkerFactory.CreateWorker(_network);
-                RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity).ToList());
+                bool valid = true;
+                _workers = new IWorker[properties.networks.Length];
+                for (int i = 0; i < _workers.Length; i++)
+                {
+                    _workers[i] = WorkerFactory.CreateWorker(properties.CompiledNetwork(i));
+                    if (_workers[i] != null)
+                    {
+                        continue;
+                    }
+
+                    valid = false;
+                    break;
+                }
+
+                if (valid)
+                {
+                    RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity).ToList());
+                }
+                else
+                {
+                    CleanupWorkers();
+                    mode = SolverMode.BioIk;
+                }
             }
             else
             {
@@ -878,7 +886,15 @@ namespace FusionIK
         /// </summary>
         private void CleanupWorkers()
         {
-            _worker?.Dispose();
+            if (_workers == null)
+            {
+                return;
+            }
+
+            foreach (IWorker worker in _workers)
+            {
+                worker.Dispose();
+            }
         }
     }
 }

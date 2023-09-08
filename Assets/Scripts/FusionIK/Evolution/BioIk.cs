@@ -9,148 +9,114 @@ namespace FusionIK.Evolution
     /// <summary>
     /// Bio IK optimization.
     /// </summary>
-	public class BioIk
+	public static class BioIk
     {
         /// <summary>
         /// Ghost robot to perform calculations on.
         /// </summary>
-        private readonly GhostRobot _model;
+        private static GhostRobot _model;
         
         /// <summary>
         /// Population size.
         /// </summary>
-		private readonly int _populationSize;
+		private static int _populationSize;
         
         /// <summary>
         /// Number of elites.
         /// </summary>
-		private readonly int _elites;
+		private static int _elites;
         
         /// <summary>
         /// Number of joints.
         /// </summary>
-		private readonly int _dimensionality;
+		private static int _dimensionality;
 
         /// <summary>
         /// Lower limits of joints.
         /// </summary>
-		private readonly double[] _lowerBounds;
+		private static double[] _lowerBounds;
         
         /// <summary>
         /// Upper limits of joints.
         /// </summary>
-		private readonly double[] _upperBounds;
+		private static double[] _upperBounds;
 
         /// <summary>
         /// The population.
         /// </summary>
-		private Individual[] _population;
+		private static Individual[] _population;
         
         /// <summary>
         /// The offspring for the next population.
         /// </summary>
-		private Individual[] _offspring;
+		private static Individual[] _offspring;
 
         /// <summary>
         /// Selection pool for recombination for the next generation.
         /// </summary>
-		private readonly List<Individual> _pool = new();
+		private static readonly List<Individual> Pool = new();
         
         /// <summary>
         /// Number of members in the pool.
         /// </summary>
-		private int _poolCount;
+		private static int _poolCount;
         
         /// <summary>
         /// Likelihood of each member being selected for recombination.
         /// </summary>
-		private readonly double[] _probabilities;
+		private static double[] _probabilities;
         
         /// <summary>
         /// Helper gene storage variable.
         /// </summary>
-		private double _gene;
+		private static double _gene;
         
         /// <summary>
         /// Helper weight storage variable.
         /// </summary>
-		private double _weight;
+		private static double _weight;
 
         /// <summary>
         /// Which members improved.
         /// </summary>
-        private readonly bool[] _improved;
+        private static bool[] _improved;
         
         /// <summary>
         /// Elite models operations can be run in parallel.
         /// </summary>
-        private readonly GhostRobot[] _models;
+        private static GhostRobot[] _models;
         
         /// <summary>
         /// Optimizers for every elite.
         /// </summary>
-        private readonly Optimization[] _optimisers;
+        private static Optimization[] _optimisers;
 
         /// <summary>
         /// Current best joint values.
         /// </summary>
-		private readonly double[] _solution;
+		private static double[] _solution;
         
         /// <summary>
         /// Current best fitness.
         /// </summary>
-		private double _fitness;
+		private static double _fitness;
 
         /// <summary>
         /// Random number generator.
         /// </summary>
-        private Unity.Mathematics.Random _random;
+        private static Unity.Mathematics.Random _random;
 
         /// <summary>
         /// The duration to optimise for.
         /// </summary>
-        private double _duration;
-
-		/// <summary>
-		/// Initialize the solver.
-		/// </summary>
-		/// <param name="robot">The robot this solver is for.</param>
-		/// <param name="populationSize">The population size.</param>
-		/// <param name="elites">The number of elites.</param>
-		public BioIk(Robot robot, int populationSize, int elites)
-        {
-			_model = new(robot);
-			_populationSize = populationSize;
-			_elites = elites;
-			_dimensionality = _model.dof;
-
-			_population = new Individual[_populationSize];
-			_offspring = new Individual[_populationSize];
-			for (int i = 0; i < _populationSize; i++)
-            {
-				_population[i] = new(_dimensionality);
-				_offspring[i] = new(_dimensionality);
-			}
-
-			_lowerBounds = new double[_dimensionality];
-			_upperBounds = new double[_dimensionality];
-			_probabilities = new double[_populationSize];
-			_solution = new double[_dimensionality];
-
-            _models = new GhostRobot[_elites];
-            _optimisers = new Optimization[_elites];
-            _improved = new bool[_elites];
-            for (int i = 0; i < _elites; i++)
-            {
-                int index = i;
-                _models[index] = new(robot);
-                _optimisers[index] = new(_dimensionality, x => _models[index].ComputeLoss(x), y => _models[index].ComputeGradient(y, 1e-5));
-            }
-        }
+        private static double _duration;
 
         /// <summary>
         /// Run the algorithm to solve for a solution.
         /// </summary>
+        /// <param name="robot">The robot to solve for.</param>
+        /// <param name="populationSize">The population size.</param>
+        /// <param name="elites">The number of elites.</param>
         /// <param name="seed">The starting seed joint values.,</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
@@ -159,31 +125,20 @@ namespace FusionIK.Evolution
         /// <param name="reached">If the target is reached.</param>
         /// <param name="fitness">The fitness score of the result.</param>
         /// <returns>The joint values to reach the solution.</returns>
-        public double[] Optimise(double[][] seed, Vector3 position, Quaternion rotation, long milliseconds, ref Unity.Mathematics.Random random, out bool reached, out double fitness)
+        public static double[] Solve(Robot robot, int populationSize, int elites, double[][] seed, Vector3 position, Quaternion rotation, long milliseconds, ref Unity.Mathematics.Random random, out bool reached, out double fitness)
         {
             _random = random;
             Stopwatch stopwatch = Stopwatch.StartNew();
-            
-            // Set the target.
-            _model.SetTargetPosition(position);
-            _model.SetTargetRotation(rotation);
-            
-            // Set the limits.
-            for (int i = 0; i < _dimensionality; i++)
-            {
-                _lowerBounds[i] = _model.motionPointers[i].motion.GetLowerLimit();
-                _upperBounds[i] = _model.motionPointers[i].motion.GetUpperLimit();
-            }
 
             // Initialize the population.
-            Initialise(seed);
+            Initialise(robot, populationSize, elites, position, rotation, seed);
 
             // Loop until a solution is reached or out of time.
             do
             {
                 // Create the mating pool.
-			    _pool.Clear();
-			    _pool.AddRange(_population);
+			    Pool.Clear();
+			    Pool.AddRange(_population);
 			    _poolCount = _populationSize;
                 
                 DateTime timestamp = DateTime.Now;
@@ -193,22 +148,22 @@ namespace FusionIK.Evolution
                 {
                     if (_poolCount > 0)
                     {
-                        Individual parentA = Select(_pool);
-                        Individual parentB = Select(_pool);
-                        Individual prototype = Select(_pool);
+                        Individual parentA = Select(Pool);
+                        Individual parentB = Select(Pool);
+                        Individual prototype = Select(Pool);
 
                         // Recombination and adoption.
                         Reproduce(_offspring[i], parentA, parentB, prototype);
                         
                         if (_offspring[i].fitness < parentA.fitness)
                         {
-                            _pool.Remove(parentA);
+                            Pool.Remove(parentA);
                             _poolCount -= 1;
                         }
                         
                         if (_offspring[i].fitness < parentB.fitness)
                         {
-                            _pool.Remove(parentB);
+                            Pool.Remove(parentB);
                             _poolCount -= 1;
                         }
                     }
@@ -260,7 +215,7 @@ namespace FusionIK.Evolution
                 // Reset if there has been no improvement.
 			    if (!improvement)
                 {
-				    Initialise(seed);
+                    Initialise(robot, populationSize, elites, position, rotation, seed);
 			    }
                 else
                 {
@@ -269,12 +224,56 @@ namespace FusionIK.Evolution
             } while (true);
         }
 
-		/// <summary>
-		/// Initialize the population.
-		/// </summary>
-		/// <param name="seed">The starting joint values.</param>
-		private void Initialise(double[][] seed)
+        /// <summary>
+        /// Initialize the population.
+        /// </summary>
+        /// <param name="robot">The robot to solve for.</param>
+        /// <param name="populationSize">The population size.</param>
+        /// <param name="elites">The number of elites.</param>
+        /// <param name="position">The position to solve for.</param>
+        /// <param name="rotation">The rotation to solve for.</param>
+        /// <param name="seed">The starting joint values.</param>
+        private static void Initialise(Robot robot, int populationSize, int elites, Vector3 position, Quaternion rotation, double[][] seed)
         {
+            _model = new(robot);
+            _populationSize = populationSize;
+            _elites = elites;
+            _dimensionality = _model.dof;
+
+            _population = new Individual[_populationSize];
+            _offspring = new Individual[_populationSize];
+            for (int i = 0; i < _populationSize; i++)
+            {
+                _population[i] = new(_dimensionality);
+                _offspring[i] = new(_dimensionality);
+            }
+
+            _lowerBounds = new double[_dimensionality];
+            _upperBounds = new double[_dimensionality];
+            _probabilities = new double[_populationSize];
+            _solution = new double[_dimensionality];
+
+            _models = new GhostRobot[_elites];
+            _optimisers = new Optimization[_elites];
+            _improved = new bool[_elites];
+            for (int i = 0; i < _elites; i++)
+            {
+                int index = i;
+                _models[index] = new(robot);
+                _optimisers[index] = new(_dimensionality, x => _models[index].ComputeLoss(x), y => _models[index].ComputeGradient(y, 1e-5));
+            }
+            
+            // Set the target.
+            _model.SetTargetPosition(position);
+            _model.SetTargetRotation(rotation);
+            
+            // Set the limits.
+            for (int i = 0; i < _dimensionality; i++)
+            {
+                _lowerBounds[i] = _model.motionPointers[i].motion.GetLowerLimit();
+                _upperBounds[i] = _model.motionPointers[i].motion.GetUpperLimit();
+            }
+            
             _fitness = double.MaxValue;            
             
             // Reset any previous values.
@@ -341,7 +340,7 @@ namespace FusionIK.Evolution
 		/// <param name="parentA">The first parent.</param>
 		/// <param name="parentB">The second parent.</param>
 		/// <returns>The mutation probability between two parents.</returns>
-		private double GetMutationProbability(Individual parentA, Individual parentB)
+		private static double GetMutationProbability(Individual parentA, Individual parentB)
         {
 			double inverse = 1.0 / _dimensionality;
 			return 0.5 * (parentA.extinction + parentB.extinction) * (1.0 - inverse) + inverse;
@@ -361,7 +360,7 @@ namespace FusionIK.Evolution
 		/// <summary>
 		/// Computes the extinction factors for all members of the population.
 		/// </summary>
-		private void ComputeExtinctions()
+		private static void ComputeExtinctions()
         {
 			for (int i = 0; i < _populationSize; i++)
             {
@@ -373,7 +372,7 @@ namespace FusionIK.Evolution
 		/// Get if any could be improved by the exploitation.
 		/// </summary>
 		/// <returns>True if any elite could be improved, false otherwise.</returns>
-		private bool HasAnyEliteImproved()
+		private static bool HasAnyEliteImproved()
         {
 			for (int i = 0; i < _elites; i++)
             {
@@ -389,7 +388,7 @@ namespace FusionIK.Evolution
         /// Tries to improve the evolutionary solution by the population, and returns whether it was successful
         /// </summary>
         /// <returns>Try if the solution was improved, false otherwise.</returns>
-		private bool TryUpdateSolution()
+		private static bool TryUpdateSolution()
         {
 			double candidateFitness = _population[0].fitness;
             if (candidateFitness >= _fitness)
@@ -409,7 +408,7 @@ namespace FusionIK.Evolution
         /// Test an elite for its survival.
         /// </summary>
         /// <param name="index">The index of the elite.</param>
-		private void Survive(int index)
+		private static void Survive(int index)
         {
             // Copy the elite.
             Individual survivor = _population[index];
@@ -446,7 +445,7 @@ namespace FusionIK.Evolution
 		/// <param name="parentA">The first parent.</param>
 		/// <param name="parentB">The second parent.</param>
 		/// <param name="prototype">The individual to base off of.</param>
-		private void Reproduce(Individual offspring, Individual parentA, Individual parentB, Individual prototype)
+		private static void Reproduce(Individual offspring, Individual parentA, Individual parentB, Individual prototype)
         {
             double mutationProbability = GetMutationProbability(parentA, parentB);
 			double mutationStrength = GetMutationStrength(parentA, parentB);
@@ -495,7 +494,7 @@ namespace FusionIK.Evolution
 		/// Generate a random individual.
 		/// </summary>
 		/// <param name="individual">The individual to generate.</param>
-		private void RandomMember(Individual individual)
+		private static void RandomMember(Individual individual)
         {
 			for (int i = 0; i < _dimensionality; i++)
             {
@@ -510,7 +509,7 @@ namespace FusionIK.Evolution
 		/// </summary>
 		/// <param name="pool">The selection pool.</param>
 		/// <returns>An individual from the population.</returns>
-		private Individual Select(List<Individual> pool)
+		private static Individual Select(List<Individual> pool)
         {
 			double rankSum = _poolCount * (_poolCount + 1) / 2.0;
 			for (int i = 0; i < _poolCount; i++)
@@ -526,7 +525,7 @@ namespace FusionIK.Evolution
 		/// <param name="probabilities">The probabilities of each weight.</param>
 		/// <param name="count">The number of weights.</param>
 		/// <returns>The random weight value.</returns>
-		private int GetRandomWeightedIndex(double[] probabilities, int count)
+		private static int GetRandomWeightedIndex(double[] probabilities, int count)
         {
 			double weightSum = 0.0;
 			for (int i = 0; i < count; i++)
@@ -548,7 +547,7 @@ namespace FusionIK.Evolution
         /// <summary>
         /// Sort the population by their fitness values.
         /// </summary>
-		private void SortByFitness()
+		private static void SortByFitness()
         {
 			Array.Sort(_population, (a, b) => a.fitness.CompareTo(b.fitness));
 		}

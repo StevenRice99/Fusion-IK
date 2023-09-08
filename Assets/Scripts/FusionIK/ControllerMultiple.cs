@@ -37,7 +37,7 @@ namespace FusionIK
             if (r != null)
             {
                 robotsLists.Add(r);
-                if (r.Properties.network != null)
+                if (r.Properties.NetworksValid)
                 {
                     r = CreateRobot(Robot.SolverMode.Network);
                     if (r != null)
