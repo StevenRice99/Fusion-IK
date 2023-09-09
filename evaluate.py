@@ -94,6 +94,6 @@ def evaluate():
 
 
 if __name__ == '__main__':
-    desc = "Fusion-IK Evaluator"
+    desc = "Fusion-IK Evaluation"
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
     evaluate()

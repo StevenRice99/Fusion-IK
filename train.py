@@ -329,7 +329,7 @@ def train(epochs: int, batch: int):
 
 if __name__ == '__main__':
     try:
-        desc = "Fusion-IK Trainer"
+        desc = "Fusion-IK Training"
         parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
         parser.add_argument("-e", "--epoch", type=int, help="Number of epochs to train for.", default=100)
         parser.add_argument("-b", "--batch", type=int, help="Batch size.", default=64)
