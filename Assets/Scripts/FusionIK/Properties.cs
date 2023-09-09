@@ -99,7 +99,7 @@ namespace FusionIK
         /// <summary>
         /// Check if networks are valid.
         /// </summary>
-        public bool NetworksValid => networks != null && networks.All(network => network != null);
+        public bool NetworksValid => networks is {Length: > 0} && networks.All(network => network != null);
         
         /// <summary>
         /// A network to run inference on.
@@ -303,10 +303,10 @@ namespace FusionIK
 
                 if (!File.Exists(file))
                 {
-                    File.WriteAllText(file, "Success,Time,Distance,Angle");
+                    File.WriteAllText(file, "Success,Time,Fitness");
                 }
                 
-                File.AppendAllText(file, $"\n{result.success},{result.time},{result.distance},{result.angle}");
+                File.AppendAllText(file, $"\n{result.success},{result.time},{result.fitness}");
             }
             
             Debug.Log($"{Name} | Evaluated {++_resultsCount} of {testingTotal}.");

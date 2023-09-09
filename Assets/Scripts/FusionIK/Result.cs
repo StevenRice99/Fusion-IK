@@ -26,16 +26,6 @@
         public readonly double time;
 
         /// <summary>
-        /// How far off in meters was the end effectors from reaching the target.
-        /// </summary>
-        public readonly float distance;
-
-        /// <summary>
-        /// How far off in degrees was the end effector from reaching the target.
-        /// </summary>
-        public readonly float angle;
-
-        /// <summary>
         /// The fitness score of the result.
         /// </summary>
         public readonly double fitness;
@@ -47,17 +37,13 @@
         /// <param name="robot">The robot that did the move.</param>
         /// <param name="success">If the move was successful.</param>
         /// <param name="time">The time it took for the joints to reach their destinations.</param>
-        /// <param name="distance">How far off in meters was the end effectors from reaching the target.</param>
-        /// <param name="angle">How far off in degrees was the end effector from reaching the target.</param>
         /// <param name="fitness">The fitness score of the result.</param>
-        public Result(long milliseconds, Robot robot, bool success, double time, float distance, float angle, double fitness)
+        public Result(long milliseconds, Robot robot, bool success, double time,double fitness)
         {
             this.milliseconds = milliseconds;
             this.robot = robot;
             this.success = success;
             this.time = time;
-            this.distance = distance;
-            this.angle = angle;
             this.fitness = fitness;
         }
     }

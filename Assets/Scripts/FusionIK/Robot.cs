@@ -288,7 +288,7 @@ namespace FusionIK
         /// <param name="targetPosition">The position to check.</param>
         /// <param name="position">The root position.</param>
         /// <returns>True if reached, false otherwise.</returns>
-        public static float PositionAccuracy(Vector3 targetPosition, Vector3 position) => Vector3.Distance(position, targetPosition);
+        private static float PositionAccuracy(Vector3 targetPosition, Vector3 position) => Vector3.Distance(position, targetPosition);
 
         /// <summary>
         /// If the rotation was reached.
@@ -296,7 +296,7 @@ namespace FusionIK
         /// <param name="targetRotation">The rotation to check.</param>
         /// <param name="rotation">The root rotation.</param>
         /// <returns>True if reached, false otherwise.</returns>
-        public static float RotationAccuracy(Quaternion targetRotation, Quaternion rotation) => Quaternion.Angle(targetRotation, rotation) / 360;
+        private static float RotationAccuracy(Quaternion targetRotation, Quaternion rotation) => Quaternion.Angle(targetRotation, rotation) / 360;
 
         /// <summary>
         /// Calculate the time needed for a robot to move from its middle to ending joint values.

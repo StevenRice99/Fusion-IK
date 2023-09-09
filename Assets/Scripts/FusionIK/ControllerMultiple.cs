@@ -141,7 +141,7 @@ namespace FusionIK
             Result[] reached = results.Where(x => x.success).OrderBy(x => x.time).ThenBy(x => x.robot.mode).ToArray();
             
             // Get the robots that did not reached ordered by their fitness, then distance, then angle, then mode.
-            Result[] notReached = results.Where(x => !x.success).OrderBy(x => x.fitness).ThenBy(x => x.distance).ThenBy(x => x.angle).ThenBy(x => x.robot.mode).ToArray();
+            Result[] notReached = results.Where(x => !x.success).OrderBy(x => x.fitness).ThenBy(x => x.robot.mode).ToArray();
             
             // Combine both and return the first robot.
             ordered = reached.Concat(notReached).ToArray();
@@ -162,7 +162,7 @@ namespace FusionIK
             r.Snap(position, rotation, milliseconds, out bool reached, out double moveTime, out double fitness, seed);
             Robot.PhysicsStep();
 
-            return new(r.mode == Robot.SolverMode.Network ? 0 : milliseconds, r, reached, moveTime, reached ? 0 : Robot.PositionAccuracy(position, r.EndTransform.position), reached ? 0 : Robot.RotationAccuracy(rotation, r.EndTransform.rotation), fitness);
+            return new(r.mode == Robot.SolverMode.Network ? 0 : milliseconds, r, reached, moveTime, fitness);
         }
     }
 }

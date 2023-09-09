@@ -127,11 +127,51 @@ namespace FusionIK.Evolution
         /// <returns>The joint values to reach the solution.</returns>
         public static double[] Solve(Robot robot, int populationSize, int elites, double[][] seed, Vector3 position, Quaternion rotation, long milliseconds, ref Unity.Mathematics.Random random, out bool reached, out double fitness)
         {
-            _random = random;
             Stopwatch stopwatch = Stopwatch.StartNew();
+            
+            _random = random;
+            
+            _model = new(robot);
+            _populationSize = populationSize;
+            _elites = elites;
+            _dimensionality = _model.dof;
+
+            _population = new Individual[_populationSize];
+            _offspring = new Individual[_populationSize];
+            for (int i = 0; i < _populationSize; i++)
+            {
+                _population[i] = new(_dimensionality);
+                _offspring[i] = new(_dimensionality);
+            }
+
+            _lowerBounds = new double[_dimensionality];
+            _upperBounds = new double[_dimensionality];
+            _probabilities = new double[_populationSize];
+            _solution = new double[_dimensionality];
+
+            _models = new GhostRobot[_elites];
+            _optimisers = new Optimization[_elites];
+            _improved = new bool[_elites];
+            for (int i = 0; i < _elites; i++)
+            {
+                int index = i;
+                _models[index] = new(robot);
+                _optimisers[index] = new(_dimensionality, x => _models[index].ComputeLoss(x), y => _models[index].ComputeGradient(y, 1e-5));
+            }
+            
+            // Set the target.
+            _model.SetTargetPosition(position);
+            _model.SetTargetRotation(rotation);
+            
+            // Set the limits.
+            for (int i = 0; i < _dimensionality; i++)
+            {
+                _lowerBounds[i] = _model.motionPointers[i].motion.GetLowerLimit();
+                _upperBounds[i] = _model.motionPointers[i].motion.GetUpperLimit();
+            }
 
             // Initialize the population.
-            Initialise(robot, populationSize, elites, position, rotation, seed);
+            Initialise(seed);
 
             // Loop until a solution is reached or out of time.
             do
@@ -215,7 +255,7 @@ namespace FusionIK.Evolution
                 // Reset if there has been no improvement.
 			    if (!improvement)
                 {
-                    Initialise(robot, populationSize, elites, position, rotation, seed);
+                    Initialise(seed);
 			    }
                 else
                 {
@@ -227,53 +267,10 @@ namespace FusionIK.Evolution
         /// <summary>
         /// Initialize the population.
         /// </summary>
-        /// <param name="robot">The robot to solve for.</param>
-        /// <param name="populationSize">The population size.</param>
-        /// <param name="elites">The number of elites.</param>
-        /// <param name="position">The position to solve for.</param>
-        /// <param name="rotation">The rotation to solve for.</param>
         /// <param name="seed">The starting joint values.</param>
-        private static void Initialise(Robot robot, int populationSize, int elites, Vector3 position, Quaternion rotation, double[][] seed)
+        private static void Initialise(double[][] seed)
         {
-            _model = new(robot);
-            _populationSize = populationSize;
-            _elites = elites;
-            _dimensionality = _model.dof;
-
-            _population = new Individual[_populationSize];
-            _offspring = new Individual[_populationSize];
-            for (int i = 0; i < _populationSize; i++)
-            {
-                _population[i] = new(_dimensionality);
-                _offspring[i] = new(_dimensionality);
-            }
-
-            _lowerBounds = new double[_dimensionality];
-            _upperBounds = new double[_dimensionality];
-            _probabilities = new double[_populationSize];
-            _solution = new double[_dimensionality];
-
-            _models = new GhostRobot[_elites];
-            _optimisers = new Optimization[_elites];
-            _improved = new bool[_elites];
-            for (int i = 0; i < _elites; i++)
-            {
-                int index = i;
-                _models[index] = new(robot);
-                _optimisers[index] = new(_dimensionality, x => _models[index].ComputeLoss(x), y => _models[index].ComputeGradient(y, 1e-5));
-            }
-            
-            // Set the target.
-            _model.SetTargetPosition(position);
-            _model.SetTargetRotation(rotation);
-            
-            // Set the limits.
-            for (int i = 0; i < _dimensionality; i++)
-            {
-                _lowerBounds[i] = _model.motionPointers[i].motion.GetLowerLimit();
-                _upperBounds[i] = _model.motionPointers[i].motion.GetUpperLimit();
-            }
-            
+            // Reset the fitness.
             _fitness = double.MaxValue;            
             
             // Reset any previous values.
