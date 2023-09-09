@@ -77,7 +77,7 @@ namespace FusionIK
             Robot.PhysicsStep();
 
             // If reached, add the result, update the last pose, and set the start of the next generation to the result.
-            _robot.Properties.AddTrainingData(_robot.PrepareInputs(_robot.EndTransform.position, _robot.EndTransform.rotation, _starting), _robot.NetScaledJoints(results).ToArray(), _robot);
+            _robot.Properties.AddTrainingData(_robot.PrepareInputs(_robot.EndTransform.position, _robot.EndTransform.rotation, _starting), _robot.NetScaledJoints(results).ToArray());
             _robot.Properties.SetLastPose(_starting);
             _starting = _robot.GetJoints();
         }
@@ -88,8 +88,14 @@ namespace FusionIK
         /// <returns></returns>
         private List<float> Load()
         {
-            string path = Properties.DirectoryPath(new[]{"Data", _robot.Properties.Name});
+            string path = Properties.DirectoryPath(new[] { "Testing" });
             if (path == null)
+            {
+                return null;
+            }
+            
+            path = Path.Combine(path, $"{_robot.Properties.Name}.csv");
+            if (!File.Exists(path))
             {
                 return null;
             }
