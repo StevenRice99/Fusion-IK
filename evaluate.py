@@ -29,22 +29,19 @@ def evaluate():
                 continue
             success = 0
             time = 0
-            distance = 0
-            angle = 0
+            fitness = 0
             # Sum the data.
             for index, data in df.iterrows():
                 # Only add the time when the move was successful.
                 if data["Success"] is True:
                     success += 1
                     time += data["Time"]
-                # Only add the distance and angle when the move was unsuccessful.
+                # Only add the fitness when the move was unsuccessful.
                 else:
-                    distance += data["Distance"]
-                    angle += data["Angle"]
+                    fitness += data["Fitness"]
             # Calculate the averages.
             time = "-" if success == 0 else time / success
-            distance = "-" if success == rows else distance / (rows - success)
-            angle = "-" if success == rows else angle / (rows - success)
+            fitness = "-" if success == rows else fitness / (rows - success)
             success = success / rows * 100
             # Determine the mode.
             strings = name.split()
@@ -54,15 +51,13 @@ def evaluate():
             output = f"{robot} | {generations} | {mode} | {success}%"
             if time != "-":
                 output += f" | {time} s"
-            if distance != "-":
-                output += f" | {distance} m"
-            if angle != "-":
-                output += f" | {angle} °"
+            if fitness != "-":
+                output += f" | {fitness}"
             outputs.append(output)
             # Append for file output.
             if generations not in results:
                 results[generations] = {}
-            results[generations][mode] = {"Success": success, "Time": time, "Distance": distance, "Angle": angle}
+            results[generations][mode] = {"Success": success, "Time": time, "Fitness": fitness}
         # If there was no data to be written, exit.
         if len(results) == 0:
             continue
@@ -75,7 +70,7 @@ def evaluate():
             os.mkdir(root)
         # Write the data to file.
         for generations in results:
-            data = "Mode,Success Rate,Time,Distance,Angle"
+            data = "Mode,Success Rate (%),Time (s),Fitness"
             temp = results[generations]
             for mode in temp:
                 result = temp[mode]
@@ -83,15 +78,11 @@ def evaluate():
                 if result["Time"] == "-":
                     data += ",-"
                 else:
-                    data += f",{result['Time']} s"
-                if result["Distance"] == "-":
+                    data += f",{result['Time']}"
+                if result["Fitness"] == "-":
                     data += ",-"
                 else:
-                    data += f",{result['Distance']} m"
-                if result["Angle"] == "-":
-                    data += ",-"
-                else:
-                    data += f",{result['Angle']} °"
+                    data += f",{result['Fitness']}"
             f = open(os.path.join(root, f"{robot} {generations}.csv"), "w")
             f.write(data)
             f.close()

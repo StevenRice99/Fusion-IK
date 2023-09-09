@@ -360,12 +360,12 @@ namespace FusionIK
             if (data.Value.success)
             {
                 success = "Success";
-                description = $"Move Time = {data.Value.time} Seconds";
+                description = $"{data.Value.time} Seconds";
             }
             else
             {
                 success = "Failed";
-                description = $"Fitness = {data.Value.fitness}";
+                description = $"{data.Value.fitness} Fitness Score";
             }
             
             GUI.Label(new(145, y, 55, 20), success);
