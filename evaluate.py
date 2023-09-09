@@ -48,10 +48,10 @@ def evaluate():
             success = success / rows * 100
             # Determine the mode.
             strings = name.split()
-            mode = strings[len(strings) - 2].replace("-", " ")
-            generations = int(strings[len(strings) - 1].replace(".csv", ""))
+            mode = strings[len(strings) - 1].replace(".csv", "").replace("-", " ")
+            generations = int(strings[len(strings) - 2])
             # Output to console.
-            output = f"{robot} | {name} | {generations} | {mode} | {success}%"
+            output = f"{robot} | {generations} | {mode} | {success}%"
             if time != "-":
                 output += f" | {time} s"
             if distance != "-":

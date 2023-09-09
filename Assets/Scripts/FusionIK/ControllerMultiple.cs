@@ -21,11 +21,6 @@ namespace FusionIK
         /// </summary>
         protected Robot Robot => robots[^1];
 
-        /// <summary>
-        /// The last pose the best robot was in.
-        /// </summary>
-        protected List<float> lastPose;
-
         protected override void Awake()
         {
             base.Awake();
@@ -75,11 +70,12 @@ namespace FusionIK
         /// <summary>
         /// Get the results of all robots randomly moving for multiple generation values.
         /// </summary>
+        /// <param name="starting">The starting joint values.</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
         /// <param name="milliseconds">The time the algorithms are allowed to run for.</param>
         /// <returns>The results of all robots.</returns>
-        protected Result[] RandomMoveResults(out Vector3 position, out Quaternion rotation, long[] milliseconds)
+        protected Result[] RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation, long[] milliseconds)
         {
             // Move to robot to a random position.
             Robot.Snap(Robot.RandomJoints());
@@ -90,17 +86,18 @@ namespace FusionIK
             position = target.position;
             rotation = target.rotation;
 
-            return MoveResults(position, rotation, milliseconds);
+            return MoveResults(starting, position, rotation, milliseconds);
         }
 
         /// <summary>
         /// Get the results of all robots moving for multiple generation values.
         /// </summary>
+        /// <param name="starting">The starting joint values.</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
         /// <param name="milliseconds">The time the algorithms are allowed to run for.</param>
         /// <returns>The results of all robots.</returns>
-        protected Result[] MoveResults(Vector3 position, Quaternion rotation, long[] milliseconds)
+        protected Result[] MoveResults(List<float> starting, Vector3 position, Quaternion rotation, long[] milliseconds)
         {
             // Generate the seed for random number generation.
             uint seed = (uint) Random.Range(1, int.MaxValue);
@@ -109,10 +106,10 @@ namespace FusionIK
             List<Result> results = new(robots.Length);
             for (int i = 0; i < milliseconds.Length; i++)
             {
-                // Move every robot to the starting middle position.
+                // Move every robot to the starting position.
                 for (int j = 0; j < robots.Length; j++)
                 {
-                    robots[j].SnapMiddle();
+                    robots[j].Snap(starting);
                 }
                 Robot.PhysicsStep();
                 
@@ -165,7 +162,7 @@ namespace FusionIK
             r.Snap(position, rotation, milliseconds, out bool reached, out double moveTime, out double fitness, seed);
             Robot.PhysicsStep();
 
-            return new(milliseconds, r, reached, moveTime, reached ? 0 : Robot.PositionAccuracy(position, r.EndTransform.position), reached ? 0 : Robot.RotationAccuracy(rotation, r.EndTransform.rotation), fitness);
+            return new(r.mode == Robot.SolverMode.Network ? 0 : milliseconds, r, reached, moveTime, reached ? 0 : Robot.PositionAccuracy(position, r.EndTransform.position), reached ? 0 : Robot.RotationAccuracy(rotation, r.EndTransform.rotation), fitness);
         }
     }
 }

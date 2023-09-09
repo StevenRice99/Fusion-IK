@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Unity.Barracuda;
@@ -105,7 +106,13 @@ namespace FusionIK
         /// </summary>
         /// <param name="index">The network index.</param>
         /// <returns>The joint network at a given index that is desired.</returns>
-        public Model CompiledNetwork(int index) => networks!= null && index >= 0 && index < networks.Length && networks[index] != null ? ModelLoader.Load(networks[index]) : null;
+        public Model CompiledNetwork(int index) => networks is {Length: > 0} && index >= 0 && index < networks.Length && networks[index] != null ? ModelLoader.Load(networks[index]) : null;
+        
+        /// <summary>
+        /// The last pose the robot was in.
+        /// </summary>
+        [field: NonSerialized]
+        public List<float> LastPose { get; private set; }
         
         /// <summary>
         /// Ensure a directory exists.
@@ -152,6 +159,15 @@ namespace FusionIK
             }
 
             return path;
+        }
+
+        /// <summary>
+        /// Set the last pose the robot was in.
+        /// </summary>
+        /// <param name="joints">Joint values.</param>
+        public void SetLastPose(List<float> joints)
+        {
+            LastPose = joints;
         }
 
         /// <summary>
@@ -273,7 +289,7 @@ namespace FusionIK
             // Add all results.
             foreach (Result result in results)
             {
-                string file = Path.Combine(path, $"{Robot.Name(result.robot.mode).Replace(" ", "-")} {result.milliseconds:0000}.csv");
+                string file = Path.Combine(path, $"{result.milliseconds:0000} {Robot.Name(result.robot.mode).Replace(" ", "-")}.csv");
 
                 // If file exceeds what is needed, return.
                 if (_resultsCount < 0)

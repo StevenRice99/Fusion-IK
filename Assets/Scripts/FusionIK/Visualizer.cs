@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
@@ -40,7 +39,7 @@ namespace FusionIK
         private static Material _lineMaterial;
         
         [Tooltip("The time the algorithm is allowed to run for.")]
-        [Min(0)]
+        [Min(1)]
         [SerializeField]
         private long milliseconds = 100;
         
@@ -196,10 +195,20 @@ namespace FusionIK
             }
         }
 
-        private void MovePerform(Result[] results)
+        private List<float> GetStarting()
         {
-            milliseconds = math.max(milliseconds, 1);
+            // Clear old paths.
+            foreach (List<Vector3> path in _paths)
+            {
+                path.Clear();
+            }
             
+            // Start at the last position.
+            return Robot.Properties.LastPose ?? Robot.GetJoints();
+        }
+
+        private void MovePerform(List<float> starting, Result[] results)
+        {
             // Get the best robot and order the rest.
             Robot best = Best(results, out _ordered);
             
@@ -252,14 +261,14 @@ namespace FusionIK
             }
 
             // Store the best result.
-            lastPose = best.GetJoints();
+            Robot.Properties.SetLastPose(best.GetJoints());
 
             // Store the endings and snap back to the start.
             List<float>[] endings = new List<float>[robots.Length];
             for (int i = 0; i < robots.Length; i++)
             {
                 endings[i] = robots[i].GetJoints();
-                robots[i].SnapMiddle();
+                robots[i].Snap(starting);
             }
             Robot.PhysicsStep();
 
@@ -267,11 +276,6 @@ namespace FusionIK
             for (int i = 0; i < robots.Length; i++)
             {
                 robots[i].Move(endings[i]);
-            }
-
-            foreach (List<Vector3> path in _paths)
-            {
-                path.Clear();
             }
         }
 
@@ -282,7 +286,8 @@ namespace FusionIK
                 return;
             }
             
-            MovePerform(MoveResults(_targetPosition.Value, _targetRotation.Value, new [] {milliseconds}));
+            List<float> starting = GetStarting();
+            MovePerform(starting, MoveResults(starting, _targetPosition.Value, _targetRotation.Value, new [] {milliseconds}));
         }
 
         /// <summary>
@@ -290,11 +295,14 @@ namespace FusionIK
         /// </summary>
         private void RandomMove()
         {
+            List<float> starting = GetStarting();
+
             // Solve for random target.
-            Result[] results = RandomMoveResults(out Vector3 position, out Quaternion rotation, new [] {milliseconds});
+            Result[] results = RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, new[] {milliseconds});
             _targetPosition = position;
             _targetRotation = rotation;
-            MovePerform(results);
+
+            MovePerform(starting, results);
         }
 
         /// <summary>
@@ -352,7 +360,7 @@ namespace FusionIK
             if (data.Value.success)
             {
                 success = "Success";
-                description = $"{data.Value.time} Seconds from Middle";
+                description = $"{data.Value.time} Seconds";
             }
             else
             {
@@ -370,7 +378,7 @@ namespace FusionIK
             
             // Display input to change the milliseconds.
             GUI.Label(new(10, 10, 100, 20), "Milliseconds");
-            string s = milliseconds > 0 ? milliseconds.ToString() : string.Empty;
+            string s = milliseconds.ToString();
             s = GUI.TextField(new(10, 30, 100, 20), s, 5);
             s = new(s.Where(char.IsDigit).ToArray());
             if (string.IsNullOrWhiteSpace(s))
@@ -382,19 +390,17 @@ namespace FusionIK
                 try
                 {
                     int input = int.Parse(s);
-                    milliseconds = input;
+                    milliseconds = input <= 0 ? 1 : input;
                 }
                 catch
                 {
-                    milliseconds = 0;
+                    milliseconds = 1;
                 }
             }
 
             // At the beginning, just call to move.
             if (_targetPosition == null || _targetRotation == null)
             {
-                Robot.SnapMiddle();
-                Robot.PhysicsStep();
                 _targetPosition = Robot.EndTransform.position;
                 _targetRotation = Robot.EndTransform.rotation;
                 Move();
@@ -449,8 +455,7 @@ namespace FusionIK
             float offset = robots.Length * 20 + 10;
             foreach (Result data in _ordered)
             {
-                string title = Robot.Name(data.robot.mode);
-                RobotLabel(Screen.height - offset, data, title, Robot.RobotColor(data.robot.mode));
+                RobotLabel(Screen.height - offset, data, Robot.Name(data.robot.mode), Robot.RobotColor(data.robot.mode));
                 offset -= 20;
             }
         }

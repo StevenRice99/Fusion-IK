@@ -110,16 +110,6 @@ namespace FusionIK
         private IWorker[] _workers;
 
         /// <summary>
-        /// The middle joint values for calculations.
-        /// </summary>
-        private double[] _middle;
-
-        /// <summary>
-        /// The middle joint values for moving.
-        /// </summary>
-        private List<float> _middleFloats;
-
-        /// <summary>
         /// Get a name for display.
         /// </summary>
         /// <param name="mode">The mode of a robot.</param>
@@ -213,14 +203,6 @@ namespace FusionIK
         public void Snap(Vector3 position, Quaternion rotation, long milliseconds, out bool reached, out double moveTime, out double fitness, uint seed = 0)
         {
             Snap(Solve(position, rotation, milliseconds, out reached, out moveTime, out fitness, seed));
-        }
-
-        /// <summary>
-        /// Snap the joints to the middle.
-        /// </summary>
-        public void SnapMiddle()
-        {
-            Snap(_middleFloats);
         }
 
         /// <summary>
@@ -319,11 +301,12 @@ namespace FusionIK
         /// <summary>
         /// Calculate the time needed for a robot to move from its middle to ending joint values.
         /// </summary>
+        /// <param name="starting">Ending joint positions.</param>
         /// <param name="ending">Ending joint positions.</param>
         /// <returns>The time to complete the move.</returns>
-        private double CalculateTime(IReadOnlyList<double> ending)
+        private double CalculateTime(IEnumerable<double> starting, IReadOnlyList<double> ending)
         {
-            return _middle.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
+            return starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
         }
 
         /// <summary>
@@ -377,25 +360,32 @@ namespace FusionIK
         /// </summary>
         /// <param name="targetPosition">The position to reach.</param>
         /// <param name="targetRotation">The rotation to reach.</param>
+        /// <param name="starting">The starting joint values.</param>
         /// <returns>The values to be passed to the networks.</returns>
-        public float[] PrepareInputs(Vector3 targetPosition, Quaternion targetRotation)
+        public float[] PrepareInputs(Vector3 targetPosition, Quaternion targetRotation, List<float> starting)
         {
-            float[] inputs = new float[7];
+            // Scale and add joints.
+            List<float> scaled = NetScaledJoints(starting);
+            float[] inputs = new float[scaled.Count + 7];
+            for (int i = 0; i < scaled.Count; i++)
+            {
+                inputs[i] = scaled[i];
+            }
 
             // Get relative values.
             targetPosition = RelativePosition(targetPosition);
             targetRotation = RelativeRotation(targetRotation);
             
             // Add scaled position.
-            inputs[0] = (targetPosition.x + 1) / 2;
-            inputs[1] = (targetPosition.y + 1) / 2;
-            inputs[2] = (targetPosition.z + 1) / 2;
+            inputs[scaled.Count] = (targetPosition.x + 1) / 2;
+            inputs[scaled.Count + 1] = (targetPosition.y + 1) / 2;
+            inputs[scaled.Count + 2] = (targetPosition.z + 1) / 2;
             
             // Add scaled rotation.
-            inputs[3] = (targetRotation.x + 1) / 2;
-            inputs[4] = (targetRotation.y + 1) / 2;
-            inputs[5] = (targetRotation.z + 1) / 2;
-            inputs[6] = (targetRotation.w + 1) / 2;
+            inputs[scaled.Count + 3] = (targetRotation.x + 1) / 2;
+            inputs[scaled.Count + 4] = (targetRotation.y + 1) / 2;
+            inputs[scaled.Count + 5] = (targetRotation.z + 1) / 2;
+            inputs[scaled.Count + 6] = (targetRotation.w + 1) / 2;
 
             return inputs;
         }
@@ -430,12 +420,17 @@ namespace FusionIK
             fitness = double.MaxValue;
 
             double[][] bioSeed = mode != SolverMode.BioIk ? new double[2][] : new double[1][];
-            bioSeed[0] = _middle;
+            List<float> starting = GetJoints();
+            bioSeed[0] = new double[starting.Count];
+            for (int i = 0; i < bioSeed[0].Length; i++)
+            {
+                bioSeed[0][i] = starting[i];
+            }
 
             // Run through neural networks if it should.
             if (mode != SolverMode.BioIk)
             {
-                results = RunNetwork(PrepareInputs(targetPosition, targetRotation));
+                results = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting));
                 bioSeed[1] = new double[results.Count];
                 for (int i = 1; i < results.Count; i++)
                 {
@@ -447,8 +442,8 @@ namespace FusionIK
             if (mode != SolverMode.Network)
             {
                 // Store the solution.
-                double[] solution = new double[_middle.Length];
-                for (int i = 0; i < _middle.Length; i++)
+                double[] solution = new double[bioSeed[^1].Length];
+                for (int i = 0; i < bioSeed[^1].Length; i++)
                 {
                     solution[i] = bioSeed[^1][i];
                 }
@@ -478,7 +473,7 @@ namespace FusionIK
                         }
 
                         // If the new solution is faster than the existing solution, update it.
-                        double attemptMoveTime = CalculateTime(attemptSolution);
+                        double attemptMoveTime = CalculateTime(bioSeed[0], attemptSolution);
                         if (attemptMoveTime >= moveTime)
                         {
                             continue;
@@ -500,7 +495,7 @@ namespace FusionIK
 
                         // Otherwise this is the best failure so store it.
                         solution = attemptSolution;
-                        moveTime = CalculateTime(solution);
+                        moveTime = CalculateTime(bioSeed[0], solution);
                         fitness = attemptFitness;
                         continue;
                     }
@@ -508,7 +503,7 @@ namespace FusionIK
                     // This is the first successful reach so store it.
                     reached = true;
                     solution = attemptSolution;
-                    moveTime = CalculateTime(solution);
+                    moveTime = CalculateTime(bioSeed[0], solution);
                     fitness = 0;
                 }
 
@@ -623,13 +618,7 @@ namespace FusionIK
             Rescaling = math.PI * math.PI / (ChainLength * ChainLength);
 
             _limits = limits.ToArray();
-            _middle = new double[limits.Count];
-            _middleFloats = new(_middle.Length);
-            for (int i = 0; i < _limits.Length; i++)
-            {
-                _middle[i] = (limits[i].upper + _limits[i].lower) / 2f;
-                _middleFloats.Add((float) _middle[i]);
-            }
+            
             List<float> joints = GetJoints();
             
             // Get the max speeds.
@@ -819,7 +808,7 @@ namespace FusionIK
 
                 if (valid)
                 {
-                    RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity).ToList());
+                    RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
                 }
                 else
                 {
