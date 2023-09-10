@@ -424,15 +424,15 @@ namespace FusionIK
                 fitness = 0;
                 return GetJoints();
             }
-            
-            // Initialize other variables.
-            List<float> results = null;
-            moveTime = float.MaxValue;
-            fitness = double.MaxValue;
 
             List<float> starting = GetJoints();
             List<float>[] bioSeed = new List<float>[mode != SolverMode.BioIk ? 2 : 1];
             bioSeed[0] = starting;
+            
+            // Initialize other variables.
+            List<float> results = starting;
+            moveTime = double.MaxValue;
+            fitness = double.MaxValue;
 
             // Run through neural networks if it should.
             if (mode != SolverMode.BioIk)
