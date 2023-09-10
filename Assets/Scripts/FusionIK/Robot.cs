@@ -304,7 +304,18 @@ namespace FusionIK
         /// <param name="starting">Ending joint positions.</param>
         /// <param name="ending">Ending joint positions.</param>
         /// <returns>The time to complete the move.</returns>
-        private double CalculateTime(IEnumerable<double> starting, IReadOnlyList<double> ending)
+        public double CalculateTime(IEnumerable<double> starting, IReadOnlyList<double> ending)
+        {
+            return starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
+        }
+        
+        /// <summary>
+        /// Calculate the time needed for a robot to move from its middle to ending joint values.
+        /// </summary>
+        /// <param name="starting">Ending joint positions.</param>
+        /// <param name="ending">Ending joint positions.</param>
+        /// <returns>The time to complete the move.</returns>
+        private double CalculateTime(IEnumerable<float> starting, IReadOnlyList<float> ending)
         {
             return starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
         }
@@ -419,101 +430,29 @@ namespace FusionIK
             moveTime = float.MaxValue;
             fitness = double.MaxValue;
 
-            double[][] bioSeed = mode != SolverMode.BioIk ? new double[2][] : new double[1][];
             List<float> starting = GetJoints();
-            bioSeed[0] = new double[starting.Count];
-            for (int i = 0; i < bioSeed[0].Length; i++)
-            {
-                bioSeed[0][i] = starting[i];
-            }
+            List<float>[] bioSeed = new List<float>[mode != SolverMode.BioIk ? 2 : 1];
+            bioSeed[0] = starting;
 
             // Run through neural networks if it should.
             if (mode != SolverMode.BioIk)
             {
                 results = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting));
-                bioSeed[1] = new double[results.Count];
-                for (int i = 1; i < results.Count; i++)
+                reached = Reached(targetPosition, targetRotation);
+                if (reached)
                 {
-                    bioSeed[1][i] = results[i];
+                    moveTime = CalculateTime(starting, results);
+                    fitness = 0;
+                    return results;
                 }
+
+                bioSeed[1] = results;
             }
 
             // Use Bio IK if it should.
             if (mode != SolverMode.Network)
             {
-                // Store the solution.
-                double[] solution = new double[bioSeed[^1].Length];
-                for (int i = 0; i < bioSeed[^1].Length; i++)
-                {
-                    solution[i] = bioSeed[^1][i];
-                }
-            
-                // If no seed was passed, create a random one.
-                if (seed == 0)
-                {
-                    seed = (uint) Random.Range(1, int.MaxValue);
-                }
-            
-                // Initialize random number generation.
-                Unity.Mathematics.Random random = new(seed);
-            
-                // Utilize all available generations.
-                while (stopwatch.ElapsedMilliseconds < milliseconds)
-                {
-                    // Run Bio IK.
-                    double[] attemptSolution = BioIk.Solve(this, properties.Population, properties.Elites, bioSeed, targetPosition, targetRotation, milliseconds - stopwatch.ElapsedMilliseconds, ref random, out bool attemptReached, out double attemptFitness);
-                
-                    // If have already reached.
-                    if (reached)
-                    {
-                        // If the current attempt did not reach, discard it.
-                        if (!attemptReached)
-                        {
-                            continue;
-                        }
-
-                        // If the new solution is faster than the existing solution, update it.
-                        double attemptMoveTime = CalculateTime(bioSeed[0], attemptSolution);
-                        if (attemptMoveTime >= moveTime)
-                        {
-                            continue;
-                        }
-
-                        solution = attemptSolution;
-                        moveTime = attemptMoveTime;
-                        continue;
-                    }
-
-                    // If the attempt did not reach the target.
-                    if (!attemptReached)
-                    {
-                        // If the fitness of this attempt was worse than other failed attempts, discard it.
-                        if (attemptFitness >= fitness)
-                        {
-                            continue;
-                        }
-
-                        // Otherwise this is the best failure so store it.
-                        solution = attemptSolution;
-                        moveTime = CalculateTime(bioSeed[0], solution);
-                        fitness = attemptFitness;
-                        continue;
-                    }
-
-                    // This is the first successful reach so store it.
-                    reached = true;
-                    solution = attemptSolution;
-                    moveTime = CalculateTime(bioSeed[0], solution);
-                    fitness = 0;
-                }
-
-                results = solution.Select(t => (float) t).ToList();
-            }
-            
-            // Fitness should be zero if it was reached.
-            if (reached)
-            {
-                fitness = 0;
+                results = BioIk.Solve(this, properties.Population, properties.Elites, bioSeed, targetPosition, targetRotation, milliseconds - stopwatch.ElapsedMilliseconds, seed, out reached, out moveTime, out fitness);
             }
 
             return results;

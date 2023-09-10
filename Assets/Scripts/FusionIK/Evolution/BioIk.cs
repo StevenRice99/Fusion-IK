@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -121,15 +122,26 @@ namespace FusionIK.Evolution
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
         /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
-        /// <param name="random">The random number generator.</param>
+        /// <param name="random">The random number seed.</param>
         /// <param name="reached">If the target is reached.</param>
+        /// <param name="moveTime">The time to reach the target.</param>
         /// <param name="fitness">The fitness score of the result.</param>
         /// <returns>The joint values to reach the solution.</returns>
-        public static double[] Solve(Robot robot, int populationSize, int elites, double[][] seed, Vector3 position, Quaternion rotation, long milliseconds, ref Unity.Mathematics.Random random, out bool reached, out double fitness)
+        public static List<float> Solve(Robot robot, int populationSize, int elites, List<float>[] seed, Vector3 position, Quaternion rotation, long milliseconds, uint random, out bool reached, out double moveTime, out double fitness)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
+
+            double[][] bioSeed = new double[seed.Length][];
+            for (int i = 0; i < seed.Length; i++)
+            {
+                bioSeed[i] = new double[seed[i].Count];
+                for (int j = 0; j < seed[i].Count; j++)
+                {
+                    bioSeed[i][j] = seed[i][j];
+                }
+            }
             
-            _random = random;
+            _random = new(random);
             
             _model = new(robot);
             _populationSize = populationSize;
@@ -171,97 +183,141 @@ namespace FusionIK.Evolution
             }
 
             // Initialize the population.
-            Initialise(seed);
+            Initialise(bioSeed);
 
-            // Loop until a solution is reached or out of time.
+            double[] best = _solution;
+            reached = false;
+            moveTime = double.MaxValue;
+            fitness = _fitness;
+
+            // Loop for all available time.
             do
             {
-                // Create the mating pool.
-			    Pool.Clear();
-			    Pool.AddRange(_population);
-			    _poolCount = _populationSize;
+                bool attemptReached;
                 
-                DateTime timestamp = DateTime.Now;
-                
-                // Evolve offspring.
-                for (int i = _elites; i < _populationSize; i++)
+                // Loop until a solution is reached.
+                do
                 {
-                    if (_poolCount > 0)
+                    // Create the mating pool.
+			        Pool.Clear();
+			        Pool.AddRange(_population);
+			        _poolCount = _populationSize;
+                    
+                    DateTime timestamp = DateTime.Now;
+                    
+                    // Evolve offspring.
+                    for (int i = _elites; i < _populationSize; i++)
                     {
-                        Individual parentA = Select(Pool);
-                        Individual parentB = Select(Pool);
-                        Individual prototype = Select(Pool);
+                        if (_poolCount > 0)
+                        {
+                            Individual parentA = Select(Pool);
+                            Individual parentB = Select(Pool);
+                            Individual prototype = Select(Pool);
 
-                        // Recombination and adoption.
-                        Reproduce(_offspring[i], parentA, parentB, prototype);
-                        
-                        if (_offspring[i].fitness < parentA.fitness)
-                        {
-                            Pool.Remove(parentA);
-                            _poolCount -= 1;
+                            // Recombination and adoption.
+                            Reproduce(_offspring[i], parentA, parentB, prototype);
+                            
+                            if (_offspring[i].fitness < parentA.fitness)
+                            {
+                                Pool.Remove(parentA);
+                                _poolCount -= 1;
+                            }
+                            
+                            if (_offspring[i].fitness < parentB.fitness)
+                            {
+                                Pool.Remove(parentB);
+                                _poolCount -= 1;
+                            }
                         }
-                        
-                        if (_offspring[i].fitness < parentB.fitness)
+                        else
                         {
-                            Pool.Remove(parentB);
-                            _poolCount -= 1;
+                            // Fill the rest of the population.
+                            RandomMember(_offspring[i]);
                         }
                     }
+
+                    _duration = ElapsedTime(timestamp);
+
+                    // Exploit the elites.
+#if UNITY_WEBGL
+                    for (int i = 0; i < _elites; i++)
+                    {
+                        Survive(i);
+                    }
+#else
+                    System.Threading.Tasks.Parallel.For(0, _elites, Survive);
+#endif
+                    
+			        // Re-roll elite if exploitation was not successful.
+			        for (int i = 0; i < _elites; i++)
+                    {
+				        if (!_improved[i])
+                        {
+					        RandomMember(_offspring[i]);
+				        }
+                    }
+                    
+                    // Swap population and offspring.
+                    (_population, _offspring) = (_offspring, _population);
+
+			        SortByFitness();
+
+                    // Check for improvement.
+                    bool improvement = TryUpdateSolution() || HasAnyEliteImproved();
+                    
+                    // If we reached the target or we are out of time, finish.
+                    attemptReached = _model.CheckConvergence(_solution, position, rotation);
+                    if (stopwatch.ElapsedMilliseconds >= milliseconds || attemptReached)
+                    {
+                        break;
+                    }
+                    
+                    // Reset if there has been no improvement.
+			        if (!improvement)
+                    {
+                        Initialise(bioSeed);
+			        }
                     else
                     {
-                        // Fill the rest of the population.
-                        RandomMember(_offspring[i]);
+                        ComputeExtinctions();
                     }
-                }
+                } while (true);
 
-                _duration = ElapsedTime(timestamp);
-
-                // Exploit the elites.
-#if UNITY_WEBGL
-                for (int i = 0; i < _elites; i++)
+                if (attemptReached)
                 {
-                    Survive(i);
-                }
-#else
-                System.Threading.Tasks.Parallel.For(0, _elites, Survive);
-#endif
-                
-			    // Re-roll elite if exploitation was not successful.
-			    for (int i = 0; i < _elites; i++)
-                {
-				    if (!_improved[i])
+                    if (reached)
                     {
-					    RandomMember(_offspring[i]);
-				    }
-                }
-                
-                // Swap population and offspring.
-                (_population, _offspring) = (_offspring, _population);
+                        double attemptMoveTime = robot.CalculateTime(bioSeed[0], _solution);
+                        if (attemptMoveTime >= moveTime)
+                        {
+                            continue;
+                        }
 
-			    SortByFitness();
+                        best = _solution;
+                        moveTime = attemptMoveTime;
+                        
+                        continue;
+                    }
 
-                // Check for improvement.
-                bool improvement = TryUpdateSolution() || HasAnyEliteImproved();
+                    best = _solution;
+                    moveTime = robot.CalculateTime(bioSeed[0], _solution);
+                    reached = true;
+                    fitness = 0;
                 
-                // If we reached the target or we are out of time, finish.
-                reached = _model.CheckConvergence(_solution, position, rotation);
-                if (stopwatch.ElapsedMilliseconds >= milliseconds || reached)
+                    continue;
+                }
+
+                if (reached || _fitness >= fitness)
                 {
-                    random = _random;
-                    fitness = _fitness;
-                    return _solution;
+                    continue;
                 }
                 
-                // Reset if there has been no improvement.
-			    if (!improvement)
-                {
-                    Initialise(seed);
-			    }
-                else
-                {
-                    ComputeExtinctions();
-                }
-            } while (true);
+                best = _solution;
+                fitness = _fitness;
+
+            } while (stopwatch.ElapsedMilliseconds < milliseconds);
+
+            return best.Select(t => (float) t).ToList();
         }
 
         /// <summary>
@@ -271,7 +327,7 @@ namespace FusionIK.Evolution
         private static void Initialise(double[][] seed)
         {
             // Reset the fitness.
-            _fitness = double.MaxValue;            
+            _fitness = double.MaxValue;
             
             // Reset any previous values.
             for (int i = 0; i < _populationSize; i++)
