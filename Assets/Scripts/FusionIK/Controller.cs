@@ -13,6 +13,30 @@ namespace FusionIK
         [SerializeField]
         protected GameObject robotPrefab;
 
+        /// <summary>
+        /// Quick access to a robot for controlling.
+        /// </summary>
+        protected Robot R => results[^1].robot;
+
+        /// <summary>
+        /// Store move data.
+        /// </summary>
+        protected Result[] results;
+
+        /// <summary>
+        /// Setup the results storing capability.
+        /// </summary>
+        /// <param name="robots">The robots to store results for.</param>
+        /// <param name="milliseconds">The milliseconds to test against.</param>
+        protected void SetResult(Robot[] robots, long[] milliseconds)
+        {
+            results = new Result[robots.Length];
+            for (int i = 0; i < results.Length; i++)
+            {
+                results[i] = new(robots[i], milliseconds);
+            }
+        }
+
         protected virtual void Awake()
         {
             if (robotPrefab == null)

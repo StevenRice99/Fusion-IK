@@ -79,11 +79,6 @@ namespace FusionIK
         private List<Vector3>[] _paths;
 
         /// <summary>
-        /// Which robots are visible.
-        /// </summary>
-        private bool[] _visible;
-
-        /// <summary>
         /// Setup the material for line rendering.
         /// </summary>
         private static void LineMaterial()
@@ -112,37 +107,38 @@ namespace FusionIK
 
         private void Start()
         {
+            SetResult(CreateRobots(), new [] { milliseconds });
+            
             // Create path visualization lists for every robot.
-            _visible = new bool[robots.Length];
-            _paths = new List<Vector3>[robots.Length];
-            for (int i = 0; i < robots.Length; i++)
+            _paths = new List<Vector3>[results.Length];
+            for (int i = 0; i < results.Length; i++)
             {
                 _paths[i] = new();
             }
 
-            if (robots.Length <= 1)
+            if (results.Length <= 1)
             {
                 return;
             }
 
             // Apply for every robot.
-            for (int i = 0; i < robots.Length; i++)
+            for (int i = 0; i < results.Length; i++)
             {
                 // Get the color for the robot.
-                Color color = robots[i].RobotColor();
+                Color color = results[i].robot.RobotColor();
             
                 // Create the normal material for the robot when it is the best.
-                Material material = Instantiate(Robot.Properties.Normal);
+                Material material = Instantiate(R.Properties.Normal);
                 material.color = new(color.r, color.g, color.b, material.color.a);
                 _normalMaterials.Add(material);
             
                 // Create the transparent material for the robot when it is not the best.
-                material = Instantiate(Robot.Properties.Transparent);
+                material = Instantiate(R.Properties.Transparent);
                 material.color = new(color.r, color.g, color.b, material.color.a);
                 _transparentMaterials.Add(material);
             
                 // Set the materials for all the mesh renderers and store the renderers.
-                _meshRenderers.Add(robots[i].GetComponentsInChildren<MeshRenderer>());
+                _meshRenderers.Add(results[i].robot.GetComponentsInChildren<MeshRenderer>());
                 for (int j = 0; j < _meshRenderers[i].Length; j++)
                 {
                     Material[] materials = _meshRenderers[i][j].materials;
@@ -164,7 +160,7 @@ namespace FusionIK
         private void AddToPath(Robot robot, int index)
         {
             // Only add new points from if it was moving.
-            if (!robot.IsMoving || !_visible[index])
+            if (!robot.IsMoving)
             {
                 return;
             }
@@ -189,9 +185,9 @@ namespace FusionIK
         private void FixedUpdate()
         {
             // Add to paths as needed.
-            for (int i = 0; i < robots.Length; i++)
+            for (int i = 0; i < results.Length; i++)
             {
-                AddToPath(robots[i], i);
+                AddToPath(results[i].robot, i);
             }
         }
 
@@ -204,51 +200,24 @@ namespace FusionIK
             }
             
             // Start at the last position.
-            return Robot.Properties.LastPose ?? Robot.GetJoints();
+            return R.Properties.LastPose ?? R.GetJoints();
         }
 
-        private void MovePerform(List<float> starting, Result[] results)
+        private void MovePerform(List<float> starting)
         {
             // Get the best robot and order the rest.
-            Robot best = Best(results, out _ordered);
-            
-            bool bestNetwork = false;
-            bool bestFusionIk = false;
-            
-            // Only show the best robot for network and Fusion-IK moves to reduce visual clutter.
-            foreach (Result result in _ordered)
-            {
-                int index = Array.IndexOf(robots, result.robot);
-                
-                switch (robots[index].mode)
-                {
-                    case Robot.SolverMode.Network:
-                        _visible[index] = !bestNetwork;
-                        bestNetwork = true;
-                        break;
-                    case Robot.SolverMode.FusionIk:
-                        _visible[index] = !bestFusionIk;
-                        bestFusionIk = true;
-                        break;
-                    case Robot.SolverMode.BioIk:
-                    default:
-                        _visible[index] = true;
-                        break;
-                }
-            }
+            Result best = Best(results, out _ordered);
 
-            if (robots.Length > 1)
+            if (results.Length > 1)
             {
                 // Apply materials to all robots.
-                for (int i = 0; i < robots.Length; i++)
+                for (int i = 0; i < results.Length; i++)
                 {
                     // Regular if best, transparent otherwise.
-                    Material material = robots[i] == best ? _normalMaterials[i] : _transparentMaterials[i];
+                    Material material = results[i] == best ? _normalMaterials[i] : _transparentMaterials[i];
                     
                     for (int j = 0; j < _meshRenderers[i].Length; j++)
                     {
-                        _meshRenderers[i][j].enabled = _visible[i];
-                        
                         Material[] materials = _meshRenderers[i][j].materials;
                         for (int k = 0; k < materials.Length; k++)
                         {
@@ -261,21 +230,19 @@ namespace FusionIK
             }
 
             // Store the best result.
-            Robot.Properties.SetLastPose(best.GetJoints());
+            R.Properties.SetLastPose(best.joints);
 
             // Store the endings and snap back to the start.
-            List<float>[] endings = new List<float>[robots.Length];
-            for (int i = 0; i < robots.Length; i++)
+            for (int i = 0; i < results.Length; i++)
             {
-                endings[i] = robots[i].GetJoints();
-                robots[i].Snap(starting);
+                results[i].robot.Snap(starting);
             }
             Robot.PhysicsStep();
 
             // Call to move robots in real time.
-            for (int i = 0; i < robots.Length; i++)
+            for (int i = 0; i < results.Length; i++)
             {
-                robots[i].Move(endings[i]);
+                results[i].robot.Move(results[i].joints);
             }
         }
 
@@ -287,7 +254,8 @@ namespace FusionIK
             }
             
             List<float> starting = GetStarting();
-            MovePerform(starting, MoveResults(starting, _targetPosition.Value, _targetRotation.Value, new [] {milliseconds}));
+            MoveResults(starting, _targetPosition.Value, _targetRotation.Value);
+            MovePerform(starting);
         }
 
         /// <summary>
@@ -298,11 +266,11 @@ namespace FusionIK
             List<float> starting = GetStarting();
 
             // Solve for random target.
-            Result[] results = RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, new[] {milliseconds});
+            RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, new[] {milliseconds});
             _targetPosition = position;
             _targetRotation = rotation;
 
-            MovePerform(starting, results);
+            MovePerform(starting);
         }
 
         /// <summary>
@@ -344,7 +312,7 @@ namespace FusionIK
         /// <param name="data">The data of its last move.</param>
         /// <param name="title">The title of the robot.</param>
         /// <param name="color">The color to make it.</param>
-        private static void RobotLabel(float y, Result? data, string title, Color color)
+        private static void RobotLabel(float y, Result data, string title, Color color)
         {
             if (data == null)
             {
@@ -357,15 +325,15 @@ namespace FusionIK
             string success;
             string description;
             
-            if (data.Value.success)
+            if (data.Success)
             {
                 success = "Success";
-                description = $"{data.Value.time} Seconds";
+                description = $"{data.Time} Seconds";
             }
             else
             {
                 success = "Failed";
-                description = $"{data.Value.fitness} Fitness Score";
+                description = $"{data.Fitness} Fitness Score";
             }
             
             GUI.Label(new(145, y, 55, 20), success);
@@ -398,11 +366,19 @@ namespace FusionIK
                 }
             }
 
+            for (int i = 0; i < results.Length; i++)
+            {
+                for (int j = 0; j < results[i].milliseconds.Length; j++)
+                {
+                    results[i].milliseconds[j] = milliseconds;
+                }
+            }
+
             // At the beginning, just call to move.
             if (_targetPosition == null || _targetRotation == null)
             {
-                _targetPosition = Robot.EndTransform.position;
-                _targetRotation = Robot.EndTransform.rotation;
+                _targetPosition = R.EndTransform.position;
+                _targetRotation = R.EndTransform.rotation;
                 Move();
             }
 
@@ -432,11 +408,11 @@ namespace FusionIK
             GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 5 + 10 * 6, labelWidth, controlsHeight), "Rotation Z");
 
             // Cartesian jog position sliders.
-            Transform robotTransform = Robot.transform;
+            Transform robotTransform = R.transform;
             Vector3 robotPosition = robotTransform.position;
-            float x = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, 10, controlsWidth, controlsHeight), _targetPosition.Value.x, robotPosition.x - Robot.ChainLength, robotPosition.x + Robot.ChainLength);
-            float y = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight + 10 * 2, controlsWidth, controlsHeight), _targetPosition.Value.y, robotPosition.y - Robot.ChainLength, robotPosition.y + Robot.ChainLength);
-            float z = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 2 + 10 * 3, controlsWidth, controlsHeight), _targetPosition.Value.z, robotPosition.z - Robot.ChainLength, robotPosition.z + Robot.ChainLength);
+            float x = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, 10, controlsWidth, controlsHeight), _targetPosition.Value.x, robotPosition.x - R.ChainLength, robotPosition.x + R.ChainLength);
+            float y = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight + 10 * 2, controlsWidth, controlsHeight), _targetPosition.Value.y, robotPosition.y - R.ChainLength, robotPosition.y + R.ChainLength);
+            float z = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 2 + 10 * 3, controlsWidth, controlsHeight), _targetPosition.Value.z, robotPosition.z - R.ChainLength, robotPosition.z + R.ChainLength);
             _targetPosition = new(x, y, z);
 
             // Cartesian jog rotation sliders.
@@ -452,7 +428,7 @@ namespace FusionIK
             }
 
             // Display robot labels.
-            float offset = robots.Length * 20 + 10;
+            float offset = results.Length * 20 + 10;
             foreach (Result data in _ordered)
             {
                 RobotLabel(Screen.height - offset, data, Robot.Name(data.robot.mode), Robot.RobotColor(data.robot.mode));
@@ -480,21 +456,21 @@ namespace FusionIK
             {
                 foreach (Result data in _ordered.Reverse())
                 {
-                    Robot robot = robots.FirstOrDefault(r => r == data.robot);
-                    if (robot == null)
+                    Result result = results.FirstOrDefault(r => r.robot == data.robot);
+                    if (result == null)
                     {
                         continue;
                     }
 
-                    int i = Array.IndexOf(robots, robot);
-                    if (i < 0 || !_visible[i])
+                    int i = Array.IndexOf(results, result);
+                    if (i < 0)
                     {
                         continue;
                     }
                 
-                    DrawAxis(robots[i]);
+                    DrawAxis(results[i].robot);
                 
-                    GL.Color(robots[i].RobotColor());
+                    GL.Color(results[i].robot.RobotColor());
                 
                     for (int j = 1; j < _paths[i].Count; j++)
                     {

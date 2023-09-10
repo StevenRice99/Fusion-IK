@@ -115,19 +115,14 @@ namespace FusionIK.Evolution
         /// <summary>
         /// Run the algorithm to solve for a solution.
         /// </summary>
-        /// <param name="robot">The robot to solve for.</param>
-        /// <param name="populationSize">The population size.</param>
-        /// <param name="elites">The number of elites.</param>
         /// <param name="seed">The starting seed joint values.,</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
         /// <param name="random">The random number seed.</param>
-        /// <param name="reached">If the target is reached.</param>
-        /// <param name="moveTime">The time to reach the target.</param>
-        /// <param name="fitness">The fitness score of the result.</param>
-        /// <returns>The joint values to reach the solution.</returns>
-        public static List<float> Solve(Robot robot, int populationSize, int elites, List<float>[] seed, Vector3 position, Quaternion rotation, long milliseconds, uint random, out bool reached, out double moveTime, out double fitness)
+        /// <param name="milliseconds">The time to run for.</param>
+        /// <param name="result">The solving parameters to save to.</param>
+        /// <returns>The results to update.</returns>
+        public static void Solve(List<float>[] seed, Vector3 position, Quaternion rotation, long milliseconds, uint random, ref Result result)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
 
@@ -143,9 +138,9 @@ namespace FusionIK.Evolution
             
             _random = new(random);
             
-            _model = new(robot);
-            _populationSize = populationSize;
-            _elites = elites;
+            _model = new(result.robot);
+            _populationSize = result.robot.Properties.Population;
+            _elites = result.robot.Properties.Elites;
             _dimensionality = _model.dof;
 
             _population = new Individual[_populationSize];
@@ -166,9 +161,9 @@ namespace FusionIK.Evolution
             _improved = new bool[_elites];
             for (int i = 0; i < _elites; i++)
             {
-                int index = i;
-                _models[index] = new(robot);
-                _optimisers[index] = new(_dimensionality, x => _models[index].ComputeLoss(x), y => _models[index].ComputeGradient(y, 1e-5));
+                int member = i;
+                _models[member] = new(result.robot);
+                _optimisers[member] = new(_dimensionality, x => _models[member].ComputeLoss(x), y => _models[member].ComputeGradient(y, 1e-5));
             }
             
             // Set the target.
@@ -186,9 +181,12 @@ namespace FusionIK.Evolution
             Initialise(bioSeed);
 
             double[] best = _solution;
-            reached = false;
-            moveTime = double.MaxValue;
-            fitness = _fitness;
+            bool reached = false;
+            double moveTime = double.MaxValue;
+            double fitness = double.MaxValue;
+            result.Set(0, false, double.MaxValue, double.MaxValue);
+
+            int index = 0;
 
             // Loop for all available time.
             do
@@ -198,6 +196,11 @@ namespace FusionIK.Evolution
                 // Loop until a solution is reached.
                 do
                 {
+                    if (stopwatch.ElapsedMilliseconds > result.milliseconds[index])
+                    {
+                        index++;
+                    }
+                    
                     // Create the mating pool.
 			        Pool.Clear();
 			        Pool.AddRange(_population);
@@ -247,7 +250,6 @@ namespace FusionIK.Evolution
 #else
                     System.Threading.Tasks.Parallel.For(0, _elites, Survive);
 #endif
-                    
 			        // Re-roll elite if exploitation was not successful.
 			        for (int i = 0; i < _elites; i++)
                     {
@@ -287,7 +289,7 @@ namespace FusionIK.Evolution
                 {
                     if (reached)
                     {
-                        double attemptMoveTime = robot.CalculateTime(bioSeed[0], _solution);
+                        double attemptMoveTime = result.robot.CalculateTime(bioSeed[0], _solution);
                         if (attemptMoveTime >= moveTime)
                         {
                             continue;
@@ -295,14 +297,15 @@ namespace FusionIK.Evolution
 
                         best = _solution;
                         moveTime = attemptMoveTime;
+                        result.Set(index, true, moveTime, 0);
                         
                         continue;
                     }
 
                     best = _solution;
-                    moveTime = robot.CalculateTime(bioSeed[0], _solution);
+                    moveTime = result.robot.CalculateTime(bioSeed[0], _solution);
                     reached = true;
-                    fitness = 0;
+                    result.Set(index, true, moveTime, 0);
                 
                     continue;
                 }
@@ -314,10 +317,11 @@ namespace FusionIK.Evolution
                 
                 best = _solution;
                 fitness = _fitness;
+                result.Set(index, false, double.MaxValue, fitness);
 
             } while (stopwatch.ElapsedMilliseconds < milliseconds);
 
-            return best.Select(t => (float) t).ToList();
+            result.joints = best.Select(t => (float) t).ToList();
         }
 
         /// <summary>

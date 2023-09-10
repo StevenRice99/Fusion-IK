@@ -18,9 +18,6 @@ namespace FusionIK
         
         // The joints to start at for the next attempt.
         private List<float> _starting;
-        
-        // The robot to generate data for.
-        private Robot _robot;
 
         private void Start()
         {
@@ -28,14 +25,16 @@ namespace FusionIK
             GameObject go = Instantiate(robotPrefab, Vector3.zero, Quaternion.identity);
             go.name = robotPrefab.name;
 
-            _robot = go.GetComponent<Robot>();
-            if (_robot == null)
+            Robot robot = go.GetComponent<Robot>();
+            if (robot == null)
             {
                 Destroy(gameObject);
             }
 
             // Start in Bio IK mode.
-            _robot.mode = Robot.SolverMode.BioIk;
+            robot.mode = Robot.SolverMode.BioIk;
+            
+            SetResult(new [] { robot }, new [] { milliseconds });
             
             // Don't need visuals during this process.
             NoVisuals();
@@ -46,40 +45,40 @@ namespace FusionIK
             // If no previous starting values, load last known values.
             if (_starting == null)
             {
-                List<float> lastOutput = _robot.Properties.LastPose ?? Load();
-                _starting = lastOutput ?? _robot.GetJoints();
+                List<float> lastOutput = R.Properties.LastPose ?? Load();
+                _starting = lastOutput ?? R.GetJoints();
             }
             
             // Randomly move the robot.
-            _robot.Snap(_robot.RandomJoints());
+            R.Snap(R.RandomJoints());
             Robot.PhysicsStep();
 
             // Get the position and rotation to reach.
-            (Vector3 position, Quaternion rotation) target = _robot.EndTransform;
+            (Vector3 position, Quaternion rotation) target = results[0].robot.EndTransform;
             
             // Reset the robot back to its starting position.
-            _robot.Snap(_starting);
+            R.Snap(_starting);
             Robot.PhysicsStep();
 
             // Get the best result to reach the target.
-            List<float> results = _robot.Solve(target.position, target.rotation, milliseconds, out bool reached, out double _, out double _);
+            Robot.Solve(target.position, target.rotation, ref results[0]);
             
             // If failed to reach, don't use this data.
-            if (!reached)
+            if (!results[0].Success)
             {
-                _robot.Snap(_starting);
+                R.Snap(_starting);
                 Robot.PhysicsStep();
                 return;
             }
             
             // Snap to the results.
-            _robot.Snap(results);
+            R.Snap(results[0].joints);
             Robot.PhysicsStep();
 
             // If reached, add the result, update the last pose, and set the start of the next generation to the result.
-            _robot.Properties.AddTrainingData(_robot.PrepareInputs(_robot.EndTransform.position, _robot.EndTransform.rotation, _starting), _robot.NetScaledJoints(results).ToArray());
-            _robot.Properties.SetLastPose(_starting);
-            _starting = _robot.GetJoints();
+            R.Properties.AddTrainingData(R.PrepareInputs(R.EndTransform.position, R.EndTransform.rotation, _starting), R.NetScaledJoints(results[0].joints).ToArray());
+            R.Properties.SetLastPose(_starting);
+            _starting = results[0].joints;
         }
 
         /// <summary>
@@ -94,7 +93,7 @@ namespace FusionIK
                 return null;
             }
             
-            path = Path.Combine(path, $"{_robot.Properties.Name}.csv");
+            path = Path.Combine(path, $"{R.Properties.Name}.csv");
             if (!File.Exists(path))
             {
                 return null;
@@ -122,8 +121,8 @@ namespace FusionIK
             }
 
             // The CSV results are relative to joint values so scale them back to joint values.
-            _robot.Properties.SetLastPose(_robot.ResultsScaled(lastPose));
-            return _robot.Properties.LastPose;
+            R.Properties.SetLastPose(R.ResultsScaled(lastPose));
+            return R.Properties.LastPose;
         }
     }
 }

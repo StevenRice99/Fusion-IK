@@ -11,44 +11,32 @@ namespace FusionIK
     [DisallowMultipleComponent]
     public class ControllerMultiple : Controller
     {
-        /// <summary>
-        /// All robots to control.
-        /// </summary>
-        protected Robot[] robots;
-
-        /// <summary>
-        /// Easy getter for a single robot.
-        /// </summary>
-        protected Robot Robot => robots[^1];
-
-        protected override void Awake()
+        protected Robot[] CreateRobots()
         {
-            base.Awake();
-
             // Create a robot for every movement type.
-            List<Robot> robotsLists = new();
+            List<Robot> robots = new();
 
             Robot r = CreateRobot(Robot.SolverMode.BioIk);
             if (r != null)
             {
-                robotsLists.Add(r);
+                robots.Add(r);
                 if (r.Properties.NetworksValid)
                 {
                     r = CreateRobot(Robot.SolverMode.Network);
                     if (r != null)
                     {
-                        robotsLists.Add(r);
+                        robots.Add(r);
                     }
                     
                     r = CreateRobot(Robot.SolverMode.FusionIk);
                     if (r != null)
                     {
-                        robotsLists.Add(r);
+                        robots.Add(r);
                     }
                 }
             }
 
-            robots = robotsLists.ToArray();
+            return robots.ToArray();
         }
 
         private Robot CreateRobot(Robot.SolverMode solverMode)
@@ -74,19 +62,18 @@ namespace FusionIK
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
         /// <param name="milliseconds">The time the algorithms are allowed to run for.</param>
-        /// <returns>The results of all robots.</returns>
-        protected Result[] RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation, long[] milliseconds)
+        protected void RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation, long[] milliseconds)
         {
             // Move to robot to a random position.
-            Robot.Snap(Robot.RandomJoints());
+            R.Snap(R.RandomJoints());
             Robot.PhysicsStep();
 
             // Get the position and rotation of the robot to be those to reach.
-            (Vector3 position, Quaternion rotation) target = Robot.EndTransform;
+            (Vector3 position, Quaternion rotation) target = R.EndTransform;
             position = target.position;
             rotation = target.rotation;
 
-            return MoveResults(starting, position, rotation, milliseconds);
+            MoveResults(starting, position, rotation);
         }
 
         /// <summary>
@@ -95,38 +82,22 @@ namespace FusionIK
         /// <param name="starting">The starting joint values.</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="milliseconds">The time the algorithms are allowed to run for.</param>
-        /// <returns>The results of all robots.</returns>
-        protected Result[] MoveResults(List<float> starting, Vector3 position, Quaternion rotation, long[] milliseconds)
+        protected void MoveResults(List<float> starting, Vector3 position, Quaternion rotation)
         {
             // Generate the seed for random number generation.
             uint seed = (uint) Random.Range(1, int.MaxValue);
 
-            // Test at every generation value.
-            List<Result> results = new(robots.Length);
-            for (int i = 0; i < milliseconds.Length; i++)
+            for (int i = 0; i < results.Length; i++)
             {
-                // Move every robot to the starting position.
-                for (int j = 0; j < robots.Length; j++)
-                {
-                    robots[j].Snap(starting);
-                }
-                Robot.PhysicsStep();
-                
-                // Test every robot.
-                for (int j = 0; j < robots.Length; j++)
-                {
-                    // Only test the network once as it is the same regardless.
-                    if (i > 0 && robots[j].mode == Robot.SolverMode.Network)
-                    {
-                        continue;
-                    }
-                    
-                    results.Add(EvaluateRobot(robots[j], position, rotation, milliseconds[i], seed));
-                }
+                results[i].robot.Snap(starting);
             }
+            
+            Robot.PhysicsStep();
 
-            return results.ToArray();
+            for (int i = 0; i < results.Length; i++)
+            {
+                Robot.Solve(position, rotation, ref results[i], seed);
+            }
         }
 
         /// <summary>
@@ -135,34 +106,17 @@ namespace FusionIK
         /// <param name="results">The results to check.</param>
         /// <param name="ordered">The ordered results based off how they performed.</param>
         /// <returns>The robot which did the best.</returns>
-        protected static Robot Best(Result[] results, out Result[] ordered)
+        protected static Result Best(Result[] results, out Result[] ordered)
         {
             // Get the robots that reached ordered by their move time, then solutions, then mode.
-            Result[] reached = results.Where(x => x.success).OrderBy(x => x.time).ThenBy(x => x.robot.mode).ToArray();
+            Result[] reached = results.Where(x => x.Success).OrderBy(x => x.Time).ThenBy(x => x.robot.mode).ToArray();
             
             // Get the robots that did not reached ordered by their fitness, then distance, then angle, then mode.
-            Result[] notReached = results.Where(x => !x.success).OrderBy(x => x.fitness).ThenBy(x => x.robot.mode).ToArray();
+            Result[] notReached = results.Where(x => !x.Success).OrderBy(x => x.Fitness).ThenBy(x => x.robot.mode).ToArray();
             
             // Combine both and return the first robot.
             ordered = reached.Concat(notReached).ToArray();
-            return ordered[0].robot;
-        }
-
-        /// <summary>
-        /// Get the result of a robot.
-        /// </summary>
-        /// <param name="r">The robot to test.</param>
-        /// <param name="position">The position to reach.</param>
-        /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
-        /// <param name="seed">The seed for random number generation.</param>
-        /// <returns>The results of the robot trying to reach the target.</returns>
-        private static Result EvaluateRobot(Robot r, Vector3 position, Quaternion rotation, long milliseconds, uint seed)
-        {
-            r.Snap(position, rotation, milliseconds, out bool reached, out double moveTime, out double fitness, seed);
-            Robot.PhysicsStep();
-
-            return new(r.mode == Robot.SolverMode.Network ? 0 : milliseconds, r, reached, moveTime, fitness);
+            return ordered[0];
         }
     }
 }

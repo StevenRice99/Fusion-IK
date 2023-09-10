@@ -259,7 +259,7 @@ namespace FusionIK
         /// Write testing data to CSV.
         /// </summary>
         /// <param name="results"></param>
-        public void AddTestingData(Result[] results)
+        public void AddTestingData(ref Result[] results)
         {
             // If already evaluated required amount, exit.
             if (_resultsCount >= testingTotal)

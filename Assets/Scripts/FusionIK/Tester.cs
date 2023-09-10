@@ -16,6 +16,8 @@ namespace FusionIK
         
         private void Start()
         {
+            SetResult(CreateRobots(), milliseconds);
+            
             // Don't need visuals during this process.
             NoVisuals();
         }
@@ -23,13 +25,13 @@ namespace FusionIK
         private void Update()
         {
             // Get all results.
-            Result[] results = RandomMoveResults(Robot.Properties.LastPose ?? Robot.GetJoints(), out Vector3 _, out Quaternion _, milliseconds);
+            RandomMoveResults(R.Properties.LastPose ?? R.GetJoints(), out Vector3 _, out Quaternion _, milliseconds);
 
             // Export results.
-            Robot.Properties.AddTestingData(results);
+            R.Properties.AddTestingData(ref results);
 
             // Start at the best result for the next test.
-            Robot.Properties.SetLastPose(Best(results, out _).GetJoints());
+            R.Properties.SetLastPose(Best(results, out _).joints);
         }
     }
 }

@@ -195,14 +195,12 @@ namespace FusionIK
         /// </summary>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
-        /// <param name="reached">If the target was reached.</param>
-        /// <param name="moveTime">The time for the joints to reach the destination.</param>
-        /// <param name="fitness">The fitness score of the result.</param>
+        /// <param name="result">The solving parameters to save to.</param>
         /// <param name="seed">The seed for the random numbers of the solver.</param>
-        public void Snap(Vector3 position, Quaternion rotation, long milliseconds, out bool reached, out double moveTime, out double fitness, uint seed = 0)
+        public void Snap(Vector3 position, Quaternion rotation, ref Result result, uint seed = 0)
         {
-            Snap(Solve(position, rotation, milliseconds, out reached, out moveTime, out fitness, seed));
+            Solve(position, rotation, ref result, seed);
+            Snap(result.joints);
         }
 
         /// <summary>
@@ -406,56 +404,48 @@ namespace FusionIK
         /// </summary>
         /// <param name="targetPosition">The position to reach.</param>
         /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
-        /// <param name="reached">If the robot reached the destination.</param>
-        /// <param name="moveTime">How long it took for the robot to perform the move.</param>
-        /// <param name="fitness">The fitness score of the result.</param>
+        /// <param name="result">The solving parameters to save to.</param>
         /// <param name="seed">The seed for random number generation</param>
         /// <returns>The joints to move the robot to.</returns>
-        public List<float> Solve(Vector3 targetPosition, Quaternion targetRotation, long milliseconds, out bool reached, out double moveTime, out double fitness, uint seed = 0)
+        public static void Solve(Vector3 targetPosition, Quaternion targetRotation, ref Result result, uint seed = 0)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
             
             // If already at the destination do nothing.
-            reached = Reached(targetPosition, targetRotation);
+            bool reached = result.robot.Reached(targetPosition, targetRotation);
             if (reached)
             {
-                moveTime = 0;
-                fitness = 0;
-                return GetJoints();
+                result.Set(0, true, 0, 0);
+                result.joints = result.robot.GetJoints();
+                return;
             }
 
-            List<float> starting = GetJoints();
-            List<float>[] bioSeed = new List<float>[mode != SolverMode.BioIk ? 2 : 1];
+            List<float> starting = result.robot.GetJoints();
+            List<float>[] bioSeed = new List<float>[result.robot.mode != SolverMode.BioIk ? 2 : 1];
             bioSeed[0] = starting;
             
             // Initialize other variables.
-            List<float> results = starting;
-            moveTime = double.MaxValue;
-            fitness = double.MaxValue;
 
             // Run through neural networks if it should.
-            if (mode != SolverMode.BioIk)
+            if (result.robot.mode != SolverMode.BioIk)
             {
-                results = RunNetwork(PrepareInputs(targetPosition, targetRotation, starting));
-                reached = Reached(targetPosition, targetRotation);
+                List<float> joints = result.robot.RunNetwork(result.robot.PrepareInputs(targetPosition, targetRotation, starting));
+                reached = result.robot.Reached(targetPosition, targetRotation);
                 if (reached)
                 {
-                    moveTime = CalculateTime(starting, results);
-                    fitness = 0;
-                    return results;
+                    result.Set(0, true, result.robot.CalculateTime(starting, joints), 0);
+                    result.joints = joints;
+                    return;
                 }
 
-                bioSeed[1] = results;
+                bioSeed[1] = joints;
             }
 
             // Use Bio IK if it should.
-            if (mode != SolverMode.Network)
+            if (result.robot.mode != SolverMode.Network)
             {
-                results = BioIk.Solve(this, properties.Population, properties.Elites, bioSeed, targetPosition, targetRotation, milliseconds - stopwatch.ElapsedMilliseconds, seed, out reached, out moveTime, out fitness);
+                BioIk.Solve(bioSeed, targetPosition, targetRotation, result.milliseconds[^1] - stopwatch.ElapsedMilliseconds, seed, ref result);
             }
-
-            return results;
         }
 
         /// <summary>
