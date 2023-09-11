@@ -33,7 +33,7 @@ namespace FusionIK
             results = new Result[robots.Length];
             for (int i = 0; i < results.Length; i++)
             {
-                results[i] = new(robots[i], milliseconds);
+                results[i] = new(robots[i], robots[i].mode == Robot.SolverMode.Network ? new long[] { 0 } : milliseconds);
             }
         }
 

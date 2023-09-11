@@ -190,7 +190,6 @@ namespace FusionIK.Evolution
             bool reached = false;
             double moveTime = double.MaxValue;
             double fitness = double.MaxValue;
-            result.Set(0, false, double.MaxValue, double.MaxValue);
 
             int index = 0;
 

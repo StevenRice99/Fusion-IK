@@ -409,8 +409,6 @@ namespace FusionIK
         /// <returns>The joints to move the robot to.</returns>
         public static void Solve(Vector3 targetPosition, Quaternion targetRotation, ref Result result, uint seed = 0)
         {
-            result.Set(0, false, 0, 0);
-            
             // If already at the destination do nothing.
             bool reached = result.robot.Reached(targetPosition, targetRotation);
             if (reached)
@@ -419,10 +417,24 @@ namespace FusionIK
                 result.joints = result.robot.GetJoints();
                 return;
             }
+            
+            GhostRobot ghost = new(result.robot);
+            ghost.SetTargetPosition(targetPosition);
+            ghost.SetTargetRotation(targetRotation);
+            result.Set(0, false, 0, 0);
 
             List<float> starting = result.robot.GetJoints();
             List<float>[] bioSeed = new List<float>[result.robot.mode != SolverMode.BioIk ? 2 : 1];
             bioSeed[0] = starting;
+            
+            // Calculate its fitness.
+            double[] doubles = new double[starting.Count];
+            for (int i = 0; i < doubles.Length; i++)
+            {
+                doubles[i] = starting[i];
+            }
+            
+            result.Set(0, false, 0, ghost.ComputeLoss(doubles));
             
             Stopwatch stopwatch = new();
 
@@ -435,17 +447,13 @@ namespace FusionIK
                 reached = result.robot.Reached(targetPosition, targetRotation);
                 
                 // Calculate its fitness.
-                double[] doubles = new double[result.joints.Count];
                 for (int i = 0; i < doubles.Length; i++)
                 {
                     doubles[i] = result.joints[i];
                 }
 
                 // Get the existing fitness.
-                GhostRobot ghost = new(result.robot);
-                ghost.SetTargetPosition(targetPosition);
-                ghost.SetTargetRotation(targetRotation);
-                result.Set(0, reached, result.robot.CalculateTime(starting, result.joints), ghost.ComputeLoss(doubles));
+                result.Set(0, reached, result.robot.CalculateTime(starting, result.joints), reached ? 0 : ghost.ComputeLoss(doubles));
                 
                 if (reached)
                 {
