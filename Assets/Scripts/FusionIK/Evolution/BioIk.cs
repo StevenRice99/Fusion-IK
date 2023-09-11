@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using Unity.Mathematics;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace FusionIK.Evolution
 {
@@ -134,6 +135,11 @@ namespace FusionIK.Evolution
                 {
                     bioSeed[i][j] = seed[i][j];
                 }
+            }
+
+            if (random == 0)
+            {
+                random = (uint) Random.Range(1, int.MaxValue);
             }
             
             _random = new(random);
