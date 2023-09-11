@@ -288,24 +288,27 @@ namespace FusionIK
             // Add all results.
             foreach (Result result in results)
             {
-                string file = Path.Combine(path, $"{result.milliseconds:0000} {Robot.Name(result.robot.mode).Replace(" ", "-")}.csv");
-
-                // If file exceeds what is needed, return.
-                if (_resultsCount < 0)
+                for (int i = 0; i < result.milliseconds.Length; i++)
                 {
-                    _resultsCount = CountLines(file);
-                    if (_resultsCount >= testingTotal)
+                    string file = Path.Combine(path, $"{result.milliseconds[i]:0000} {Robot.Name(result.robot.mode).Replace(" ", "-")}.csv");
+
+                    // If file exceeds what is needed, return.
+                    if (_resultsCount < 0)
                     {
-                        return;
+                        _resultsCount = CountLines(file);
+                        if (_resultsCount >= testingTotal)
+                        {
+                            return;
+                        }
                     }
-                }
 
-                if (!File.Exists(file))
-                {
-                    File.WriteAllText(file, "Success,Time,Fitness");
-                }
+                    if (!File.Exists(file))
+                    {
+                        File.WriteAllText(file, "Success,Time,Fitness");
+                    }
                 
-                File.AppendAllText(file, $"\n{result.success},{result.time},{result.fitness}");
+                    File.AppendAllText(file, $"\n{result.success[i]},{result.time[i]},{result.fitness[i]}");
+                }
             }
             
             Debug.Log($"{Name} | Evaluated {++_resultsCount} of {testingTotal}.");
