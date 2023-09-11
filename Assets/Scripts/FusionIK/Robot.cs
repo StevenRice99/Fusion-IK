@@ -409,7 +409,7 @@ namespace FusionIK
         /// <returns>The joints to move the robot to.</returns>
         public static void Solve(Vector3 targetPosition, Quaternion targetRotation, ref Result result, uint seed = 0)
         {
-            Stopwatch stopwatch = Stopwatch.StartNew();
+            result.Set(0, false, 0, 0);
             
             // If already at the destination do nothing.
             bool reached = result.robot.Reached(targetPosition, targetRotation);
@@ -424,21 +424,35 @@ namespace FusionIK
             List<float>[] bioSeed = new List<float>[result.robot.mode != SolverMode.BioIk ? 2 : 1];
             bioSeed[0] = starting;
             
-            // Initialize other variables.
+            Stopwatch stopwatch = new();
 
             // Run through neural networks if it should.
             if (result.robot.mode != SolverMode.BioIk)
             {
-                List<float> joints = result.robot.RunNetwork(result.robot.PrepareInputs(targetPosition, targetRotation, starting));
+                stopwatch.Start();
+                result.joints = result.robot.RunNetwork(result.robot.PrepareInputs(targetPosition, targetRotation, starting));
+                stopwatch.Stop();
                 reached = result.robot.Reached(targetPosition, targetRotation);
-                if (reached)
+                
+                // Calculate its fitness.
+                double[] doubles = new double[result.joints.Count];
+                for (int i = 0; i < doubles.Length; i++)
                 {
-                    result.Set(0, true, result.robot.CalculateTime(starting, joints), 0);
-                    result.joints = joints;
-                    return;
+                    doubles[i] = result.joints[i];
                 }
 
-                bioSeed[1] = joints;
+                // Get the existing fitness.
+                GhostRobot ghost = new(result.robot);
+                ghost.SetTargetPosition(targetPosition);
+                ghost.SetTargetRotation(targetRotation);
+                result.Set(0, reached, result.robot.CalculateTime(starting, result.joints), ghost.ComputeLoss(doubles));
+                
+                if (reached)
+                {
+                    return;
+                }
+                
+                bioSeed[1] = result.joints;
             }
 
             // Use Bio IK if it should.
