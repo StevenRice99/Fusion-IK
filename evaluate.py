@@ -35,10 +35,10 @@ def evaluate():
                 # Only add the time when the move was successful.
                 if data["Success"] is True:
                     success += 1
-                    time += data["Time"]
+                    time += float(data["Time"])
                 # Only add the fitness when the move was unsuccessful.
                 else:
-                    fitness += data["Fitness"]
+                    fitness += float(data["Fitness"])
             # Calculate the averages.
             time = "-" if success == 0 else time / success
             fitness = "-" if success == rows else fitness / (rows - success)
@@ -86,7 +86,6 @@ def evaluate():
             f = open(os.path.join(root, f"{robot} {generations}.csv"), "w")
             f.write(data)
             f.close()
-        outputs.sort()
         output = outputs[0]
         for i in range(1, len(outputs)):
             output += f"\n{outputs[i]}"
