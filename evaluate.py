@@ -49,8 +49,10 @@ def evaluate():
             os.mkdir(os.path.join(os.getcwd(), "Results", robot))
         modes = os.listdir(os.path.join(testing, robot))
         results = {}
+        # Loop all solving modes.
         for mode in modes:
             path = os.path.join(testing, robot, mode)
+            # The network inference is in its own file.
             if os.path.isfile(path):
                 if mode != "Network.csv":
                     continue
@@ -62,6 +64,7 @@ def evaluate():
                     f.write(f"Success Rate (%),Move Time (s),Fitness Score\n{success}%,{time},{fitness}")
                 f.close()
                 continue
+            # Loop through every timeout stored for Bio IK and Fusion IK.
             timeouts = os.listdir(path)
             for timeout in timeouts:
                 file = os.path.join(path, timeout)
@@ -75,6 +78,7 @@ def evaluate():
                     results[timeout]["Bio IK"] = {"Success": success, "Time": time, "Fitness": fitness}
                 elif mode == "Fusion IK":
                     results[timeout]["Fusion IK"] = {"Success": success, "Time": time, "Fitness": fitness}
+        # Write the results to CSV.
         success = "Timeout (ms),Bio IK,Fusion IK"
         time = "Timeout (ms),Bio IK,Fusion IK"
         fitness = "Timeout (ms),Bio IK,Fusion IK"
