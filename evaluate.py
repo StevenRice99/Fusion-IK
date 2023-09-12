@@ -6,6 +6,11 @@ import pandas as pd
 
 
 def read_file(path: str):
+    """
+    Load data from a file.
+    :param path: The CSV path.
+    :return: The success rate (%), move time (s), and fitness score calculated from the file.
+    """
     # Load the data.
     df = pd.read_csv(path)
     rows = df.shape[0]
