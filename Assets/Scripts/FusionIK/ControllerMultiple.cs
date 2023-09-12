@@ -84,9 +84,6 @@ namespace FusionIK
         /// <param name="rotation">The rotation to reach.</param>
         protected void MoveResults(List<float> starting, Vector3 position, Quaternion rotation)
         {
-            // Generate the seed for random number generation.
-            uint seed = (uint) Random.Range(1, int.MaxValue);
-
             for (int i = 0; i < results.Length; i++)
             {
                 results[i].robot.Snap(starting);
@@ -96,7 +93,7 @@ namespace FusionIK
 
             for (int i = 0; i < results.Length; i++)
             {
-                Robot.Solve(position, rotation, ref results[i], seed);
+                Robot.Solve(position, rotation, ref results[i]);
             }
         }
 

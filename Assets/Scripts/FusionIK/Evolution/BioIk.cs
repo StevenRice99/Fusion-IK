@@ -119,30 +119,24 @@ namespace FusionIK.Evolution
         /// <param name="seed">The starting seed joint values.,</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="random">The random number seed.</param>
         /// <param name="milliseconds">The time to run for.</param>
         /// <param name="result">The solving parameters to save to.</param>
         /// <returns>The results to update.</returns>
-        public static void Solve(List<float>[] seed, Vector3 position, Quaternion rotation, long milliseconds, uint random, ref Result result)
+        public static void Solve(List<float>[] seed, Vector3 position, Quaternion rotation, long milliseconds, ref Result result)
         {
-            double[][] bioSeed = new double[seed.Length][];
+            double[][] s = new double[seed.Length][];
             for (int i = 0; i < seed.Length; i++)
             {
-                bioSeed[i] = new double[seed[i].Count];
+                s[i] = new double[seed[i].Count];
                 for (int j = 0; j < seed[i].Count; j++)
                 {
-                    bioSeed[i][j] = seed[i][j];
+                    s[i][j] = seed[i][j];
                 }
             }
+            
+            _random = new((uint) Random.Range(1, int.MaxValue));
 
-            if (random == 0)
-            {
-                random = (uint) Random.Range(1, int.MaxValue);
-            }
-            
-            _random = new(random);
-            
-            _model = new(result.robot);
+            _model = result.robot.Ghost;
             _populationSize = result.robot.Properties.Population;
             _elites = result.robot.Properties.Elites;
             _dimensionality = _model.dof;
@@ -182,7 +176,7 @@ namespace FusionIK.Evolution
             }
 
             // Initialize the population.
-            Initialise(bioSeed);
+            Initialise(s);
 
             double[] solution = _solution;
             bool reached = false;
@@ -287,7 +281,7 @@ namespace FusionIK.Evolution
                             result.Set(index, false, double.MaxValue, _fitness);
                         }
                         
-                        Initialise(bioSeed);
+                        Initialise(s);
 			        }
                     else
                     {
@@ -301,7 +295,7 @@ namespace FusionIK.Evolution
                     // If there was already a successful attempt, only update it if this move is faster.
                     if (reached)
                     {
-                        double attemptMoveTime = result.robot.CalculateTime(bioSeed[0], _solution);
+                        double attemptMoveTime = result.robot.CalculateTime(s[0], _solution);
                         if (attemptMoveTime >= moveTime)
                         {
                             continue;
@@ -316,7 +310,7 @@ namespace FusionIK.Evolution
 
                     // If this was the first solution, set it.
                     solution = _solution;
-                    moveTime = result.robot.CalculateTime(bioSeed[0], _solution);
+                    moveTime = result.robot.CalculateTime(s[0], _solution);
                     reached = true;
                     result.Set(index, true, moveTime, 0);
                 

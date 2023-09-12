@@ -53,6 +53,11 @@ namespace FusionIK
         public float ChainLength { get; private set; }
 
         /// <summary>
+        /// Ghost for calculations.
+        /// </summary>
+        public GhostRobot Ghost { get; private set; }
+
+        /// <summary>
         /// Get the end position and rotation of the robot.
         /// </summary>
         public (Vector3 position, Quaternion rotation) EndTransform => (LastJoint.position, LastJoint.rotation);
@@ -108,11 +113,6 @@ namespace FusionIK
         /// The network workers.
         /// </summary>
         private IWorker[] _workers;
-
-        /// <summary>
-        /// Ghost for calculations.
-        /// </summary>
-        private GhostRobot _ghost;
 
         /// <summary>
         /// Get a name for display.
@@ -193,19 +193,6 @@ namespace FusionIK
 
             // Flag to move during fixed update.
             IsMoving = true;
-        }
-    
-        /// <summary>
-        /// Snap to a target.
-        /// </summary>
-        /// <param name="position">The position to reach.</param>
-        /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="result">The solving parameters to save to.</param>
-        /// <param name="seed">The seed for the random numbers of the solver.</param>
-        public void Snap(Vector3 position, Quaternion rotation, ref Result result, uint seed = 0)
-        {
-            Solve(position, rotation, ref result, seed);
-            Snap(result.joints);
         }
 
         /// <summary>
@@ -410,9 +397,8 @@ namespace FusionIK
         /// <param name="targetPosition">The position to reach.</param>
         /// <param name="targetRotation">The rotation to reach.</param>
         /// <param name="result">The solving parameters to save to.</param>
-        /// <param name="seed">The seed for random number generation</param>
         /// <returns>The joints to move the robot to.</returns>
-        public static void Solve(Vector3 targetPosition, Quaternion targetRotation, ref Result result, uint seed = 0)
+        public static void Solve(Vector3 targetPosition, Quaternion targetRotation, ref Result result)
         {
             // If already at the destination do nothing.
             bool reached = result.robot.Reached(targetPosition, targetRotation);
@@ -423,13 +409,13 @@ namespace FusionIK
                 return;
             }
             
-            result.robot._ghost.SetTargetPosition(targetPosition);
-            result.robot._ghost.SetTargetRotation(targetRotation);
+            result.robot.Ghost.SetTargetPosition(targetPosition);
+            result.robot.Ghost.SetTargetRotation(targetRotation);
             result.Set(0, false, 0, 0);
 
             List<float> starting = result.robot.GetJoints();
-            List<float>[] bioSeed = new List<float>[result.robot.mode != SolverMode.BioIk ? 2 : 1];
-            bioSeed[0] = starting;
+            List<float>[] seed = new List<float>[result.robot.mode != SolverMode.BioIk ? 2 : 1];
+            seed[0] = starting;
             
             Stopwatch stopwatch = new();
 
@@ -442,24 +428,24 @@ namespace FusionIK
                 reached = result.robot.Reached(targetPosition, targetRotation);
 
                 // Get the existing fitness.
-                result.Set(0, reached, result.robot.CalculateTime(starting, result.joints), reached ? 0 : result.robot._ghost.ComputeLoss(result.joints));
+                result.Set(0, reached, result.robot.CalculateTime(starting, result.joints), reached ? 0 : result.robot.Ghost.ComputeLoss(result.joints));
                 
                 if (reached)
                 {
                     return;
                 }
                 
-                bioSeed[1] = result.joints;
+                seed[1] = result.joints;
             }
             else
             {
-                result.Set(0, false, 0, result.robot._ghost.ComputeLoss(starting));
+                result.Set(0, false, 0, result.robot.Ghost.ComputeLoss(starting));
             }
 
             // Use Bio IK if it should.
             if (result.robot.mode != SolverMode.Network)
             {
-                BioIk.Solve(bioSeed, targetPosition, targetRotation, result.milliseconds[^1] - stopwatch.ElapsedMilliseconds, seed, ref result);
+                BioIk.Solve(seed, targetPosition, targetRotation, result.milliseconds[^1] - stopwatch.ElapsedMilliseconds, ref result);
             }
         }
 
@@ -765,7 +751,7 @@ namespace FusionIK
                 mode = SolverMode.BioIk;
             }
 
-            _ghost = new(this);
+            Ghost = new(this);
         }
 
         private void FixedUpdate()
