@@ -297,7 +297,7 @@ def train(epochs: int, batch: int):
             if epoch == 1:
                 best_score = score
                 f = open(os.path.join(os.getcwd(), "Networks", robot, f"{i + 1}.csv"), "w")
-                f.write("Epoch,Training,Testing,Best")
+                f.write("Epoch,Training (%),Testing (%),Best (%)")
                 f.close()
                 save(robot, model, best, epoch, best_score, joints, i + 1)
             # Train for set epochs.
@@ -307,7 +307,7 @@ def train(epochs: int, batch: int):
                     total += best_score
                     print(f"{robot} Joint {i + 1} of {joints} = {best_score}%")
                     break
-                msg = f"{robot} Joint {i + 1}/{joints} | Epoch {epoch}/{epochs} | Training {train_score:.4}% | Testing = {score:.4}% | Best = {best_score:.4}%"
+                msg = f"{robot} Joint {i + 1}/{joints} | Epoch {epoch}/{epochs} | Training = {train_score:.4}% | Testing = {score:.4}% | Best = {best_score:.4}%"
                 # Train on the training dataset.
                 model.train()
                 for inputs, outputs in tqdm(training, msg):
@@ -321,7 +321,7 @@ def train(epochs: int, batch: int):
                     best_score = score
                 # Save data.
                 f = open(os.path.join(os.getcwd(), "Networks", robot, f"{i + 1}.csv"), "a")
-                f.write(f"\n{epoch},{train_score},{score},{best_score}")
+                f.write(f"\n{epoch},{train_score}%,{score}%,{best_score}%")
                 f.close()
                 epoch += 1
                 save(robot, model, best, epoch, best_score, joints, i + 1)
