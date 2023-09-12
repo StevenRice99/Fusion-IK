@@ -68,11 +68,18 @@ namespace FusionIK
             {
                 this.milliseconds[i] = milliseconds[i];
                 success[i] = false;
-                time[i] = double.MaxValue;
+                time[i] = 0;
                 fitness[i] = double.MaxValue;
             }
         }
 
+        /// <summary>
+        /// Set values for the results.
+        /// </summary>
+        /// <param name="index">The milliseconds index the results are for and higher.</param>
+        /// <param name="s">If the move was successful.</param>
+        /// <param name="t">The time it took for the joints to reach their destinations.</param>
+        /// <param name="f">The fitness score of the result.</param>
         public void Set(int index, bool s, double t, double f)
         {
             for (int i = index; i < milliseconds.Length; i++)

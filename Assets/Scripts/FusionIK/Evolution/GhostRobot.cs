@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -218,7 +219,7 @@ namespace FusionIK.Evolution
 		/// <returns>True if reached, false otherwise.</returns>
 		public bool CheckConvergence(double[] configuration, Vector3 targetPosition, Quaternion targetRotation)
 		{
-			ForwardKinematics(configuration);			
+			ForwardKinematics(configuration);
 
 			Vector3 position = new((float) _nodes[^1].wpx, (float) _nodes[^1].wpy, (float) _nodes[^1].wpz);
 			Quaternion rotation = new((float) _nodes[^1].wrx, (float) _nodes[^1].wry, (float) _nodes[^1].wrz, (float) _nodes[^1].wrw);
@@ -232,6 +233,19 @@ namespace FusionIK.Evolution
 		/// <param name="configuration">The joint values.</param>
 		/// <returns>The loss.</returns>
 		public double ComputeLoss(double[] configuration)
+		{
+			ForwardKinematics(configuration);
+			Node node = motionPointers[^1].node;
+			_loss = ComputeLoss(node.wpx, node.wpy, node.wpz, node.wrx, node.wry, node.wrz, node.wrw);
+			return math.sqrt(_loss);
+		}
+
+		/// <summary>
+		/// Computes the loss as the root mean error squared.
+		/// </summary>
+		/// <param name="configuration">The joint values.</param>
+		/// <returns>The loss.</returns>
+		public double ComputeLoss(List<float> configuration)
 		{
 			ForwardKinematics(configuration);
 			Node node = motionPointers[^1].node;
@@ -306,6 +320,22 @@ namespace FusionIK.Evolution
 				_configuration[i] = (float) configuration[i];
 			}
 			_nodes[0].FeedForwardConfiguration(configuration);
+		}
+
+		/// <summary>
+		/// Run forward kinematics on the ghost robot.
+		/// </summary>
+		/// <param name="configuration">The joint values.</param>
+		private void ForwardKinematics(List<float> configuration)
+		{
+			double[] doubles = new double[_configuration.Length];
+			for (int i = 0; i < _configuration.Length; i++)
+			{
+				// Cast to float to limit accuracy to how it would be in Unity.
+				_configuration[i] = configuration[i];
+				doubles[i] = configuration[i];
+			}
+			_nodes[0].FeedForwardConfiguration(doubles);
 		}
 
 		/// <summary>

@@ -125,8 +125,6 @@ namespace FusionIK.Evolution
         /// <returns>The results to update.</returns>
         public static void Solve(List<float>[] seed, Vector3 position, Quaternion rotation, long milliseconds, uint random, ref Result result)
         {
-            Stopwatch stopwatch = Stopwatch.StartNew();
-
             double[][] bioSeed = new double[seed.Length][];
             for (int i = 0; i < seed.Length; i++)
             {
@@ -186,12 +184,14 @@ namespace FusionIK.Evolution
             // Initialize the population.
             Initialise(bioSeed);
 
-            double[] best = _solution;
+            double[] solution = _solution;
             bool reached = false;
             double moveTime = double.MaxValue;
             double fitness = double.MaxValue;
 
             int index = 0;
+            
+            Stopwatch stopwatch = Stopwatch.StartNew();
 
             // Loop for all available time.
             do
@@ -282,6 +282,11 @@ namespace FusionIK.Evolution
                     // Reset if there has been no improvement.
 			        if (!improvement)
                     {
+                        if (!result.success[index] && _fitness < result.fitness[index])
+                        {
+                            result.Set(index, false, double.MaxValue, _fitness);
+                        }
+                        
                         Initialise(bioSeed);
 			        }
                     else
@@ -290,8 +295,10 @@ namespace FusionIK.Evolution
                     }
                 } while (true);
 
+                // If this attempt was successful.
                 if (attemptReached)
                 {
+                    // If there was already a successful attempt, only update it if this move is faster.
                     if (reached)
                     {
                         double attemptMoveTime = result.robot.CalculateTime(bioSeed[0], _solution);
@@ -300,14 +307,15 @@ namespace FusionIK.Evolution
                             continue;
                         }
 
-                        best = _solution;
+                        solution = _solution;
                         moveTime = attemptMoveTime;
                         result.Set(index, true, moveTime, 0);
                         
                         continue;
                     }
 
-                    best = _solution;
+                    // If this was the first solution, set it.
+                    solution = _solution;
                     moveTime = result.robot.CalculateTime(bioSeed[0], _solution);
                     reached = true;
                     result.Set(index, true, moveTime, 0);
@@ -315,18 +323,19 @@ namespace FusionIK.Evolution
                     continue;
                 }
 
+                // If the attempt was not successful, only update the solution if the fitness is better than the existing fitness.
                 if (reached || _fitness >= fitness)
                 {
                     continue;
                 }
                 
-                best = _solution;
+                solution = _solution;
                 fitness = _fitness;
                 result.Set(index, false, double.MaxValue, fitness);
 
             } while (stopwatch.ElapsedMilliseconds < milliseconds);
 
-            result.joints = best.Select(t => (float) t).ToList();
+            result.joints = solution.Select(t => (float) t).ToList();
         }
 
         /// <summary>
