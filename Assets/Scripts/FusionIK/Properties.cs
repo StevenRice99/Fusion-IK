@@ -68,7 +68,7 @@ namespace FusionIK
         [Tooltip("The total number of results to generate for testing.")]
         [Min(1)]
         [SerializeField]
-        private int testingTotal = 100000;
+        private int testingTotal = 10000;
 
         [Header("Materials")]
         [Tooltip("Material to apply to the best robot during visualization.")]

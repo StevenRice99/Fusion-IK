@@ -23,6 +23,6 @@ MonoBehaviour:
   population: 120
   elites: 3
   trainingTotal: 250000
-  testingTotal: 100000
+  testingTotal: 10000
   normal: {fileID: 2100000, guid: caa1e16d1366e024bb46efaef55dd1be, type: 2}
   transparent: {fileID: 2100000, guid: be575b3ea8105cc41a2cebe19ab207e2, type: 2}
