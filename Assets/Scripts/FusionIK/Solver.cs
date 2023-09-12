@@ -4,17 +4,17 @@ using Unity.Mathematics;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
-namespace FusionIK.Evolution
+namespace FusionIK
 {
     /// <summary>
-    /// Bio IK optimization.
+    /// Inverse kinematics solver.
     /// </summary>
-	public static class BioIk
+	public static class Solver
     {
         /// <summary>
         /// Ghost robot to perform calculations on.
         /// </summary>
-        private static GhostRobot _model;
+        private static VirtualRobot _virtual;
         
         /// <summary>
         /// Population size.
@@ -84,12 +84,12 @@ namespace FusionIK.Evolution
         /// <summary>
         /// Elite models operations can be run in parallel.
         /// </summary>
-        private static GhostRobot[] _models;
+        private static VirtualRobot[] _ghosts;
         
         /// <summary>
         /// Optimizers for every elite.
         /// </summary>
-        private static Optimization[] _optimisers;
+        private static Optimizer[] _optimizers;
 
         /// <summary>
         /// Current best joint values.
@@ -114,19 +114,76 @@ namespace FusionIK.Evolution
         /// <summary>
         /// Run the algorithm to solve for a solution.
         /// </summary>
-        /// <param name="seed">The starting seed joint values.,</param>
-        /// <param name="position">The position to reach.</param>
-        /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="result">The solving parameters to save to.</param>
+        /// <param name="targetPosition">The position to reach.</param>
+        /// <param name="targetRotation">The rotation to reach.</param>
+        /// <param name="details">The solving parameters to save to.</param>
         /// <returns>The results to update.</returns>
-        public static void Solve(ref double[][] seed, ref Vector3 position, ref Quaternion rotation, ref Result result)
+        public static void Run(ref Vector3 targetPosition, ref Quaternion targetRotation, ref Details details)
         {
+            // Reset the values.
+            details.Reset();
+            
+            // If already at the destination do nothing.
+            bool reached = details.robot.Reached(targetPosition, targetRotation);
+            if (reached)
+            {
+                details.Set(true, 0, 0);
+                return;
+            }
+
+            // Set the target.
+            _virtual = details.robot.Virtual;
+            _virtual.SetTargetPosition(targetPosition);
+            _virtual.SetTargetRotation(targetRotation);
+
+            double[][] seed = new double[details.robot.mode != Robot.SolverMode.BioIk ? 2 : 1][];
+            seed[0] = new double[details.Joints.Length];
+            for (int i = 0; i < seed[0].Length; i++)
+            {
+                seed[0][i] = details.Joints[i];
+            }
+
+            // Run through neural networks if it should.
+            if (details.robot.mode != Robot.SolverMode.BioIk)
+            {
+                List<float> starting = details.robot.GetJoints();
+                
+                details.Start();
+                List<float> joints = details.robot.RunNetwork(details.robot.PrepareInputs(targetPosition, targetRotation, starting));
+                details.Stop();
+                
+                reached = details.robot.Reached(targetPosition, targetRotation);
+
+                seed[1] = new double[joints.Count];
+                for (int i = 0; i < seed[1].Length; i++)
+                {
+                    seed[1][i] = joints[i];
+                }
+
+                // Get the existing fitness.
+                details.Set(reached, details.robot.CalculateTime(seed[0], seed[1]), reached ? 0 : details.robot.Virtual.ComputeLoss(seed[1]), seed[1]);
+                
+                if (reached)
+                {
+                    return;
+                }
+            }
+            else
+            {
+                details.Set(false, 0, details.robot.Virtual.ComputeLoss(details.Joints), seed[0]);
+            }
+
+            // Use Bio IK if it should.
+            if (details.robot.mode == Robot.SolverMode.Network)
+            {
+                return;
+            }
+            
             _random = new((uint) Random.Range(1, int.MaxValue));
 
-            _model = result.robot.Ghost;
-            _populationSize = result.robot.Properties.Population;
-            _elites = result.robot.Properties.Elites;
-            _dimensionality = _model.dof;
+            _populationSize = details.robot.Properties.Population;
+            _elites = details.robot.Properties.Elites;
+            _dimensionality = _virtual.dof;
 
             _population = new Individual[_populationSize];
             _offspring = new Individual[_populationSize];
@@ -141,35 +198,78 @@ namespace FusionIK.Evolution
             _probabilities = new double[_populationSize];
             _solution = new double[_dimensionality];
 
-            _models = new GhostRobot[_elites];
-            _optimisers = new Optimization[_elites];
+            _ghosts = new VirtualRobot[_elites];
+            _optimizers = new Optimizer[_elites];
             _improved = new bool[_elites];
             for (int i = 0; i < _elites; i++)
             {
                 int member = i;
-                _models[member] = new(result.robot);
-                _optimisers[member] = new(_dimensionality, x => _models[member].ComputeLoss(x), y => _models[member].ComputeGradient(y, 1e-5));
+                _ghosts[member] = new(details.robot);
+                _optimizers[member] = new(_dimensionality, x => _ghosts[member].ComputeLoss(x), y => _ghosts[member].ComputeGradient(y, 1e-5));
             }
-            
-            // Set the target.
-            _model.SetTargetPosition(position);
-            _model.SetTargetRotation(rotation);
             
             // Set the limits.
             for (int i = 0; i < _dimensionality; i++)
             {
-                _lowerBounds[i] = _model.motionPointers[i].motion.GetLowerLimit();
-                _upperBounds[i] = _model.motionPointers[i].motion.GetUpperLimit();
+                _lowerBounds[i] = _virtual.motionPointers[i].motion.GetLowerLimit();
+                _upperBounds[i] = _virtual.motionPointers[i].motion.GetUpperLimit();
             }
-
-            // Initialize the population.
-            Initialise(seed);
             
-            result.Start();
+            details.Start();
 
             // Loop for all available time.
             do
             {
+                // Reset the fitness.
+                _fitness = double.MaxValue;
+            
+                // Reset any previous values.
+                for (int i = 0; i < _populationSize; i++)
+                {
+                    _population[i].Reset();
+                    _offspring[i].Reset();
+                }
+                for (int i = 0; i < _elites; i++)
+                {
+                    _optimizers[i].Reset();
+                }
+            
+                // Set the seed as the first member of the population.
+                for (int i = 0; i < seed.Length; i++)
+                {
+                    for (int j = 0; j < _dimensionality; j++)
+                    {
+                        _population[i].genes[j] = seed[i][j];
+                        _population[i].momentum[j] = 0.0;
+                    }
+                
+                    _population[i].fitness = _virtual.ComputeLoss(_population[i].genes);
+                }
+
+                // Randomize the rest of the population.
+                for (int i = seed.Length; i < _populationSize; i++)
+                {
+                    RandomMember(_population[i]);
+                }
+
+                SortByFitness();
+                ComputeExtinctions();
+                TryUpdateSolution();
+            
+                // Start from the best seed.
+                for (int i = 0; i < _dimensionality; i++)
+                {
+                    _virtual.motionPointers[i].motion.SetTargetValue((float) _solution[i]);
+                }
+            
+                // Setup the elites.
+                for (int i = 0; i < _elites; i++)
+                {
+                    _ghosts[i].CopyFrom(_virtual);
+                    _optimizers[i].lowerBounds = _lowerBounds;
+                    _optimizers[i].upperBounds = _upperBounds;
+                }
+                
                 // Loop until a solution is reached.
                 do
                 {
@@ -240,108 +340,44 @@ namespace FusionIK.Evolution
                     bool improvement = TryUpdateSolution() || HasAnyEliteImproved();
                     
                     // If we reached the target, finish this attempt and check if it is better than any previous.
-                    if (_model.CheckConvergence(_solution, position, rotation))
+                    if (_virtual.CheckConvergence(_solution, targetPosition, targetRotation))
                     {
                         // If there was already a successful attempt, only update it if this move is faster.
-                        if (result.Success)
+                        if (details.Success)
                         {
-                            double attemptMoveTime = result.robot.CalculateTime(seed[0], _solution);
-                            if (attemptMoveTime >= result.Time)
+                            double attemptMoveTime = details.robot.CalculateTime(seed[0], _solution);
+                            if (attemptMoveTime >= details.Time)
                             {
                                 break;
                             }
 
-                            result.Set(true, attemptMoveTime, 0, _solution);
+                            details.Set(true, attemptMoveTime, 0, _solution);
                             break;
                         }
 
                         // If this was the first solution, set it.
-                        result.Set(true, result.robot.CalculateTime(seed[0], _solution), 0, _solution);
+                        details.Set(true, details.robot.CalculateTime(seed[0], _solution), 0, _solution);
                         break;
                     }
 
                     // If we have not yet had success, update the results.
-                    if (!result.Success && _fitness < result.Fitness)
+                    if (!details.Success && _fitness < details.Fitness)
                     {
-                        result.Set(false, 0, _fitness, _solution);
+                        details.Set(false, 0, _fitness, _solution);
                     }
                     
-                    // Break out if out of time.
-                    if (result.Done)
+                    // Break out if there was no improvement or out of time.
+                    if (!improvement || details.Done)
                     {
                         break;
                     }
                     
-                    // Reset if there has been no improvement.
-			        if (!improvement)
-                    {
-                        Initialise(seed);
-			        }
-                    else
-                    {
-                        ComputeExtinctions();
-                    }
+                    // Evolve the next generation;
+                    ComputeExtinctions();
                 } while (true);
 
-            } while (!result.Done);
+            } while (!details.Done);
         }
-
-        /// <summary>
-        /// Initialize the population.
-        /// </summary>
-        /// <param name="seed">The starting joint values.</param>
-        private static void Initialise(double[][] seed)
-        {
-            // Reset the fitness.
-            _fitness = double.MaxValue;
-            
-            // Reset any previous values.
-            for (int i = 0; i < _populationSize; i++)
-            {
-                _population[i].Reset();
-                _offspring[i].Reset();
-            }
-            for (int i = 0; i < _elites; i++)
-            {
-                _optimisers[i].Reset();
-            }
-            
-            // Set the seed as the first member of the population.
-            for (int i = 0; i < seed.Length; i++)
-            {
-                for (int j = 0; j < _dimensionality; j++)
-                {
-                    _population[i].genes[j] = seed[i][j];
-                    _population[i].momentum[j] = 0.0;
-                }
-                
-                _population[i].fitness = _model.ComputeLoss(_population[i].genes);
-            }
-
-            // Randomize the rest of the population.
-			for (int i = seed.Length; i < _populationSize; i++)
-            {
-				RandomMember(_population[i]);
-			}
-
-			SortByFitness();
-            ComputeExtinctions();
-            TryUpdateSolution();
-            
-            // Start from the best seed.
-            for (int i = 0; i < _dimensionality; i++)
-            {
-                _model.motionPointers[i].motion.SetTargetValue((float) _solution[i]);
-            }
-            
-            // Setup the elites.
-            for (int i = 0; i < _elites; i++)
-            {
-                _models[i].CopyFrom(_model);
-                _optimisers[i].lowerBounds = _lowerBounds;
-                _optimisers[i].upperBounds = _upperBounds;
-            }
-		}
 
         /// <summary>
         /// Get the time elapsed since a timestamp
@@ -439,16 +475,16 @@ namespace FusionIK.Evolution
             }
 
             // Exploit.
-            double fitness = _models[index].ComputeLoss(elite.genes);
-            _optimisers[index].Minimise(elite.genes, _duration);
-            if (_optimisers[index].value < fitness)
+            double fitness = _ghosts[index].ComputeLoss(elite.genes);
+            _optimizers[index].Minimise(elite.genes, _duration);
+            if (_optimizers[index].value < fitness)
             {
                 for (int i = 0; i < _dimensionality; i++)
                 {
-                    elite.momentum[i] = _optimisers[index].solution[i] - elite.genes[i];
-                    elite.genes[i] = _optimisers[index].solution[i];
+                    elite.momentum[i] = _optimizers[index].solution[i] - elite.genes[i];
+                    elite.genes[i] = _optimizers[index].solution[i];
                 }
-                elite.fitness = _optimisers[index].value;        
+                elite.fitness = _optimizers[index].value;        
                 _improved[index] = true;
                 return;
             }
@@ -506,7 +542,7 @@ namespace FusionIK.Evolution
 			}
             
             // Fitness.
-			offspring.fitness = _model.ComputeLoss(offspring.genes);
+			offspring.fitness = _virtual.ComputeLoss(offspring.genes);
 		}
 
 		/// <summary>
@@ -520,7 +556,7 @@ namespace FusionIK.Evolution
                 individual.genes[i] = _random.NextDouble(_lowerBounds[i], _upperBounds[i]);
                 individual.momentum[i] = 0.0;
 			}
-			individual.fitness = _model.ComputeLoss(individual.genes);
+			individual.fitness = _virtual.ComputeLoss(individual.genes);
 		}
 
 		/// <summary>
@@ -622,7 +658,7 @@ namespace FusionIK.Evolution
     /// <summary>
     /// Based on http://www.netlib.org/opt/lbfgs_um.shar
     /// </summary>
-    public class Optimization
+    public class Optimizer
     {
         /// <summary>
         /// The current task being performed.
@@ -730,7 +766,7 @@ namespace FusionIK.Evolution
         /// <param name="dimensionality">The degrees of freedom.</param>
         /// <param name="function">Function to perform.</param>
         /// <param name="gradient">Gradient call.</param>
-        public Optimization(int dimensionality, Func<double[], double> function, Func<double[], double[]> gradient)
+        public Optimizer(int dimensionality, Func<double[], double> function, Func<double[], double[]> gradient)
         {
             _dimensionality = dimensionality;
             _function = function;
@@ -801,7 +837,7 @@ namespace FusionIK.Evolution
             _newG = null;
 
             DateTime timestamp = DateTime.Now;
-            while (BioIk.ElapsedTime(timestamp) < duration)
+            while (Solver.ElapsedTime(timestamp) < duration)
             {
                 Setup(_dimensionality, solution, lowerBounds, upperBounds, _nbd, ref _f, _g, _work, _iwa, ref _task, ref _cSave, _lSave, _save, _dSave);
 

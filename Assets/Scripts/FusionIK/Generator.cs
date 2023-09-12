@@ -31,7 +31,7 @@ namespace FusionIK
                 Destroy(gameObject);
             }
 
-            // Start in Bio IK mode.
+            // Ensure in Bio IK mode.
             robot.mode = Robot.SolverMode.BioIk;
             
             SetResult(new [] { robot }, new [] { milliseconds });
@@ -61,7 +61,7 @@ namespace FusionIK
             Robot.PhysicsStep();
 
             // Get the best result to reach the target.
-            Robot.Solve(target.position, target.rotation, ref results[0]);
+            Solver.Run(ref target.position, ref target.rotation, ref results[0]);
             
             // If failed to reach, don't use this data.
             if (!results[0].Success)

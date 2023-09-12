@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using FusionIK.Evolution;
 using Unity.Barracuda;
 using Unity.Mathematics;
 using UnityEditor;
@@ -34,7 +33,7 @@ namespace FusionIK
         /// <summary>
         /// The ghost joints of the robot.
         /// </summary>
-        public GhostJoint[] GhostJoints { get; private set; }
+        public VirtualJoint[] GhostJoints { get; private set; }
         
         /// <summary>
         /// Rescaling value used for Bio IK.
@@ -54,7 +53,7 @@ namespace FusionIK
         /// <summary>
         /// Ghost for calculations.
         /// </summary>
-        public GhostRobot Ghost { get; private set; }
+        public VirtualRobot Virtual { get; private set; }
 
         /// <summary>
         /// Get the end position and rotation of the robot.
@@ -259,7 +258,7 @@ namespace FusionIK
         /// <param name="targetPosition">The position to check.</param>
         /// <param name="targetRotation">The rotation to check.</param>
         /// <returns>True if reached, false otherwise.</returns>
-        private bool Reached(Vector3 targetPosition, Quaternion targetRotation) => Reached(targetPosition, targetRotation, LastJoint.position, LastJoint.rotation);
+        public bool Reached(Vector3 targetPosition, Quaternion targetRotation) => Reached(targetPosition, targetRotation, LastJoint.position, LastJoint.rotation);
         
         /// <summary>
         /// If a position and rotation were reached relative to a root position and rotation.
@@ -380,77 +379,11 @@ namespace FusionIK
         }
 
         /// <summary>
-        /// Request a solution.
-        /// </summary>
-        /// <param name="targetPosition">The position to reach.</param>
-        /// <param name="targetRotation">The rotation to reach.</param>
-        /// <param name="result">The solving parameters to save to.</param>
-        /// <returns>The joints to move the robot to.</returns>
-        public static void Solve(Vector3 targetPosition, Quaternion targetRotation, ref Result result)
-        {
-            result.Reset();
-            
-            // If already at the destination do nothing.
-            bool reached = result.robot.Reached(targetPosition, targetRotation);
-            if (reached)
-            {
-                result.Set(true, 0, 0);
-                return;
-            }
-            
-            result.robot.Ghost.SetTargetPosition(targetPosition);
-            result.robot.Ghost.SetTargetRotation(targetRotation);
-
-            double[][] seed = new double[result.robot.mode != SolverMode.BioIk ? 2 : 1][];
-            seed[0] = new double[result.Joints.Length];
-            for (int i = 0; i < seed[0].Length; i++)
-            {
-                seed[0][i] = result.Joints[i];
-            }
-
-            // Run through neural networks if it should.
-            if (result.robot.mode != SolverMode.BioIk)
-            {
-                List<float> starting = result.robot.GetJoints();
-                
-                result.Start();
-                List<float> joints = result.robot.RunNetwork(result.robot.PrepareInputs(targetPosition, targetRotation, starting));
-                result.Stop();
-                
-                reached = result.robot.Reached(targetPosition, targetRotation);
-
-                seed[1] = new double[joints.Count];
-                for (int i = 0; i < seed[1].Length; i++)
-                {
-                    seed[1][i] = joints[i];
-                }
-
-                // Get the existing fitness.
-                result.Set(reached, result.robot.CalculateTime(seed[0], seed[1]), reached ? 0 : result.robot.Ghost.ComputeLoss(seed[1]), seed[1]);
-                
-                if (reached)
-                {
-                    return;
-                }
-            }
-            else
-            {
-                result.Set(false, 0, result.robot.Ghost.ComputeLoss(result.Joints), seed[0]);
-            }
-
-            // Use Bio IK if it should.
-            if (result.robot.mode != SolverMode.Network)
-            {
-                BioIk.Solve(ref seed, ref targetPosition, ref targetRotation, ref result);
-            }
-        }
-
-        /// <summary>
         /// Run the network inference.
         /// </summary>
         /// <param name="inputs">The inputs to the networks.</param>
         /// <returns>The joints to move the robot to.</returns>
-        private List<float> RunNetwork(IEnumerable<float> inputs)
+        public List<float> RunNetwork(IEnumerable<float> inputs)
         {
             // Get initial input values and prepare for outputs.
             float[] forwards = inputs.ToArray();
@@ -609,8 +542,8 @@ namespace FusionIK
                 return;
             }
 
-            List<GhostJoint> bioIkJoints = new();
-            GhostJoint previousJoint = null;
+            List<VirtualJoint> bioIkJoints = new();
+            VirtualJoint previousJoint = null;
             Transform parent = transform;
 
             int jointNumber = 1;
@@ -635,82 +568,82 @@ namespace FusionIK
                     }
                 };
 
-                GhostJoint ghostJoint = go.AddComponent<GhostJoint>();
+                VirtualJoint virtualJoint = go.AddComponent<VirtualJoint>();
                 if (previousJoint != null)
                 {
-                    ghostJoint.parent = previousJoint;
-                    previousJoint.child = ghostJoint;
+                    virtualJoint.parent = previousJoint;
+                    previousJoint.child = virtualJoint;
                 }
-                ghostJoint.Setup();
-                previousJoint = ghostJoint;
+                virtualJoint.Setup();
+                previousJoint = virtualJoint;
                 parent = go.transform;
                 
-                ghostJoint.rotational = j.Type != ArticulationJointType.PrismaticJoint;
-                ghostJoint.SetRotation(Vector3.zero);
-                bioIkJoints.Add(ghostJoint);
+                virtualJoint.rotational = j.Type != ArticulationJointType.PrismaticJoint;
+                virtualJoint.SetRotation(Vector3.zero);
+                bioIkJoints.Add(virtualJoint);
 
                 if (j.XMotion)
                 {
-                    ghostJoint.y.enabled = true;
-                    if (!ghostJoint.rotational)
+                    virtualJoint.y.enabled = true;
+                    if (!virtualJoint.rotational)
                     {
-                        ghostJoint.y.SetLowerLimit(j.LimitX.lower);
-                        ghostJoint.y.SetUpperLimit(j.LimitX.upper);
+                        virtualJoint.y.SetLowerLimit(j.LimitX.lower);
+                        virtualJoint.y.SetUpperLimit(j.LimitX.upper);
                     }
                     else
                     {
-                        ghostJoint.y.SetLowerLimit(math.degrees(j.LimitX.lower));
-                        ghostJoint.y.SetUpperLimit(math.degrees(j.LimitX.upper));
+                        virtualJoint.y.SetLowerLimit(math.degrees(j.LimitX.lower));
+                        virtualJoint.y.SetUpperLimit(math.degrees(j.LimitX.upper));
                     }
                 }
                 else
                 {
-                    ghostJoint.y.enabled = false;
+                    virtualJoint.y.enabled = false;
                 }
 
                 if (j.YMotion)
                 {
-                    ghostJoint.z.enabled = true;
-                    if (!ghostJoint.rotational)
+                    virtualJoint.z.enabled = true;
+                    if (!virtualJoint.rotational)
                     {
-                        ghostJoint.z.SetLowerLimit(j.LimitY.lower);
-                        ghostJoint.z.SetUpperLimit(j.LimitY.upper);
+                        virtualJoint.z.SetLowerLimit(j.LimitY.lower);
+                        virtualJoint.z.SetUpperLimit(j.LimitY.upper);
                     }
                     else
                     {
-                        ghostJoint.z.SetLowerLimit(math.degrees(j.LimitY.lower));
-                        ghostJoint.z.SetUpperLimit(math.degrees(j.LimitY.upper));
+                        virtualJoint.z.SetLowerLimit(math.degrees(j.LimitY.lower));
+                        virtualJoint.z.SetUpperLimit(math.degrees(j.LimitY.upper));
                     }
                 }
                 else
                 {
-                    ghostJoint.z.enabled = false;
+                    virtualJoint.z.enabled = false;
                 }
                 
                 if (j.ZMotion)
                 {
-                    ghostJoint.x.enabled = true;
-                    if (!ghostJoint.rotational)
+                    virtualJoint.x.enabled = true;
+                    if (!virtualJoint.rotational)
                     {
-                        ghostJoint.x.SetLowerLimit(j.LimitZ.lower);
-                        ghostJoint.x.SetUpperLimit(j.LimitZ.upper);
+                        virtualJoint.x.SetLowerLimit(j.LimitZ.lower);
+                        virtualJoint.x.SetUpperLimit(j.LimitZ.upper);
                     }
                     else
                     {
-                        ghostJoint.x.SetLowerLimit(math.degrees(j.LimitZ.lower));
-                        ghostJoint.x.SetUpperLimit(math.degrees(j.LimitZ.upper));
+                        virtualJoint.x.SetLowerLimit(math.degrees(j.LimitZ.lower));
+                        virtualJoint.x.SetUpperLimit(math.degrees(j.LimitZ.upper));
                     }
                 }
                 else
                 {
-                    ghostJoint.x.enabled = false;
+                    virtualJoint.x.enabled = false;
                 }
             }
 
             GhostJoints = bioIkJoints.ToArray();
 
             // Configure ghost.
-            foreach (GhostJoint j in GhostJoints)
+            foreach (VirtualJoint j in GhostJoints)
             {
                 j.UpdateData();
             }
@@ -747,7 +680,7 @@ namespace FusionIK
                 mode = SolverMode.BioIk;
             }
 
-            Ghost = new(this);
+            Virtual = new(this);
         }
 
         private void FixedUpdate()

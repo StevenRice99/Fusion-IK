@@ -254,7 +254,7 @@ namespace FusionIK
         /// Write testing data to CSV.
         /// </summary>
         /// <param name="results"></param>
-        public void AddTestingData(ref Result[] results)
+        public void AddTestingData(ref Details[] results)
         {
             // If already evaluated required amount, exit.
             if (_resultsCount >= testingTotal)
@@ -281,7 +281,7 @@ namespace FusionIK
             }
 
             // Add all results.
-            foreach (Result result in results)
+            foreach (Details result in results)
             {
                 for (int i = 0; i < result.milliseconds.Length; i++)
                 {

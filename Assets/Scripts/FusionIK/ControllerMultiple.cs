@@ -92,7 +92,7 @@ namespace FusionIK
 
             for (int i = 0; i < results.Length; i++)
             {
-                Robot.Solve(position, rotation, ref results[i]);
+                Solver.Run(ref position, ref rotation, ref results[i]);
             }
         }
 
@@ -102,13 +102,13 @@ namespace FusionIK
         /// <param name="results">The results to check.</param>
         /// <param name="ordered">The ordered results based off how they performed.</param>
         /// <returns>The robot which did the best.</returns>
-        protected static Result Best(Result[] results, out Result[] ordered)
+        protected static Details Best(Details[] results, out Details[] ordered)
         {
             // Get the robots that reached ordered by their move time, then solutions, then mode.
-            Result[] reached = results.Where(x => x.Success).OrderBy(x => x.Time).ThenBy(x => x.robot.mode).ToArray();
+            Details[] reached = results.Where(x => x.Success).OrderBy(x => x.Time).ThenBy(x => x.robot.mode).ToArray();
             
             // Get the robots that did not reached ordered by their fitness, then distance, then angle, then mode.
-            Result[] notReached = results.Where(x => !x.Success).OrderBy(x => x.Fitness).ThenBy(x => x.robot.mode).ToArray();
+            Details[] notReached = results.Where(x => !x.Success).OrderBy(x => x.Fitness).ThenBy(x => x.robot.mode).ToArray();
             
             // Combine both and return the first robot.
             ordered = reached.Concat(notReached).ToArray();

@@ -71,7 +71,7 @@ namespace FusionIK
         /// <summary>
         /// Robots ordered by performance.
         /// </summary>
-        private Result[] _ordered;
+        private Details[] _ordered;
 
         /// <summary>
         /// Robot movement paths.
@@ -206,7 +206,7 @@ namespace FusionIK
         private void MovePerform(List<float> starting)
         {
             // Get the best robot and order the rest.
-            Result best = Best(results, out _ordered);
+            Details best = Best(results, out _ordered);
 
             if (results.Length > 1)
             {
@@ -312,7 +312,7 @@ namespace FusionIK
         /// <param name="data">The data of its last move.</param>
         /// <param name="title">The title of the robot.</param>
         /// <param name="color">The color to make it.</param>
-        private static void RobotLabel(float y, Result data, string title, Color color)
+        private static void RobotLabel(float y, Details data, string title, Color color)
         {
             if (data == null)
             {
@@ -429,7 +429,7 @@ namespace FusionIK
 
             // Display robot labels.
             float offset = results.Length * 20 + 10;
-            foreach (Result data in _ordered)
+            foreach (Details data in _ordered)
             {
                 RobotLabel(Screen.height - offset, data, Robot.Name(data.robot.mode), Robot.RobotColor(data.robot.mode));
                 offset -= 20;
@@ -454,15 +454,15 @@ namespace FusionIK
             // Draw all robot paths and their axis gizmos.
             if (_ordered != null)
             {
-                foreach (Result data in _ordered.Reverse())
+                foreach (Details data in _ordered.Reverse())
                 {
-                    Result result = results.FirstOrDefault(r => r.robot == data.robot);
-                    if (result == null)
+                    Details details = results.FirstOrDefault(r => r.robot == data.robot);
+                    if (details == null)
                     {
                         continue;
                     }
 
-                    int i = Array.IndexOf(results, result);
+                    int i = Array.IndexOf(results, details);
                     if (i < 0)
                     {
                         continue;

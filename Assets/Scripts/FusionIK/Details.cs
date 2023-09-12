@@ -5,9 +5,9 @@ using System.Linq;
 namespace FusionIK
 {
     /// <summary>
-    /// Store a result of a robot moving to a target.
+    /// Store settings and results of a robot moving to a target.
     /// </summary>
-    public class Result
+    public class Details
     {
         /// <summary>
         /// If the algorithm should end.
@@ -74,7 +74,7 @@ namespace FusionIK
         /// </summary>
         /// <param name="robot">The robot that did the move.</param>
         /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
-        public Result(Robot robot, long[] milliseconds)
+        public Details(Robot robot, long[] milliseconds)
         {
             this.robot = robot;
             this.milliseconds = new long[milliseconds.Length];
@@ -104,7 +104,7 @@ namespace FusionIK
                 fitness[i] = double.MaxValue;
             }
 
-            Joints ??= new double[robot.Ghost.dof];
+            Joints ??= new double[robot.Virtual.dof];
             List<float> j = robot.GetJoints();
             for (int i = 0; i < Joints.Length; i++)
             {

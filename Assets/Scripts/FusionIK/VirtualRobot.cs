@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace FusionIK.Evolution
+namespace FusionIK
 {
 	/// <summary>
 	/// Used to help with Bio IK calculations.
 	/// </summary>
-	public class GhostRobot
+	public class VirtualRobot
 	{
 		/// <summary>
 		/// All motions in the Bio IK chain.
@@ -84,13 +84,13 @@ namespace FusionIK.Evolution
 		/// Configure a new ghost robot based off an actual robot chain.
 		/// </summary>
 		/// <param name="robot"></param>
-		public GhostRobot(Robot robot)
+		public VirtualRobot(Robot robot)
 		{
 			_robot = robot;
 
 			// Add a node for every ghost joint.
 			AddNode(_robot.GhostJoints[0], null);
-			GhostJoint current = _robot.GhostJoints[0].child;
+			VirtualJoint current = _robot.GhostJoints[0].child;
 			while (current != null)
 			{
 				AddNode(current, _nodes[^1]);
@@ -152,62 +152,62 @@ namespace FusionIK.Evolution
 		/// <summary>
 		/// Create a copy of another ghost robot.
 		/// </summary>
-		/// <param name="ghostRobot">The ghost robot to copy.</param>
-		public void CopyFrom(GhostRobot ghostRobot)
+		/// <param name="virtualRobot">The ghost robot to copy.</param>
+		public void CopyFrom(VirtualRobot virtualRobot)
 		{
-			_opx = ghostRobot._opx;
-			_opy = ghostRobot._opy;
-			_opz = ghostRobot._opz;
-			_orx = ghostRobot._orx;
-			_ory = ghostRobot._ory;
-			_orz = ghostRobot._orz;
-			_orw = ghostRobot._orw;
+			_opx = virtualRobot._opx;
+			_opy = virtualRobot._opy;
+			_opz = virtualRobot._opz;
+			_orx = virtualRobot._orx;
+			_ory = virtualRobot._ory;
+			_orz = virtualRobot._orz;
+			_orw = virtualRobot._orw;
 			for (int i = 0; i < dof; i++)
 			{
-				_configuration[i] = ghostRobot._configuration[i];
-				_gradient[i] = ghostRobot._gradient[i];
+				_configuration[i] = virtualRobot._configuration[i];
+				_gradient[i] = virtualRobot._gradient[i];
 			}
-			_px = ghostRobot._px;
-			_py = ghostRobot._py;
-			_pz = ghostRobot._pz;
-			_rx = ghostRobot._rx;
-			_ry = ghostRobot._ry;
-			_rz = ghostRobot._rz;
-			_rw = ghostRobot._rw;
-			_loss = ghostRobot._loss;
-			_simulatedLoss = ghostRobot._simulatedLoss;
+			_px = virtualRobot._px;
+			_py = virtualRobot._py;
+			_pz = virtualRobot._pz;
+			_rx = virtualRobot._rx;
+			_ry = virtualRobot._ry;
+			_rz = virtualRobot._rz;
+			_rw = virtualRobot._rw;
+			_loss = virtualRobot._loss;
+			_simulatedLoss = virtualRobot._simulatedLoss;
 			for (int i = 0; i < _nodes.Length; i++)
 			{
-				_nodes[i].wpx = ghostRobot._nodes[i].wpx;
-				_nodes[i].wpy = ghostRobot._nodes[i].wpy;
-				_nodes[i].wpz = ghostRobot._nodes[i].wpz;
-				_nodes[i].wrx = ghostRobot._nodes[i].wrx;
-				_nodes[i].wry = ghostRobot._nodes[i].wry;
-				_nodes[i].wrz = ghostRobot._nodes[i].wrz;
-				_nodes[i].wrw = ghostRobot._nodes[i].wrw;
-				_nodes[i].wsx = ghostRobot._nodes[i].wsx;
-				_nodes[i].wsy = ghostRobot._nodes[i].wsy;
-				_nodes[i].wsz = ghostRobot._nodes[i].wsz;
+				_nodes[i].wpx = virtualRobot._nodes[i].wpx;
+				_nodes[i].wpy = virtualRobot._nodes[i].wpy;
+				_nodes[i].wpz = virtualRobot._nodes[i].wpz;
+				_nodes[i].wrx = virtualRobot._nodes[i].wrx;
+				_nodes[i].wry = virtualRobot._nodes[i].wry;
+				_nodes[i].wrz = virtualRobot._nodes[i].wrz;
+				_nodes[i].wrw = virtualRobot._nodes[i].wrw;
+				_nodes[i].wsx = virtualRobot._nodes[i].wsx;
+				_nodes[i].wsy = virtualRobot._nodes[i].wsy;
+				_nodes[i].wsz = virtualRobot._nodes[i].wsz;
 
-				_nodes[i].lpx = ghostRobot._nodes[i].lpx;
-				_nodes[i].lpy = ghostRobot._nodes[i].lpy;
-				_nodes[i].lpz = ghostRobot._nodes[i].lpz;
-				_nodes[i].lrx = ghostRobot._nodes[i].lrx;
-				_nodes[i].lry = ghostRobot._nodes[i].lry;
-				_nodes[i].lrz = ghostRobot._nodes[i].lrz;
-				_nodes[i].lrw = ghostRobot._nodes[i].lrw;
+				_nodes[i].lpx = virtualRobot._nodes[i].lpx;
+				_nodes[i].lpy = virtualRobot._nodes[i].lpy;
+				_nodes[i].lpz = virtualRobot._nodes[i].lpz;
+				_nodes[i].lrx = virtualRobot._nodes[i].lrx;
+				_nodes[i].lry = virtualRobot._nodes[i].lry;
+				_nodes[i].lrz = virtualRobot._nodes[i].lrz;
+				_nodes[i].lrw = virtualRobot._nodes[i].lrw;
 				
-				_nodes[i].xValue = ghostRobot._nodes[i].xValue;
-				_nodes[i].yValue = ghostRobot._nodes[i].yValue;
-				_nodes[i].zValue = ghostRobot._nodes[i].zValue;
+				_nodes[i].xValue = virtualRobot._nodes[i].xValue;
+				_nodes[i].yValue = virtualRobot._nodes[i].yValue;
+				_nodes[i].zValue = virtualRobot._nodes[i].zValue;
 			}
-			_tpx = ghostRobot._tpx;
-			_tpy = ghostRobot._tpy;
-			_tpz = ghostRobot._tpz;
-			_trx = ghostRobot._trx;
-			_try = ghostRobot._try;
-			_trz = ghostRobot._trz;
-			_trw = ghostRobot._trw;
+			_tpx = virtualRobot._tpx;
+			_tpy = virtualRobot._tpy;
+			_tpz = virtualRobot._tpz;
+			_trx = virtualRobot._trx;
+			_try = virtualRobot._try;
+			_trz = virtualRobot._trz;
+			_trw = virtualRobot._trw;
 		}
 
 		/// <summary>
@@ -343,37 +343,37 @@ namespace FusionIK.Evolution
 		/// </summary>
 		/// <param name="joint">The joint attached to this node.</param>
 		/// <param name="parent">The parent node.</param>
-		private void AddNode(GhostJoint joint, Node parent)
+		private void AddNode(VirtualJoint joint, Node parent)
 		{
 			Node node = new(this, parent, joint);
 
-			if (node.ghostJoint != null)
+			if (node.virtualJoint != null)
 			{
-				if (node.ghostJoint.GetDoF() == 0)
+				if (node.virtualJoint.GetDoF() == 0)
 				{
-					node.ghostJoint = null;
+					node.virtualJoint = null;
 				}
 				else
 				{
-					if (node.ghostJoint.x.enabled)
+					if (node.virtualJoint.x.enabled)
 					{
-						MotionPtr motionPtr = new(node.ghostJoint.x, node, motionPointers.Length);
+						MotionPtr motionPtr = new(node.virtualJoint.x, node, motionPointers.Length);
 						Array.Resize(ref motionPointers, motionPointers.Length + 1);
 						motionPointers[^1] = motionPtr;
 						node.xEnabled = true;
 						node.xIndex = motionPtr.index;
 					}
-					if (node.ghostJoint.y.enabled)
+					if (node.virtualJoint.y.enabled)
 					{
-						MotionPtr motionPtr = new(node.ghostJoint.y, node, motionPointers.Length);
+						MotionPtr motionPtr = new(node.virtualJoint.y, node, motionPointers.Length);
 						Array.Resize(ref motionPointers, motionPointers.Length + 1);
 						motionPointers[^1] = motionPtr;
 						node.yEnabled = true;
 						node.yIndex = motionPtr.index;
 					}
-					if (node.ghostJoint.z.enabled)
+					if (node.virtualJoint.z.enabled)
 					{
-						MotionPtr motionPtr = new(node.ghostJoint.z, node, motionPointers.Length);
+						MotionPtr motionPtr = new(node.virtualJoint.z, node, motionPointers.Length);
 						Array.Resize(ref motionPointers, motionPointers.Length + 1);
 						motionPointers[^1] = motionPtr;
 						node.zEnabled = true;
@@ -394,7 +394,7 @@ namespace FusionIK.Evolution
 			/// <summary>
 			/// The ghost robot this node is a part of.
 			/// </summary>
-			private readonly GhostRobot _ghostRobot;
+			private readonly VirtualRobot _virtualRobot;
 			
 			/// <summary>
 			/// Parent node in the chain.
@@ -414,7 +414,7 @@ namespace FusionIK.Evolution
 			/// <summary>
 			/// Joint attached to the node.
 			/// </summary>
-			public GhostJoint ghostJoint;
+			public VirtualJoint virtualJoint;
 
 			/// <summary>
 			/// World position.
@@ -459,20 +459,20 @@ namespace FusionIK.Evolution
 			/// <summary>
 			/// Setup the node.
 			/// </summary>
-			/// <param name="ghostRobot">The ghost robot this node is a part of.</param>
+			/// <param name="virtualRobot">The ghost robot this node is a part of.</param>
 			/// <param name="parent">The parent node.</param>
-			/// <param name="ghostJoint">The joint attached to this node.</param>
-			public Node(GhostRobot ghostRobot, Node parent, GhostJoint ghostJoint)
+			/// <param name="virtualJoint">The joint attached to this node.</param>
+			public Node(VirtualRobot virtualRobot, Node parent, VirtualJoint virtualJoint)
 			{
-				_ghostRobot = ghostRobot;
+				_virtualRobot = virtualRobot;
 				_parent = parent;
 				if (_parent != null)
 				{
 					_parent._child = this;
 				}
 
-				_transform = ghostJoint.transform;
-				this.ghostJoint = ghostJoint;
+				_transform = virtualJoint.transform;
+				this.virtualJoint = virtualJoint;
 			}
 
 			/// <summary>
@@ -480,10 +480,10 @@ namespace FusionIK.Evolution
 			/// </summary>
 			public void Refresh()
 			{
-				xValue = ghostJoint.x.GetTargetValue();
-				yValue = ghostJoint.y.GetTargetValue();
-				zValue = ghostJoint.z.GetTargetValue();
-				ghostJoint.ComputeLocalTransformation(xValue, yValue, zValue, out lpx, out lpy, out lpz, out lrx, out lry, out lrz, out lrw);
+				xValue = virtualJoint.x.GetTargetValue();
+				yValue = virtualJoint.y.GetTargetValue();
+				zValue = virtualJoint.z.GetTargetValue();
+				virtualJoint.ComputeLocalTransformation(xValue, yValue, zValue, out lpx, out lpy, out lpz, out lrx, out lry, out lrz, out lrw);
 				
 				Vector3 ws = _transform.lossyScale;
 				wsx = ws.x;
@@ -526,7 +526,7 @@ namespace FusionIK.Evolution
 				// Only update local transformation if a joint value has changed.
 				if (updateLocal)
 				{
-					ghostJoint.ComputeLocalTransformation(xValue, yValue, zValue, out lpx, out lpy, out lpz, out lrx, out lry, out lrz, out lrw);
+					virtualJoint.ComputeLocalTransformation(xValue, yValue, zValue, out lpx, out lpy, out lpz, out lrx, out lry, out lrz, out lrw);
 					updateWorld = true;
 				}
 
@@ -545,8 +545,8 @@ namespace FusionIK.Evolution
 			/// <param name="configuration">The joint configuration.</param>
 			public void SimulateModification(float[] configuration)
 			{
-				Node node = _ghostRobot.motionPointers[^1].node;
-				ghostJoint.ComputeLocalTransformation(
+				Node node = _virtualRobot.motionPointers[^1].node;
+				virtualJoint.ComputeLocalTransformation(
 					xEnabled ? configuration[xIndex] : xValue,
 					yEnabled ? configuration[yIndex] : yValue, 
 					zEnabled ? configuration[zIndex] : zValue, 
@@ -558,13 +558,13 @@ namespace FusionIK.Evolution
 				double pz;
 				if (_parent == null)
 				{
-					px = _ghostRobot._opx;
-					py = _ghostRobot._opy;
-					pz = _ghostRobot._opz;
-					localRx = _ghostRobot._orx;
-					localRy = _ghostRobot._ory;
-					localRz = _ghostRobot._orz;
-					localRw = _ghostRobot._orw;
+					px = _virtualRobot._opx;
+					py = _virtualRobot._opy;
+					pz = _virtualRobot._opz;
+					localRx = _virtualRobot._orx;
+					localRy = _virtualRobot._ory;
+					localRz = _virtualRobot._orz;
+					localRw = _virtualRobot._orw;
 					localX = lpX;
 					localY = lpY;
 					localZ = lpZ;
@@ -605,7 +605,7 @@ namespace FusionIK.Evolution
 				double ry = -qx * node.wrz + qy * node.wrw + qz * node.wrx + qw * node.wry;
 				double rz = qx * node.wry - qy * node.wrx + qz * node.wrw + qw * node.wrz;
 				double rw = -qx * node.wrx - qy * node.wry - qz * node.wrz + qw * node.wrw;
-				_ghostRobot._simulatedLoss = _ghostRobot.ComputeLoss(px, py, pz, rx, ry, rz, rw);
+				_virtualRobot._simulatedLoss = _virtualRobot.ComputeLoss(px, py, pz, rx, ry, rz, rw);
 			}
 
 			/// <summary>
@@ -616,13 +616,13 @@ namespace FusionIK.Evolution
 				double rx, ry, rz, rw, x, y, z;
 				if (_parent == null)
 				{
-					wpx = _ghostRobot._opx;
-					wpy = _ghostRobot._opy;
-					wpz = _ghostRobot._opz;
-					rx = _ghostRobot._orx;
-					ry = _ghostRobot._ory;
-					rz = _ghostRobot._orz;
-					rw = _ghostRobot._orw;
+					wpx = _virtualRobot._opx;
+					wpy = _virtualRobot._opy;
+					wpz = _virtualRobot._opz;
+					rx = _virtualRobot._orx;
+					ry = _virtualRobot._ory;
+					rz = _virtualRobot._orz;
+					rw = _virtualRobot._orw;
 					x = lpx;
 					y = lpy;
 					z = lpz;
@@ -658,7 +658,7 @@ namespace FusionIK.Evolution
 			/// <summary>
 			/// The motion to reference.
 			/// </summary>
-			public readonly GhostJoint.Motion motion;
+			public readonly VirtualJoint.Motion motion;
 			
 			/// <summary>
 			/// The node this motion is attached to.
@@ -676,7 +676,7 @@ namespace FusionIK.Evolution
 			/// <param name="motion">The motion.</param>
 			/// <param name="node">The node.</param>
 			/// <param name="index">The motion index.</param>
-			public MotionPtr(GhostJoint.Motion motion, Node node, int index)
+			public MotionPtr(VirtualJoint.Motion motion, Node node, int index)
 			{
 				this.motion = motion;
 				this.node = node;

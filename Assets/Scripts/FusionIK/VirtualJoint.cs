@@ -2,20 +2,20 @@
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace FusionIK.Evolution
+namespace FusionIK
 {
 	/// <summary>
 	/// Invisible joint used to help with Bio IK calculations.
 	/// </summary>
 	[DisallowMultipleComponent]
-	public class GhostJoint : MonoBehaviour
+	public class VirtualJoint : MonoBehaviour
 	{
 		[Header("Chain Properties")]
 		[Tooltip("The parent joint.")]
-		public GhostJoint parent;
+		public VirtualJoint parent;
 		
 		[Tooltip("The child joint.")]
-		public GhostJoint child;
+		public VirtualJoint child;
 
 		[Header("Movement Properties")]
 		[Tooltip("The motion along the X axis.")]
@@ -273,7 +273,7 @@ namespace FusionIK.Evolution
 		public class Motion
 		{
 			[Tooltip("The joint this motion is attached to.")]
-			public GhostJoint joint;
+			public VirtualJoint joint;
 			
 			[Tooltip("The axis this movement controls.")]
 			public Vector3 axis;
@@ -295,7 +295,7 @@ namespace FusionIK.Evolution
 			/// </summary>
 			/// <param name="joint">The joint to attach to.</param>
 			/// <param name="axis">The motion this controls.</param>
-			public Motion(GhostJoint joint, Vector3 axis)
+			public Motion(VirtualJoint joint, Vector3 axis)
 			{
 				this.joint = joint;
 				this.axis = axis;

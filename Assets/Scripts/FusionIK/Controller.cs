@@ -21,7 +21,7 @@ namespace FusionIK
         /// <summary>
         /// Store move data.
         /// </summary>
-        protected Result[] results;
+        protected Details[] results;
 
         /// <summary>
         /// Setup the results storing capability.
@@ -30,7 +30,7 @@ namespace FusionIK
         /// <param name="milliseconds">The milliseconds to test against.</param>
         protected void SetResult(Robot[] robots, long[] milliseconds)
         {
-            results = new Result[robots.Length];
+            results = new Details[robots.Length];
             for (int i = 0; i < results.Length; i++)
             {
                 results[i] = new(robots[i], robots[i].mode == Robot.SolverMode.Network ? new long[] { 0 } : milliseconds);
