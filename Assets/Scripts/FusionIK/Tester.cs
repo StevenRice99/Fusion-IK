@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace FusionIK
@@ -31,7 +30,7 @@ namespace FusionIK
             R.Properties.AddTestingData(ref results);
 
             // Start at the best result for the next test.
-            R.Properties.SetLastPose(Best(results, out _).joints);
+            R.Properties.SetLastPose(Best(results, out _).Floats);
         }
     }
 }

@@ -1,4 +1,3 @@
-import argparse
 import math
 import os.path
 
@@ -64,8 +63,10 @@ def evaluate():
                 success, time, fitness = read_file(path)
                 f = open(os.path.join(os.getcwd(), "Results", robot, "Network.csv"), "w")
                 if time == math.inf:
+                    print(f"Network | Success Rate (%) = {success}% | Fitness Score = {fitness}")
                     f.write(f"Success Rate (%),Fitness Score\n{success}%,{fitness}")
                 else:
+                    print(f"Network | Success Rate (%) = {success}% | Move Time (s) = {time} s | Fitness Score = {fitness}")
                     f.write(f"Success Rate (%),Move Time (s),Fitness Score\n{success}%,{time},{fitness}")
                 f.close()
                 continue
@@ -79,19 +80,24 @@ def evaluate():
                 if timeout not in results:
                     results[timeout] = {}
                 success, time, fitness = read_file(file)
-                if mode == "Bio IK":
-                    results[timeout]["Bio IK"] = {"Success": success, "Time": time, "Fitness": fitness}
-                elif mode == "Fusion IK":
-                    results[timeout]["Fusion IK"] = {"Success": success, "Time": time, "Fitness": fitness}
+                results[timeout][mode] = {"Success": success, "Time": time, "Fitness": fitness}
         # Write the results to CSV.
         success = "Timeout (ms),Bio IK,Fusion IK"
         time = "Timeout (ms),Bio IK,Fusion IK"
         fitness = "Timeout (ms),Bio IK,Fusion IK"
         results = dict(sorted(results.items()))
         for timeout in results:
-            success += f"\n{timeout},{results[timeout]['Bio IK']['Success']}%,{results[timeout]['Fusion IK']['Success']}%"
-            time += f"\n{timeout},{results[timeout]['Bio IK']['Time']},{results[timeout]['Fusion IK']['Time']}"
-            fitness += f"\n{timeout},{results[timeout]['Bio IK']['Fitness']},{results[timeout]['Fusion IK']['Fitness']}"
+            b_success = results[timeout]["Bio IK"]["Success"]
+            f_success = results[timeout]["Fusion IK"]["Success"]
+            b_time = results[timeout]["Bio IK"]["Time"]
+            f_time = results[timeout]["Fusion IK"]["Time"]
+            b_fitness = results[timeout]["Bio IK"]["Fitness"]
+            f_fitness = results[timeout]["Fusion IK"]["Fitness"]
+            print(f"Bio IK    | Timeout (ms) = {timeout} ms\t| Success Rate (%) = {b_success}%\t| Move Time (s) = {b_time} s\t| Fitness Score = {b_fitness}\n"
+                  f"Fusion IK | Timeout (ms) = {timeout} ms\t| Success Rate (%) = {f_success}%\t| Move Time (s) = {f_time} s\t| Fitness Score = {f_fitness}")
+            success += f"\n{timeout},{b_success}%,{f_success}%"
+            time += f"\n{timeout},{b_time},{f_time}"
+            fitness += f"\n{timeout},{b_fitness},{f_fitness}"
         f = open(os.path.join(os.getcwd(), "Results", robot, "Success Rate (%).csv"), "w")
         f.write(success)
         f.close()
@@ -104,6 +110,9 @@ def evaluate():
 
 
 if __name__ == '__main__':
-    desc = "Fusion-IK Evaluation"
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
-    evaluate()
+    try:
+        evaluate()
+    except KeyboardInterrupt:
+        print("Evaluation stopped.")
+    except ValueError as error:
+        print(error)

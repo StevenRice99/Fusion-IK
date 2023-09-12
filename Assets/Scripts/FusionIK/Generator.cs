@@ -72,13 +72,13 @@ namespace FusionIK
             }
             
             // Snap to the results.
-            R.Snap(results[0].joints);
+            R.Snap(results[0].Floats);
             Robot.PhysicsStep();
 
             // If reached, add the result, update the last pose, and set the start of the next generation to the result.
-            R.Properties.AddTrainingData(R.PrepareInputs(R.EndTransform.position, R.EndTransform.rotation, _starting), R.NetScaledJoints(results[0].joints).ToArray());
+            R.Properties.AddTrainingData(R.PrepareInputs(R.EndTransform.position, R.EndTransform.rotation, _starting), R.NetScaledJoints(results[0].Floats).ToArray());
             R.Properties.SetLastPose(_starting);
-            _starting = results[0].joints;
+            _starting = results[0].Floats;
         }
 
         /// <summary>
@@ -93,7 +93,7 @@ namespace FusionIK
                 return null;
             }
             
-            path = Path.Combine(path, $"{R.Properties.Name}.csv");
+            path = Path.Combine(path, $"{R.Properties.name}.csv");
             if (!File.Exists(path))
             {
                 return null;

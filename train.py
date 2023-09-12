@@ -188,7 +188,7 @@ def save(robot: str, model, best, epoch: int, score: float, joints: int, joint: 
         'Optimizer': model.optimizer.state_dict(),
         'Epoch': epoch,
         'Score': score
-    }, os.path.join(os.getcwd(), "Networks", robot, f"{robot}-{joint}.pt"))
+    }, os.path.join(os.getcwd(), "Networks", robot, f"{joint}.pt"))
     # Store the current training state.
     old = model.state_dict()
     # Export the best state.
@@ -196,7 +196,7 @@ def save(robot: str, model, best, epoch: int, score: float, joints: int, joint: 
     torch.onnx.export(
         model,
         to_tensor(torch.randn(1, joints + 7, dtype=torch.float32)),
-        os.path.join(os.getcwd(), "Networks", robot, f"{robot}-{joint}.onnx"),
+        os.path.join(os.getcwd(), "Networks", robot, f"{joint}.onnx"),
         export_params=True,
         opset_version=9,
         do_constant_folding=True,
@@ -268,10 +268,11 @@ def train(epochs: int, batch: int):
             # Define the model.
             model = JointNetwork(joints)
             best = model.state_dict()
+            best_score = 0
             # Check if an existing model exists for this joint, load it.
-            if os.path.exists(os.path.join(os.getcwd(), "Networks", robot, f"{robot}-{i + 1}.pt")):
+            if os.path.exists(os.path.join(os.getcwd(), "Networks", robot, f"{i + 1}.pt")):
                 try:
-                    saved = torch.load(os.path.join(os.getcwd(), "Networks", robot, f"{robot}-{i + 1}.pt"))
+                    saved = torch.load(os.path.join(os.getcwd(), "Networks", robot, f"{i + 1}.pt"))
                     epoch = saved['Epoch']
                     best_score = saved['Score']
                     # If already done training this joint, skip to the next.
@@ -295,7 +296,7 @@ def train(epochs: int, batch: int):
             # If new training, write initial files.
             if epoch == 1:
                 best_score = score
-                f = open(os.path.join(os.getcwd(), "Networks", robot, f"{robot}-{i + 1}.csv"), "w")
+                f = open(os.path.join(os.getcwd(), "Networks", robot, f"{i + 1}.csv"), "w")
                 f.write("Epoch,Training,Testing,Best")
                 f.close()
                 save(robot, model, best, epoch, best_score, joints, i + 1)
@@ -319,7 +320,7 @@ def train(epochs: int, batch: int):
                     best = model.state_dict()
                     best_score = score
                 # Save data.
-                f = open(os.path.join(os.getcwd(), "Networks", robot, f"{robot}-{i + 1}.csv"), "a")
+                f = open(os.path.join(os.getcwd(), "Networks", robot, f"{i + 1}.csv"), "a")
                 f.write(f"\n{epoch},{train_score},{score},{best_score}")
                 f.close()
                 epoch += 1
@@ -336,7 +337,7 @@ if __name__ == '__main__':
         a = vars(parser.parse_args())
         train(a["epoch"], a["batch"])
     except KeyboardInterrupt:
-        print("Training Stopped.")
+        print("Training stopped.")
     except torch.cuda.OutOfMemoryError:
         print("CUDA out of memory. Try running with a smaller batch size.")
     except ValueError as error:

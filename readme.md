@@ -31,15 +31,15 @@ An ABB IRB 7600 robot has been prepared already. To create a new robot, attach a
 
 # Training
 
-The scene "Generate" in the "ABB-IRB-7600 > Scenes" folder. To do this with a new robot, a "Generator" component must exist in the scene and assign your previously created robot prefab. Set the maximum milliseconds the Bio IK attempts for generating will run for. Run the scene and training data will be generated. Visuals will be disabled in the scene as they are not needed. Once complete, run "train.py". Once complete, inside the "Networks" folder, copy the ONNX files for your robot's joints into your Unity project. Assign these ONNX models in order to the "Network Models" field of your "Robot Properties".
+The scene "Generate" in the "ABB IRB 7600 > Scenes" folder. To do this with a new robot, a "Generator" component must exist in the scene and assign your previously created robot prefab. Set the maximum milliseconds the Bio IK attempts for generating will run for. Run the scene and training data will be generated. Visuals will be disabled in the scene as they are not needed. Once complete, run "train.py". Once complete, inside the "Networks" folder, copy the ONNX files for your robot's joints into your Unity project. Assign these ONNX models in order to the "Network Models" field of your "Robot Properties".
 
 # Testing
 
-The scene "Test" in the "ABB-IRB-7600 > Scenes" folder is setup to do this. To do this with a new robot, a "Tester" component must exist in the scene and assign your previously created robot prefab. Run the scene and testing data will be generated. Visuals will be disabled in the scene as they are not needed. Once complete, run "evaluate.py". Once complete, you can view results in the "Results" folder.
+The scene "Test" in the "ABB IRB 7600 > Scenes" folder is setup to do this. To do this with a new robot, a "Tester" component must exist in the scene and assign your previously created robot prefab. Run the scene and testing data will be generated. Visuals will be disabled in the scene as they are not needed. Once complete, run "evaluate.py". Once complete, you can view results in the "Results" folder.
 
 # Visualizing
 
-The scene "Visualize" in the "ABB-IRB-7600 > Scenes" folder is setup to do this. To do this with a new robot, a "Visualizer" component must exist in the scene and assign your previously created robot prefab. Run the scene and you will have a GUI as well as keyboard and mouse controls to visualize the various inverse kinematics models.
+The scene "Visualize" in the "ABB IRB 7600 > Scenes" folder is setup to do this. To do this with a new robot, a "Visualizer" component must exist in the scene and assign your previously created robot prefab. Run the scene and you will have a GUI as well as keyboard and mouse controls to visualize the various inverse kinematics models.
 
 # [Bio IK](https://d-nb.info/1221720910/34 "Bio IK: A Memetic Evolutionary Algorithm for Generic Multi-Objective Inverse Kinematics")
 

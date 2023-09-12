@@ -92,11 +92,6 @@ namespace FusionIK
         private int _resultsCount = -1;
 
         /// <summary>
-        /// Formatted name for the robot.
-        /// </summary>
-        public string Name => name.Replace(" ", "-");
-
-        /// <summary>
         /// Check if networks are valid.
         /// </summary>
         public bool NetworksValid => networks is {Length: > 0} && networks.All(network => network != null);
@@ -201,7 +196,7 @@ namespace FusionIK
                 return;
             }
 
-            path = Path.Combine(path, $"{Name}.csv");
+            path = Path.Combine(path, $"{name}.csv");
             
             // Read total from file in case it exceeds amount.
             if (_generatedCount < 0)
@@ -252,7 +247,7 @@ namespace FusionIK
                 
             File.AppendAllText(path, s);
             
-            Debug.Log($"{Name} | Generated {++_generatedCount} of {trainingTotal}.");
+            Debug.Log($"{name} | Generated {++_generatedCount} of {trainingTotal}.");
         }
         
         /// <summary>
@@ -274,7 +269,7 @@ namespace FusionIK
             }
             
             // Ensure folder exists.
-            string path = DirectoryPath(new[] {"Testing", Name});
+            string path = DirectoryPath(new[] {"Testing", name});
             if (path == null)
             {
 #if UNITY_EDITOR
@@ -297,7 +292,7 @@ namespace FusionIK
                     }
                     else
                     {
-                        file = DirectoryPath(new[] {"Testing", Name, Robot.Name(result.robot.mode)});
+                        file = DirectoryPath(new[] {"Testing", name, Robot.Name(result.robot.mode)});
                         if (file == null)
                         {
 #if UNITY_EDITOR
@@ -330,7 +325,7 @@ namespace FusionIK
                 }
             }
             
-            Debug.Log($"{Name} | Evaluated {++_resultsCount} of {testingTotal}.");
+            Debug.Log($"{name} | Evaluated {++_resultsCount} of {testingTotal}.");
         }
 
         /// <summary>

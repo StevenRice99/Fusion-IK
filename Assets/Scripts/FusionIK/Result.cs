@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 
 namespace FusionIK
 {
@@ -7,6 +9,11 @@ namespace FusionIK
     /// </summary>
     public class Result
     {
+        /// <summary>
+        /// If the algorithm should end.
+        /// </summary>
+        public bool Done => _stopwatch.ElapsedMilliseconds >= milliseconds[^1];
+        
         /// <summary>
         /// If the move was successful.
         /// </summary>
@@ -21,6 +28,11 @@ namespace FusionIK
         /// The fitness score of the result.
         /// </summary>
         public double Fitness => fitness[^1];
+
+        /// <summary>
+        /// Convert joints for use with articulation bodies.
+        /// </summary>
+        public List<float> Floats => Joints.Select(t => (float) t).ToList();
         
         /// <summary>
         /// The robot that did the move.
@@ -50,7 +62,12 @@ namespace FusionIK
         /// <summary>
         /// The joints of the best move.
         /// </summary>
-        public List<float> joints;
+        public double[] Joints { get; private set; }
+
+        /// <summary>
+        /// Used to time algorithms.
+        /// </summary>
+        private readonly Stopwatch _stopwatch = new();
 
         /// <summary>
         /// Store a move result.
@@ -74,19 +91,102 @@ namespace FusionIK
         }
 
         /// <summary>
+        /// Reset the stopwatch.
+        /// </summary>
+        public void Reset()
+        {
+            _stopwatch.Reset();
+            
+            for (int i = 0; i < milliseconds.Length; i++)
+            {
+                success[i] = false;
+                time[i] = 0;
+                fitness[i] = double.MaxValue;
+            }
+
+            Joints ??= new double[robot.Ghost.dof];
+            List<float> j = robot.GetJoints();
+            for (int i = 0; i < Joints.Length; i++)
+            {
+                Joints[i] = j[i];
+            }
+        }
+
+        /// <summary>
+        /// Start the stopwatch.
+        /// </summary>
+        public void Start()
+        {
+            _stopwatch.Start();
+        }
+
+        /// <summary>
+        /// Stop the stopwatch.
+        /// </summary>
+        public void Stop()
+        {
+            _stopwatch.Stop();
+        }
+
+        /// <summary>
         /// Set values for the results.
         /// </summary>
-        /// <param name="index">The milliseconds index the results are for and higher.</param>
         /// <param name="s">If the move was successful.</param>
         /// <param name="t">The time it took for the joints to reach their destinations.</param>
         /// <param name="f">The fitness score of the result.</param>
-        public void Set(int index, bool s, double t, double f)
+        /// <param name="j">The joints of the robot.</param>
+        public void Set(bool s, double t, double f, double[] j = null)
         {
-            for (int i = index; i < milliseconds.Length; i++)
+            if (Success)
             {
+                if (!s || t >= Time)
+                {
+                    return;
+                }
+            }
+            else
+            {
+                if (f >= Fitness)
+                {
+                    return;
+                }
+            }
+
+            if (s)
+            {
+                f = 0;
+            }
+            
+            bool wasRunning = false;
+            if (_stopwatch.IsRunning)
+            {
+                _stopwatch.Stop();
+                wasRunning = true;
+            }
+            
+            for (int i = 0; i < milliseconds.Length; i++)
+            {
+                if (i != milliseconds.Length - 1 && _stopwatch.ElapsedMilliseconds > milliseconds[i])
+                {
+                    continue;
+                }
+                
                 success[i] = s;
                 time[i] = t;
                 fitness[i] = f;
+            }
+
+            if (j != null)
+            {
+                for (int i = 0; i < Joints.Length; i++)
+                {
+                    Joints[i] = j[i];
+                }
+            }
+
+            if (wasRunning)
+            {
+                _stopwatch.Start();
             }
         }
     }

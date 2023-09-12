@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using FusionIK.Evolution;
 using Unity.Barracuda;
@@ -298,17 +297,6 @@ namespace FusionIK
         {
             return starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
         }
-        
-        /// <summary>
-        /// Calculate the time needed for a robot to move from its middle to ending joint values.
-        /// </summary>
-        /// <param name="starting">Ending joint positions.</param>
-        /// <param name="ending">Ending joint positions.</param>
-        /// <returns>The time to complete the move.</returns>
-        private double CalculateTime(IEnumerable<float> starting, IReadOnlyList<float> ending)
-        {
-            return starting.Select((t, i) => math.abs(t - ending[i]) / _maxSpeeds[i]).Prepend(0).Max();
-        }
 
         /// <summary>
         /// Get a position relative to the root of the robot.
@@ -400,52 +388,60 @@ namespace FusionIK
         /// <returns>The joints to move the robot to.</returns>
         public static void Solve(Vector3 targetPosition, Quaternion targetRotation, ref Result result)
         {
+            result.Reset();
+            
             // If already at the destination do nothing.
             bool reached = result.robot.Reached(targetPosition, targetRotation);
             if (reached)
             {
-                result.Set(0, true, 0, 0);
-                result.joints = result.robot.GetJoints();
+                result.Set(true, 0, 0);
                 return;
             }
             
             result.robot.Ghost.SetTargetPosition(targetPosition);
             result.robot.Ghost.SetTargetRotation(targetRotation);
-            result.Set(0, false, 0, 0);
 
-            List<float> starting = result.robot.GetJoints();
-            List<float>[] seed = new List<float>[result.robot.mode != SolverMode.BioIk ? 2 : 1];
-            seed[0] = starting;
-            
-            Stopwatch stopwatch = new();
+            double[][] seed = new double[result.robot.mode != SolverMode.BioIk ? 2 : 1][];
+            seed[0] = new double[result.Joints.Length];
+            for (int i = 0; i < seed[0].Length; i++)
+            {
+                seed[0][i] = result.Joints[i];
+            }
 
             // Run through neural networks if it should.
             if (result.robot.mode != SolverMode.BioIk)
             {
-                stopwatch.Start();
-                result.joints = result.robot.RunNetwork(result.robot.PrepareInputs(targetPosition, targetRotation, starting));
-                stopwatch.Stop();
+                List<float> starting = result.robot.GetJoints();
+                
+                result.Start();
+                List<float> joints = result.robot.RunNetwork(result.robot.PrepareInputs(targetPosition, targetRotation, starting));
+                result.Stop();
+                
                 reached = result.robot.Reached(targetPosition, targetRotation);
 
+                seed[1] = new double[joints.Count];
+                for (int i = 0; i < seed[1].Length; i++)
+                {
+                    seed[1][i] = joints[i];
+                }
+
                 // Get the existing fitness.
-                result.Set(0, reached, result.robot.CalculateTime(starting, result.joints), reached ? 0 : result.robot.Ghost.ComputeLoss(result.joints));
+                result.Set(reached, result.robot.CalculateTime(seed[0], seed[1]), reached ? 0 : result.robot.Ghost.ComputeLoss(seed[1]), seed[1]);
                 
                 if (reached)
                 {
                     return;
                 }
-                
-                seed[1] = result.joints;
             }
             else
             {
-                result.Set(0, false, 0, result.robot.Ghost.ComputeLoss(starting));
+                result.Set(false, 0, result.robot.Ghost.ComputeLoss(result.Joints), seed[0]);
             }
 
             // Use Bio IK if it should.
             if (result.robot.mode != SolverMode.Network)
             {
-                BioIk.Solve(seed, targetPosition, targetRotation, result.milliseconds[^1] - stopwatch.ElapsedMilliseconds, ref result);
+                BioIk.Solve(ref seed, ref targetPosition, ref targetRotation, ref result);
             }
         }
 

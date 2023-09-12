@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using Unity.Mathematics;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -119,21 +117,10 @@ namespace FusionIK.Evolution
         /// <param name="seed">The starting seed joint values.,</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="milliseconds">The time to run for.</param>
         /// <param name="result">The solving parameters to save to.</param>
         /// <returns>The results to update.</returns>
-        public static void Solve(List<float>[] seed, Vector3 position, Quaternion rotation, long milliseconds, ref Result result)
+        public static void Solve(ref double[][] seed, ref Vector3 position, ref Quaternion rotation, ref Result result)
         {
-            double[][] s = new double[seed.Length][];
-            for (int i = 0; i < seed.Length; i++)
-            {
-                s[i] = new double[seed[i].Count];
-                for (int j = 0; j < seed[i].Count; j++)
-                {
-                    s[i][j] = seed[i][j];
-                }
-            }
-            
             _random = new((uint) Random.Range(1, int.MaxValue));
 
             _model = result.robot.Ghost;
@@ -176,30 +163,16 @@ namespace FusionIK.Evolution
             }
 
             // Initialize the population.
-            Initialise(s);
-
-            double[] solution = _solution;
-            bool reached = false;
-            double moveTime = double.MaxValue;
-            double fitness = double.MaxValue;
-
-            int index = 0;
+            Initialise(seed);
             
-            Stopwatch stopwatch = Stopwatch.StartNew();
+            result.Start();
 
             // Loop for all available time.
             do
             {
-                bool attemptReached;
-                
                 // Loop until a solution is reached.
                 do
                 {
-                    if (stopwatch.ElapsedMilliseconds > result.milliseconds[index])
-                    {
-                        index++;
-                    }
-                    
                     // Create the mating pool.
 			        Pool.Clear();
 			        Pool.AddRange(_population);
@@ -266,9 +239,35 @@ namespace FusionIK.Evolution
                     // Check for improvement.
                     bool improvement = TryUpdateSolution() || HasAnyEliteImproved();
                     
-                    // If we reached the target or we are out of time, finish.
-                    attemptReached = _model.CheckConvergence(_solution, position, rotation);
-                    if (stopwatch.ElapsedMilliseconds >= milliseconds || attemptReached)
+                    // If we reached the target, finish this attempt and check if it is better than any previous.
+                    if (_model.CheckConvergence(_solution, position, rotation))
+                    {
+                        // If there was already a successful attempt, only update it if this move is faster.
+                        if (result.Success)
+                        {
+                            double attemptMoveTime = result.robot.CalculateTime(seed[0], _solution);
+                            if (attemptMoveTime >= result.Time)
+                            {
+                                break;
+                            }
+
+                            result.Set(true, attemptMoveTime, 0, _solution);
+                            break;
+                        }
+
+                        // If this was the first solution, set it.
+                        result.Set(true, result.robot.CalculateTime(seed[0], _solution), 0, _solution);
+                        break;
+                    }
+
+                    // If we have not yet had success, update the results.
+                    if (!result.Success && _fitness < result.Fitness)
+                    {
+                        result.Set(false, 0, _fitness, _solution);
+                    }
+                    
+                    // Break out if out of time.
+                    if (result.Done)
                     {
                         break;
                     }
@@ -276,12 +275,7 @@ namespace FusionIK.Evolution
                     // Reset if there has been no improvement.
 			        if (!improvement)
                     {
-                        if (!result.success[index] && _fitness < result.fitness[index])
-                        {
-                            result.Set(index, false, double.MaxValue, _fitness);
-                        }
-                        
-                        Initialise(s);
+                        Initialise(seed);
 			        }
                     else
                     {
@@ -289,47 +283,7 @@ namespace FusionIK.Evolution
                     }
                 } while (true);
 
-                // If this attempt was successful.
-                if (attemptReached)
-                {
-                    // If there was already a successful attempt, only update it if this move is faster.
-                    if (reached)
-                    {
-                        double attemptMoveTime = result.robot.CalculateTime(s[0], _solution);
-                        if (attemptMoveTime >= moveTime)
-                        {
-                            continue;
-                        }
-
-                        solution = _solution;
-                        moveTime = attemptMoveTime;
-                        result.Set(index, true, moveTime, 0);
-                        
-                        continue;
-                    }
-
-                    // If this was the first solution, set it.
-                    solution = _solution;
-                    moveTime = result.robot.CalculateTime(s[0], _solution);
-                    reached = true;
-                    result.Set(index, true, moveTime, 0);
-                
-                    continue;
-                }
-
-                // If the attempt was not successful, only update the solution if the fitness is better than the existing fitness.
-                if (reached || _fitness >= fitness)
-                {
-                    continue;
-                }
-                
-                solution = _solution;
-                fitness = _fitness;
-                result.Set(index, false, double.MaxValue, fitness);
-
-            } while (stopwatch.ElapsedMilliseconds < milliseconds);
-
-            result.joints = solution.Select(t => (float) t).ToList();
+            } while (!result.Done);
         }
 
         /// <summary>

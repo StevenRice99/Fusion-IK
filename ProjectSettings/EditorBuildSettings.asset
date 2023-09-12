@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/ABB-IRB-7600/Scenes/Visualize.unity
+    path: Assets/ABB IRB 7600/Scenes/Visualize.unity
     guid: cfc362863d80d9749b992bc8d4e7d050
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: ac2e9bec2e581d54eb5002277b387897, type: 2}

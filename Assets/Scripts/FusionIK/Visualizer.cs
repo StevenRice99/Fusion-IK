@@ -230,7 +230,7 @@ namespace FusionIK
             }
 
             // Store the best result.
-            R.Properties.SetLastPose(best.joints);
+            R.Properties.SetLastPose(best.Floats);
 
             // Store the endings and snap back to the start.
             for (int i = 0; i < results.Length; i++)
@@ -242,7 +242,7 @@ namespace FusionIK
             // Call to move robots in real time.
             for (int i = 0; i < results.Length; i++)
             {
-                results[i].robot.Move(results[i].joints);
+                results[i].robot.Move(results[i].Floats);
             }
         }
 
@@ -320,7 +320,7 @@ namespace FusionIK
             }
             
             GUI.color = color;
-            GUI.Label(new(10, y, 135, 20), $"{title}");
+            GUI.Label(new(10, y, 70, 20), $"{title}");
 
             string success;
             string description;
@@ -336,8 +336,8 @@ namespace FusionIK
                 description = $"{data.Fitness} Fitness Score";
             }
             
-            GUI.Label(new(145, y, 55, 20), success);
-            GUI.Label(new(210, y, Screen.width - 220, 20), description);
+            GUI.Label(new(80, y, 55, 20), success);
+            GUI.Label(new(145, y, Screen.width - 155, 20), description);
         }
 
         private void OnGUI()
