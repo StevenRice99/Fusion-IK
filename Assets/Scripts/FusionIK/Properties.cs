@@ -290,7 +290,26 @@ namespace FusionIK
             {
                 for (int i = 0; i < result.milliseconds.Length; i++)
                 {
-                    string file = Path.Combine(path, $"{result.milliseconds[i]:0000} {Robot.Name(result.robot.mode).Replace(" ", "-")}.csv");
+                    string file;
+                    if (result.robot.mode == Robot.SolverMode.Network)
+                    {
+                        file = Path.Combine(path, "Network.csv");
+                    }
+                    else
+                    {
+                        file = DirectoryPath(new[] {"Testing", Name, Robot.Name(result.robot.mode)});
+                        if (file == null)
+                        {
+#if UNITY_EDITOR
+                            EditorApplication.ExitPlaymode();
+#else
+                            Application.Quit();
+#endif
+                            return;
+                        }
+                        
+                        file = Path.Combine(file, $"{result.milliseconds[i]}.csv");
+                    }
 
                     // If file exceeds what is needed, return.
                     if (_resultsCount < 0)

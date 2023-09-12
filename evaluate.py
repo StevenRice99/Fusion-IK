@@ -1,7 +1,33 @@
 import argparse
+import math
 import os.path
 
 import pandas as pd
+
+
+def read_file(path: str):
+    # Load the data.
+    df = pd.read_csv(path)
+    rows = df.shape[0]
+    if rows == 0:
+        return None
+    success = 0
+    time = 0
+    fitness = 0
+    # Sum the data.
+    for index, data in df.iterrows():
+        # Only add the time when the move was successful.
+        if data["Success"] is True:
+            success += 1
+            time += float(data["Time"])
+        # Only add the fitness when the move was unsuccessful.
+        else:
+            fitness += float(data["Fitness"])
+    # Calculate the averages.
+    time = math.inf if success == 0 else time / success
+    fitness = 0 if success == rows else fitness / (rows - success)
+    success = success / rows * 100
+    return success, time, fitness
 
 
 def evaluate():
@@ -11,85 +37,61 @@ def evaluate():
     """
     print("Fusion-IK Evaluation")
     # Check that the data folder exists.
-    root = os.path.join(os.getcwd(), "Testing")
-    if not os.path.exists(root):
+    testing = os.path.join(os.getcwd(), "Testing")
+    if not os.path.exists(testing):
         return
-    robots = os.listdir(root)
-    # Loop all files.
+    if not os.path.exists(os.path.join(os.getcwd(), "Results")):
+        os.mkdir(os.path.join(os.getcwd(), "Results"))
+    robots = os.listdir(testing)
+    # Loop all robots.
     for robot in robots:
+        if not os.path.exists(os.path.join(os.getcwd(), "Results", robot)):
+            os.mkdir(os.path.join(os.getcwd(), "Results", robot))
+        modes = os.listdir(os.path.join(testing, robot))
         results = {}
-        outputs = []
-        files = os.listdir(os.path.join(root, robot))
-        for name in files:
-            # Load the data.
-            df = pd.read_csv(os.path.join(root, robot, name))
-            # If there is no data, continue to the next file.
-            rows = df.shape[0]
-            if rows == 0:
+        for mode in modes:
+            path = os.path.join(testing, robot, mode)
+            if os.path.isfile(path):
+                if mode != "Network.csv":
+                    continue
+                success, time, fitness = read_file(path)
+                f = open(os.path.join(os.getcwd(), "Results", robot, "Network.csv"), "w")
+                if time == math.inf:
+                    f.write(f"Success Rate (%),Fitness Score\n{success}%,{fitness}")
+                else:
+                    f.write(f"Success Rate (%),Move Time (s),Fitness Score\n{success}%,{time},{fitness}")
+                f.close()
                 continue
-            success = 0
-            time = 0
-            fitness = 0
-            # Sum the data.
-            for index, data in df.iterrows():
-                # Only add the time when the move was successful.
-                if data["Success"] is True:
-                    success += 1
-                    time += float(data["Time"])
-                # Only add the fitness when the move was unsuccessful.
-                else:
-                    fitness += float(data["Fitness"])
-            # Calculate the averages.
-            time = "-" if success == 0 else time / success
-            fitness = "-" if success == rows else fitness / (rows - success)
-            success = success / rows * 100
-            # Determine the mode.
-            strings = name.split()
-            mode = strings[len(strings) - 1].replace(".csv", "").replace("-", " ")
-            generations = int(strings[len(strings) - 2])
-            # Output to console.
-            output = f"{robot} | {generations} | {mode} | {success}%"
-            if time != "-":
-                output += f" | {time} s"
-            if fitness != "-":
-                output += f" | {fitness}"
-            outputs.append(output)
-            # Append for file output.
-            if generations not in results:
-                results[generations] = {}
-            results[generations][mode] = {"Success": success, "Time": time, "Fitness": fitness}
-        # If there was no data to be written, exit.
-        if len(results) == 0:
-            continue
-        # Create the result folder.
-        root = os.path.join(os.getcwd(), "Results")
-        if not os.path.exists(root):
-            os.mkdir(root)
-        root = os.path.join(root, robot)
-        if not os.path.exists(root):
-            os.mkdir(root)
-        # Write the data to file.
-        for generations in results:
-            data = "Mode,Success Rate (%),Time (s),Fitness"
-            temp = results[generations]
-            for mode in temp:
-                result = temp[mode]
-                data += f"\n{mode.replace('-', ' ')},{result['Success']}%"
-                if result["Time"] == "-":
-                    data += ",-"
-                else:
-                    data += f",{result['Time']}"
-                if result["Fitness"] == "-":
-                    data += ",-"
-                else:
-                    data += f",{result['Fitness']}"
-            f = open(os.path.join(root, f"{robot} {generations}.csv"), "w")
-            f.write(data)
-            f.close()
-        output = outputs[0]
-        for i in range(1, len(outputs)):
-            output += f"\n{outputs[i]}"
-        print(output)
+            timeouts = os.listdir(path)
+            for timeout in timeouts:
+                file = os.path.join(path, timeout)
+                if os.path.isdir(file):
+                    continue
+                timeout = int(timeout.replace(".csv", ""))
+                if timeout not in results:
+                    results[timeout] = {}
+                success, time, fitness = read_file(file)
+                if mode == "Bio IK":
+                    results[timeout]["Bio IK"] = {"Success": success, "Time": time, "Fitness": fitness}
+                elif mode == "Fusion IK":
+                    results[timeout]["Fusion IK"] = {"Success": success, "Time": time, "Fitness": fitness}
+        success = "Timeout (ms),Bio IK,Fusion IK"
+        time = "Timeout (ms),Bio IK,Fusion IK"
+        fitness = "Timeout (ms),Bio IK,Fusion IK"
+        results = dict(sorted(results.items()))
+        for timeout in results:
+            success += f"\n{timeout},{results[timeout]['Bio IK']['Success']}%,{results[timeout]['Fusion IK']['Success']}%"
+            time += f"\n{timeout},{results[timeout]['Bio IK']['Time']},{results[timeout]['Fusion IK']['Time']}"
+            fitness += f"\n{timeout},{results[timeout]['Bio IK']['Fitness']},{results[timeout]['Fusion IK']['Fitness']}"
+        f = open(os.path.join(os.getcwd(), "Results", robot, "Success Rate (%).csv"), "w")
+        f.write(success)
+        f.close()
+        f = open(os.path.join(os.getcwd(), "Results", robot, "Move Time (s).csv"), "w")
+        f.write(time)
+        f.close()
+        f = open(os.path.join(os.getcwd(), "Results", robot, "Fitness Score.csv"), "w")
+        f.write(fitness)
+        f.close()
 
 
 if __name__ == '__main__':
