@@ -3,15 +3,14 @@
 - [Overview](#overview "Overview")
 - [Setup](#setup "Setup")
 - [Robot Modeling](#robot-modeling "Robot Modeling")
-- [Generating](#generating "Generating")
 - [Training](#training "Training")
-- [Evaluating](#evaluating "Evaluating")
 - [Testing](#testing "Testing")
+- [Visualizing](#visualizing "Visualizing")
 - [Bio IK](#bio-ik "Bio IK")
 
 # Overview
 
-The repository for the paper [Fusion IK: Solving Inverse Kinematics with Evolution and Deep Learning](https://stevenrice.ca/files/Fusion-IK.pdf "Fusion IK"). To see Fusion IK in action without getting this repository setup, [a web demo is available here](https://stevenrice.ca/fusion-ik "Fusion IK Web Demo").
+Fusion IK: Solving Inverse Kinematics with Evolution and Deep Learning. To see Fusion IK in action without getting this repository setup, [a web demo is available here](https://stevenrice.ca/fusion-ik "Fusion IK Web Demo").
 
 # Setup
 
@@ -30,22 +29,18 @@ The repository for the paper [Fusion IK: Solving Inverse Kinematics with Evoluti
 
 An ABB IRB 7600 robot has been prepared already. To create a new robot, attach a "Robot" component to the root of the chain. Create and setup a "Robot Properties" component and assign it to the "Robot" component. Joints are setup by attaching an "Articulation Body" and a "Robot Joint" to every joint. Every joint must have limits defined. Only single kinematic chains are supported, no robots with multiple arms. Although initial work to set them up has been done, and single-axis "Revolute" joints have been tested, "Prismatic" and "Spherical" joints were not used in testing. Save the robot as a prefab for use in later steps.
 
-# Generating
-
-The first step is to generate pose data to train the Fusion IK joint networks on. The scene "ABB-IRB-7600 Generate" is setup to do this. To do this with a new robot, a "Robot Generator" component must exist in the scene and assign your previously created robot prefab. Run the scene and training data will be generated. Visuals will be disabled in the scene as they are not needed.
-
 # Training
 
-To train the joint networks, in the "IK-Trainer" directory, run "train.py" passing in the name of your robot with spaces replaced by "-". For example, the ABB IRB 7600 robot is called as ABB-IRB-7600. Once done, inside the "Models" folder, copy the ONNX files for your robot's joints into your Unity project. Assign these ONNX models in order to the "Network Models" field of your "Robot Properties".
-
-# Evaluating
-
-The scene "ABB-IRB-7600 Evaluate" is setup to do this. To do this with a new robot, a "Robot Evaluator" component must exist in the scene and assign your previously created robot prefab. Run the scene and evaluation data will be generated. Visuals will be disabled in the scene as they are not needed. Once complete, in the "IK-Trainer" directory, run "evaluate.py" passing in the name of your robot with spaces replaced by "-". For example, the ABB IRB 7600 robot is called as ABB-IRB-7600. Once complete, you can view results in the "Results" folder.
+The scene "Generate" in the "ABB-IRB-7600 > Scenes" folder. To do this with a new robot, a "Generator" component must exist in the scene and assign your previously created robot prefab. Set the maximum milliseconds the Bio IK attempts for generating will run for. Run the scene and training data will be generated. Visuals will be disabled in the scene as they are not needed. Once complete, run "train.py". Once complete, inside the "Networks" folder, copy the ONNX files for your robot's joints into your Unity project. Assign these ONNX models in order to the "Network Models" field of your "Robot Properties".
 
 # Testing
 
-The scene "ABB-IRB-7600 Test" is setup to do this. To do this with a new robot, a "Robot Tester" component must exist in the scene and assign your previously created robot prefab. Run the scene and you will have a GUI as well as keyboard and mouse controls to visualize the various inverse kinematics models.
+The scene "Test" in the "ABB-IRB-7600 > Scenes" folder is setup to do this. To do this with a new robot, a "Tester" component must exist in the scene and assign your previously created robot prefab. Run the scene and testing data will be generated. Visuals will be disabled in the scene as they are not needed. Once complete, run "evaluate.py". Once complete, you can view results in the "Results" folder.
+
+# Visualizing
+
+The scene "Visualize" in the "ABB-IRB-7600 > Scenes" folder is setup to do this. To do this with a new robot, a "Visualizer" component must exist in the scene and assign your previously created robot prefab. Run the scene and you will have a GUI as well as keyboard and mouse controls to visualize the various inverse kinematics models.
 
 # [Bio IK](https://d-nb.info/1221720910/34 "Bio IK: A Memetic Evolutionary Algorithm for Generic Multi-Objective Inverse Kinematics")
 
-This repository utilizes a version of [Bio IK](https://d-nb.info/1221720910/34 "Bio IK: A Memetic Evolutionary Algorithm for Generic Multi-Objective Inverse Kinematics") by Sebastian Starke under a BSD 3-Clause License. Source code has been modified and minimized for specifically single-chain robot arms in this paper, not being fully capable of multi-objective solutions as seen in the original version of [Bio IK](https://d-nb.info/1221720910/34 "Bio IK: A Memetic Evolutionary Algorithm for Generic Multi-Objective Inverse Kinematics"). This version of [Bio IK](https://d-nb.info/1221720910/34 "Bio IK: A Memetic Evolutionary Algorithm for Generic Multi-Objective Inverse Kinematics") was intended for use with this research only, and is not designed for general-purpose game development. For a full version of the original [Bio IK](https://d-nb.info/1221720910/34 "Bio IK: A Memetic Evolutionary Algorithm for Generic Multi-Objective Inverse Kinematics") with all features, see the official [Bio IK Unity asset](https://assetstore.unity.com/packages/tools/animation/bio-ik-67819 "Bio IK Unity Asset").
+This repository utilizes a version of [Bio IK](https://d-nb.info/1221720910/34 "Bio IK: A Memetic Evolutionary Algorithm for Generic Multi-Objective Inverse Kinematics") designed specifically for single-chain robot arms, not being fully capable of other multi-objective solutions as described in the original [Bio IK paper](https://d-nb.info/1221720910/34 "Bio IK: A Memetic Evolutionary Algorithm for Generic Multi-Objective Inverse Kinematics"). This version of [Bio IK](https://d-nb.info/1221720910/34 "Bio IK: A Memetic Evolutionary Algorithm for Generic Multi-Objective Inverse Kinematics") was intended for use with this research only, and is not designed for general-purpose game development. For a full version of the original [Bio IK](https://d-nb.info/1221720910/34 "Bio IK: A Memetic Evolutionary Algorithm for Generic Multi-Objective Inverse Kinematics") with all features, see the official [Bio IK Unity asset](https://assetstore.unity.com/packages/tools/animation/bio-ik-67819 "Bio IK Unity Asset").
