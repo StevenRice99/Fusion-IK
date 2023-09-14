@@ -13,7 +13,13 @@ MonoBehaviour:
   m_Name: ABB IRB 7600
   m_EditorClassIdentifier: 
   repeatability: 0.00008
-  networks: []
+  networks:
+  - {fileID: 5022602860645237092, guid: 72fb53c669069c146825cfe403117334, type: 3}
+  - {fileID: 5022602860645237092, guid: d8481f9bcb77b344ab6bc59b08f87f04, type: 3}
+  - {fileID: 5022602860645237092, guid: 0ee27d8230cd9174e8a4b1ddb250a207, type: 3}
+  - {fileID: 5022602860645237092, guid: dda2367caa589014b9f54ed4d9e4525e, type: 3}
+  - {fileID: 5022602860645237092, guid: 8d7ff73270423a84ab48886a827ce1e2, type: 3}
+  - {fileID: 5022602860645237092, guid: 7749582a5c3777b45b46e29351736205, type: 3}
   population: 120
   elites: 3
   trainingTotal: 250000

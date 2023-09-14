@@ -82,9 +82,9 @@ def evaluate():
                 success, time, fitness = read_file(file)
                 results[timeout][mode] = {"Success": success, "Time": time, "Fitness": fitness}
         # Write the results to CSV.
-        success = "Timeout (ms),Bio IK,Fusion IK"
-        time = "Timeout (ms),Bio IK,Fusion IK"
-        fitness = "Timeout (ms),Bio IK,Fusion IK"
+        success = "Timeout (ms),Bio IK,Fusion IK,Improvement"
+        time = "Timeout (ms),Bio IK,Fusion IK,Improvement (%)"
+        fitness = "Timeout (ms),Bio IK,Fusion IK,Improvement"
         results = dict(sorted(results.items()))
         for timeout in results:
             b_success = results[timeout]["Bio IK"]["Success"]
@@ -93,11 +93,15 @@ def evaluate():
             f_time = results[timeout]["Fusion IK"]["Time"]
             b_fitness = results[timeout]["Bio IK"]["Fitness"]
             f_fitness = results[timeout]["Fusion IK"]["Fitness"]
-            print(f"Bio IK    | Timeout (ms) = {timeout} ms\t| Success Rate (%) = {b_success}%\t| Move Time (s) = {b_time} s\t| Fitness Score = {b_fitness}\n"
-                  f"Fusion IK | Timeout (ms) = {timeout} ms\t| Success Rate (%) = {f_success}%\t| Move Time (s) = {f_time} s\t| Fitness Score = {f_fitness}")
-            success += f"\n{timeout},{b_success}%,{f_success}%"
-            time += f"\n{timeout},{b_time},{f_time}"
-            fitness += f"\n{timeout},{b_fitness},{f_fitness}"
+            i_success = f_success - b_success
+            i_time = (b_time - f_time) / f_time * 100
+            i_fitness = (b_fitness - f_fitness) / f_fitness * 100
+            print(f"Bio IK      | Timeout (ms) = {timeout} ms\t| Success Rate (%) = {b_success}%\t| Move Time (s) = {b_time} s\t| Fitness Score = {b_fitness}\n"
+                  f"Fusion IK   | Timeout (ms) = {timeout} ms\t| Success Rate (%) = {f_success}%\t| Move Time (s) = {f_time} s\t| Fitness Score = {f_fitness}\n"
+                  f"Improvement | Timeout (ms) = {timeout} ms\t| Success Rate (%) = {i_success}%\t| Move Time (%) = {i_time}%\t| Fitness Score (%) = {i_fitness}%")
+            success += f"\n{timeout},{b_success}%,{f_success}%,{i_success}%"
+            time += f"\n{timeout},{b_time},{f_time},{i_time}%"
+            fitness += f"\n{timeout},{b_fitness},{f_fitness},{i_fitness}%"
         f = open(os.path.join(os.getcwd(), "Results", robot, "Success Rate (%).csv"), "w")
         f.write(success)
         f.close()
