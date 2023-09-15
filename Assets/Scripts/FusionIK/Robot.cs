@@ -655,7 +655,7 @@ namespace FusionIK
                 _workers = new IWorker[properties.networks.Length];
                 for (int i = 0; i < _workers.Length; i++)
                 {
-                    _workers[i] = WorkerFactory.CreateWorker(properties.CompiledNetwork(i));
+                    _workers[i] = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledNetwork(i));
                     if (_workers[i] != null)
                     {
                         continue;
