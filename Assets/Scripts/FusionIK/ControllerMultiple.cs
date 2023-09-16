@@ -60,8 +60,7 @@ namespace FusionIK
         /// <param name="starting">The starting joint values.</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        /// <param name="milliseconds">The time the algorithms are allowed to run for.</param>
-        protected void RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation, long[] milliseconds)
+        protected void RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation)
         {
             // Move to robot to a random position.
             R.Snap(R.RandomJoints());

@@ -107,7 +107,7 @@ namespace FusionIK
 
         private void Start()
         {
-            SetResult(CreateRobots(), new [] { milliseconds });
+            SetResult(CreateRobots(), milliseconds, milliseconds);
             
             // Create path visualization lists for every robot.
             _paths = new List<Vector3>[results.Length];
@@ -266,7 +266,7 @@ namespace FusionIK
             List<float> starting = GetStarting();
 
             // Solve for random target.
-            RandomMoveResults(starting, out Vector3 position, out Quaternion rotation, new[] {milliseconds});
+            RandomMoveResults(starting, out Vector3 position, out Quaternion rotation);
             _targetPosition = position;
             _targetRotation = rotation;
 

@@ -11,11 +11,15 @@ namespace FusionIK
     {
         [Tooltip("The time the algorithms are allowed to run for.")]
         [SerializeField]
-        protected long[] milliseconds = Array.Empty<long>();
+        protected long milliseconds = 500;
+
+        [Tooltip("The increment in capture results in.")]
+        [SerializeField]
+        protected long increment = 10;
         
         private void Start()
         {
-            SetResult(CreateRobots(), milliseconds);
+            SetResult(CreateRobots(), increment, milliseconds);
             
             // Don't need visuals during this process.
             NoVisuals();
@@ -24,7 +28,7 @@ namespace FusionIK
         private void Update()
         {
             // Get all results.
-            RandomMoveResults(R.Properties.LastPose ?? R.GetJoints(), out Vector3 _, out Quaternion _, milliseconds);
+            RandomMoveResults(R.Properties.LastPose ?? R.GetJoints(), out Vector3 _, out Quaternion _);
 
             // Export results.
             R.Properties.AddTestingData(ref results);

@@ -73,17 +73,29 @@ namespace FusionIK
         /// Store a move result.
         /// </summary>
         /// <param name="robot">The robot that did the move.</param>
-        /// <param name="milliseconds">The time the algorithm is allowed to run for.</param>
-        public Details(Robot robot, long[] milliseconds)
+        /// <param name="increment">The milliseconds to increment by.</param>
+        /// <param name="maximum">The maximum milliseconds to run for.</param>
+        public Details(Robot robot, long increment, long maximum)
         {
             this.robot = robot;
-            this.milliseconds = new long[milliseconds.Length];
-            success = new bool[this.milliseconds.Length];
-            time = new double[this.milliseconds.Length];
-            fitness = new double[this.milliseconds.Length];
-            for (int i = 0; i < this.milliseconds.Length; i++)
+            if (increment > maximum)
             {
-                this.milliseconds[i] = milliseconds[i];
+                increment = maximum;
+            }
+
+            List<long> timeouts = new();
+            for (long i = increment; i <= maximum; i += increment)
+            {
+                timeouts.Add(i);
+            }
+            
+            milliseconds = timeouts.ToArray();
+            success = new bool[milliseconds.Length];
+            time = new double[milliseconds.Length];
+            fitness = new double[milliseconds.Length];
+            for (int i = 0; i < milliseconds.Length; i++)
+            {
+                milliseconds[i] = milliseconds[i];
                 success[i] = false;
                 time[i] = 0;
                 fitness[i] = double.MaxValue;

@@ -14,7 +14,7 @@ namespace FusionIK
         [Tooltip("The time the algorithm is allowed to run for.")]
         [Min(1)]
         [SerializeField]
-        private long milliseconds = 100;
+        private long milliseconds = 500;
         
         // The joints to start at for the next attempt.
         private List<float> _starting;
@@ -34,7 +34,7 @@ namespace FusionIK
             // Ensure in Bio IK mode.
             robot.mode = Robot.SolverMode.BioIk;
             
-            SetResult(new [] { robot }, new [] { milliseconds });
+            SetResult(new [] { robot }, milliseconds, milliseconds);
             
             // Don't need visuals during this process.
             NoVisuals();
