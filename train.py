@@ -245,9 +245,9 @@ def train(epochs: int, batch: int):
         if joints == 0:
             return
         # Prepare for dataset splitting.
-        total = len(df)
-        training_size = int(total * 0.8)
-        testing_size = total - training_size
+        totals = len(df)
+        training_size = int(totals * 0.8)
+        testing_size = totals - training_size
         print(f"Training: {training_size} | Testing: {testing_size}")
         # Ensure values are valid.
         if batch < 1:
@@ -260,8 +260,9 @@ def train(epochs: int, batch: int):
         if not os.path.exists(os.path.join(os.getcwd(), "Networks", robot)):
             os.mkdir(os.path.join(os.getcwd(), "Networks", robot))
         # Train the network for every joint.
-        total = 0
+        totals = []
         for i in range(joints):
+            totals.append(0)
             # Create the datasets for this joint.
             training = DataLoader(InverseKinematicsDataset(df.head(training_size), i, joints), batch_size=batch, shuffle=False)
             testing = DataLoader(InverseKinematicsDataset(df.tail(testing_size), i, joints), batch_size=batch, shuffle=False)
@@ -277,7 +278,7 @@ def train(epochs: int, batch: int):
                     best_score = saved['Score']
                     # If already done training this joint, skip to the next.
                     if epoch >= epochs:
-                        total += best_score
+                        totals[i] = best_score
                         print(f"{robot} Joint {i + 1} of {joints} = {best_score}%")
                         continue
                     best = saved['Best']
@@ -304,7 +305,7 @@ def train(epochs: int, batch: int):
             while True:
                 # Exit once done.
                 if epoch > epochs:
-                    total += best_score
+                    totals[i] = best_score
                     print(f"{robot} Joint {i + 1} of {joints} = {best_score}%")
                     break
                 msg = f"{robot} Joint {i + 1}/{joints} | Epoch {epoch}/{epochs} | Training = {train_score:.4}% | Testing = {score:.4}% | Best = {best_score:.4}%"
@@ -325,7 +326,21 @@ def train(epochs: int, batch: int):
                 f.close()
                 epoch += 1
                 save(robot, model, best, epoch, best_score, joints, i + 1)
-        print(f"{robot} Network Average = {total / joints}%")
+        if not os.path.exists(os.path.join(os.getcwd(), "Results")):
+            os.mkdir(os.path.join(os.getcwd(), "Results"))
+        if not os.path.exists(os.path.join(os.getcwd(), "Results", robot)):
+            os.mkdir(os.path.join(os.getcwd(), "Results", robot))
+        f = open(os.path.join(os.getcwd(), "Results", robot, f"Network Training.csv"), "w")
+        f.write("Joint")
+        for i in range(len(totals)):
+            f.write(f",{i + 1}")
+        f.write(",Average\nAccuracy (%)")
+        for total in totals:
+            f.write(f",{total}%")
+        totals = sum(totals) / joints
+        f.write(f",{totals}%")
+        f.close()
+        print(f"{robot} Network Average = {totals}%")
 
 
 if __name__ == '__main__':
