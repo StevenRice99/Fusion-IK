@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using UnityEngine;
 
 namespace FusionIK
 {
@@ -104,23 +105,30 @@ namespace FusionIK
 
         /// <summary>
         /// Reset the stopwatch.
+        /// <param name="position">The position to move the robot to.</param>
+        /// <param name="rotation">The rotation to move the robot to.</param>
         /// </summary>
-        public void Reset()
+        public void Reset(Vector3 position, Quaternion rotation)
         {
             _stopwatch.Reset();
-            
-            for (int i = 0; i < milliseconds.Length; i++)
-            {
-                success[i] = false;
-                time[i] = 0;
-                fitness[i] = double.MaxValue;
-            }
 
             Joints ??= new double[robot.Virtual.dof];
             List<float> j = robot.GetJoints();
             for (int i = 0; i < Joints.Length; i++)
             {
                 Joints[i] = j[i];
+            }
+
+            robot.Virtual.SetTargetPosition(position);
+            robot.Virtual.SetTargetRotation(rotation);
+            bool s = robot.Virtual.CheckConvergence(Joints, position, rotation);
+            double f = s ? 0 : robot.Virtual.ComputeLoss(j);
+            
+            for (int i = 0; i < milliseconds.Length; i++)
+            {
+                success[i] = s;
+                time[i] = 0;
+                fitness[i] = f;
             }
         }
 

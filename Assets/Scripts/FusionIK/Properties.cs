@@ -288,6 +288,11 @@ namespace FusionIK
                     string file;
                     if (result.robot.mode == Robot.SolverMode.Network)
                     {
+                        if (i > 0)
+                        {
+                            continue;
+                        }
+                        
                         file = Path.Combine(path, "Network.csv");
                     }
                     else

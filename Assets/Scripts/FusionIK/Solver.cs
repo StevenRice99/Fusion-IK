@@ -121,20 +121,13 @@ namespace FusionIK
         public static void Run(ref Vector3 targetPosition, ref Quaternion targetRotation, ref Details details)
         {
             // Reset the values.
-            details.Reset();
+            details.Reset(targetPosition, targetRotation);
             
             // If already at the destination do nothing.
-            bool reached = details.robot.Reached(targetPosition, targetRotation);
-            if (reached)
+            if (details.Success)
             {
-                details.Set(true, 0, 0);
                 return;
             }
-
-            // Set the target.
-            _virtual = details.robot.Virtual;
-            _virtual.SetTargetPosition(targetPosition);
-            _virtual.SetTargetRotation(targetRotation);
 
             double[][] seed = new double[details.robot.mode != Robot.SolverMode.BioIk ? 2 : 1][];
             seed[0] = new double[details.Joints.Length];
@@ -151,14 +144,14 @@ namespace FusionIK
                 details.Start();
                 List<float> joints = details.robot.RunNetwork(details.robot.PrepareInputs(targetPosition, targetRotation, starting));
                 details.Stop();
-                
-                reached = details.robot.Reached(targetPosition, targetRotation);
 
                 seed[1] = new double[joints.Count];
                 for (int i = 0; i < seed[1].Length; i++)
                 {
                     seed[1][i] = joints[i];
                 }
+
+                bool reached = details.robot.Virtual.CheckConvergence(seed[1], targetPosition, targetRotation);
 
                 // Get the existing fitness.
                 details.Set(reached, details.robot.CalculateTime(seed[0], seed[1]), reached ? 0 : details.robot.Virtual.ComputeLoss(seed[1]), seed[1]);
@@ -183,6 +176,7 @@ namespace FusionIK
 
             _populationSize = details.robot.Properties.Population;
             _elites = details.robot.Properties.Elites;
+            _virtual = details.robot.Virtual;
             _dimensionality = _virtual.dof;
 
             _population = new Individual[_populationSize];
