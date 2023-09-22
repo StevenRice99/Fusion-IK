@@ -82,9 +82,9 @@ def evaluate():
                 success, time, fitness = read_file(file)
                 results[timeout][mode] = {"Success": success, "Time": time, "Fitness": fitness}
         # Write the results to CSV.
-        success = "Timeout (ms),Bio IK,Fusion IK,Improvement"
+        success = "Timeout (ms),Bio IK,Fusion IK,Improvement (%)"
         time = "Timeout (ms),Bio IK,Fusion IK,Improvement (%)"
-        fitness = "Timeout (ms),Bio IK,Fusion IK,Improvement"
+        fitness = "Timeout (ms),Bio IK,Fusion IK,Improvement (%)"
         results = dict(sorted(results.items()))
         for timeout in results:
             b_success = results[timeout]["Bio IK"]["Success"]

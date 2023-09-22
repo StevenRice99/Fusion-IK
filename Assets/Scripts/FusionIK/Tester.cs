@@ -1,5 +1,4 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace FusionIK
 {
@@ -11,7 +10,7 @@ namespace FusionIK
     {
         [Tooltip("The time the algorithms are allowed to run for.")]
         [SerializeField]
-        protected long milliseconds = 500;
+        protected long milliseconds = 1000;
 
         [Tooltip("The increment in capture results in.")]
         [SerializeField]
