@@ -237,11 +237,7 @@ def train(epochs: int, batch: int):
         joints = count_joints(df)
         if joints == 0:
             return
-        # Prepare for dataset splitting.
-        totals = len(df)
-        training_size = int(totals * 0.8)
-        testing_size = totals - training_size
-        print(f"Training: {training_size} | Testing: {testing_size}")
+        print(f"Dataset: {len(df)}")
         # Ensure values are valid.
         if batch < 1:
             batch = 1
@@ -251,8 +247,7 @@ def train(epochs: int, batch: int):
         if not os.path.exists(os.path.join(os.getcwd(), "Networks")):
             os.mkdir(os.path.join(os.getcwd(), "Networks"))
         # Setup datasets.
-        training = DataLoader(InverseKinematicsDataset(df.head(training_size), joints), batch_size=batch, shuffle=False)
-        testing = DataLoader(InverseKinematicsDataset(df.tail(testing_size), joints), batch_size=batch, shuffle=False)
+        dataset = DataLoader(InverseKinematicsDataset(df, joints), batch_size=batch, shuffle=False)
         # Define the model.
         model = JointNetwork(joints)
         best = model.state_dict()
@@ -278,13 +273,12 @@ def train(epochs: int, batch: int):
         else:
             epoch = 1
             print(f"Starting training for {robot} with batch size {batch} for {epochs} epochs.")
-        train_score = test(model, training)
-        score = test(model, testing)
+        score = test(model, dataset)
         # If new training, write initial files.
         if epoch == 1:
             best_score = score
             f = open(os.path.join(os.getcwd(), "Networks", f"{robot}.csv"), "w")
-            f.write("Epoch,Training (%),Testing (%),Best (%)")
+            f.write("Epoch,Testing (%),Best (%)")
             f.close()
             save(robot, model, best, epoch, best_score, joints)
         # Train for set epochs.
@@ -293,21 +287,20 @@ def train(epochs: int, batch: int):
             if epoch > epochs:
                 print(f"{robot} = {best_score}%")
                 break
-            msg = f"{robot} | Epoch {epoch}/{epochs} | Training = {train_score:.4}% | Testing = {score:.4}% | Best = {best_score:.4}%"
+            msg = f"{robot} | Epoch {epoch}/{epochs} | {score:.4}% | Best = {best_score:.4}%"
             # Train on the training dataset.
             model.train()
-            for inputs, outputs in tqdm(training, msg):
+            for inputs, outputs in tqdm(dataset, msg):
                 model.optimize(to_tensor(inputs), to_tensor(outputs))
             # Check how well the newest epoch performs.
-            train_score = test(model, training)
-            score = test(model, testing)
+            score = test(model, dataset)
             # Check if this is the new best model.
             if score > best_score:
                 best = model.state_dict()
                 best_score = score
             # Save data.
             f = open(os.path.join(os.getcwd(), "Networks", f"{robot}.csv"), "a")
-            f.write(f"\n{epoch},{train_score}%,{score}%,{best_score}%")
+            f.write(f"\n{epoch},{score}%,{best_score}%")
             f.close()
             epoch += 1
             save(robot, model, best, epoch, best_score, joints)

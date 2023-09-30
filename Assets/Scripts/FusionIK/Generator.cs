@@ -34,7 +34,7 @@ namespace FusionIK
             // Ensure in Bio IK mode.
             robot.mode = Robot.SolverMode.BioIk;
             
-            SetResult(new [] { robot }, milliseconds, milliseconds);
+            SetResult(new [] { robot }, milliseconds);
             
             // Don't need visuals during this process.
             NoVisuals();

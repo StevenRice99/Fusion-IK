@@ -107,7 +107,7 @@ namespace FusionIK
 
         private void Start()
         {
-            SetResult(CreateRobots(), milliseconds, milliseconds);
+            SetResult(CreateRobots(), milliseconds);
             
             // Create path visualization lists for every robot.
             _paths = new List<Vector3>[results.Length];
@@ -320,7 +320,7 @@ namespace FusionIK
             }
             
             GUI.color = color;
-            GUI.Label(new(10, y, 70, 20), $"{title}");
+            GUI.Label(new(10, y, 115, 20), $"{title}");
 
             string success;
             string description;
@@ -336,8 +336,8 @@ namespace FusionIK
                 description = $"{data.Fitness} Fitness Score";
             }
             
-            GUI.Label(new(80, y, 55, 20), success);
-            GUI.Label(new(145, y, Screen.width - 155, 20), description);
+            GUI.Label(new(125, y, 55, 20), success);
+            GUI.Label(new(180, y, Screen.width - 190, 20), description);
         }
 
         private void OnGUI()
@@ -366,12 +366,15 @@ namespace FusionIK
                 }
             }
 
-            for (int i = 0; i < results.Length; i++)
+            if (milliseconds != results[0].milliseconds)
             {
-                for (int j = 0; j < results[i].milliseconds.Length; j++)
+                Robot[] robots = new Robot[results.Length];
+                for (int i = 0; i < robots.Length; i++)
                 {
-                    results[i].milliseconds[j] = milliseconds;
+                    robots[i] = results[i].robot;
                 }
+
+                SetResult(robots, milliseconds);
             }
 
             // At the beginning, just call to move.

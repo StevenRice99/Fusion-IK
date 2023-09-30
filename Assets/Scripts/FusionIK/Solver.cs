@@ -126,7 +126,6 @@ namespace FusionIK
             // If already at the destination do nothing.
             if (details.Success)
             {
-                Debug.Log($"{Robot.Name(details.robot.mode)} at solution already.");
                 return;
             }
 
@@ -320,10 +319,33 @@ namespace FusionIK
 			        // Re-roll elite if exploitation was not successful.
 			        for (int i = 0; i < _elites; i++)
                     {
-				        if (!_improved[i])
+                        if (_improved[i])
                         {
-					        RandomMember(_offspring[i]);
-				        }
+                            continue;
+                        }
+
+                        // In Bio IK and standard Fusion IK, create a random member.
+                        if (details.robot.mode != Robot.SolverMode.FusionIkIterative)
+                        {
+                            RandomMember(_offspring[i]);
+                            continue;
+                        }
+
+                        // Otherwise, pass the current value through the network.
+                        List<float> starting = new(_offspring[i].genes.Length);
+                        for (int j = 0; j < _offspring[i].genes.Length; j++)
+                        {
+                            starting.Add((float) _offspring[i].genes[j]);
+                        }
+
+                        List<float> results = details.robot.RunNetwork(details.robot.PrepareInputs(targetPosition, targetRotation, starting));
+                        for (int j = 0; j < _offspring[i].genes.Length; j++)
+                        {
+                            _offspring[i].genes[j] = results[j];
+                            _offspring[i].momentum[j] = 0;
+                        }
+
+                        _offspring[i].fitness = _virtual.ComputeLoss(_offspring[i].genes);
                     }
                     
                     // Swap population and offspring.

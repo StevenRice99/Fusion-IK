@@ -10,15 +10,11 @@ namespace FusionIK
     {
         [Tooltip("The time the algorithms are allowed to run for.")]
         [SerializeField]
-        protected long milliseconds = 1000;
-
-        [Tooltip("The increment in capture results in.")]
-        [SerializeField]
-        protected long increment = 10;
+        protected long milliseconds = 5000;
         
         private void Start()
         {
-            SetResult(CreateRobots(), increment, milliseconds);
+            SetResult(CreateRobots(), milliseconds);
             
             // Don't need visuals during this process.
             NoVisuals();

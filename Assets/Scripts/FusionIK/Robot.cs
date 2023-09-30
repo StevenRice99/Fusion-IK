@@ -22,7 +22,8 @@ namespace FusionIK
         {
             Network,
             BioIk,
-            FusionIk
+            FusionIk,
+            FusionIkIterative
         }
 
         /// <summary>
@@ -126,8 +127,10 @@ namespace FusionIK
                 case SolverMode.BioIk:
                     return "Bio IK";
                 case SolverMode.FusionIk:
-                default:
                     return "Fusion IK";
+                case SolverMode.FusionIkIterative:
+                default:
+                    return "Fusion IK Iterative";
             }
         }
 
@@ -145,8 +148,10 @@ namespace FusionIK
                 case SolverMode.BioIk:
                     return Color.cyan;
                 case SolverMode.FusionIk:
-                default:
                     return Color.white;
+                case SolverMode.FusionIkIterative:
+                default:
+                    return Color.yellow;
             }
         }
 

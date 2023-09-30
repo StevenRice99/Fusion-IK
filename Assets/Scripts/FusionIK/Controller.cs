@@ -27,14 +27,13 @@ namespace FusionIK
         /// Setup the results storing capability.
         /// </summary>
         /// <param name="robots">The robots to store results for.</param>
-        /// <param name="increment">The milliseconds to increment by.</param>
         /// <param name="maximum">The maximum milliseconds to run for.</param>
-        protected void SetResult(Robot[] robots, long increment, long maximum)
+        protected void SetResult(Robot[] robots, long maximum)
         {
             results = new Details[robots.Length];
             for (int i = 0; i < results.Length; i++)
             {
-                results[i] = new(robots[i], increment, maximum);
+                results[i] = new(robots[i], maximum);
             }
         }
 

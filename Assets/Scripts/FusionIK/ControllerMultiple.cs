@@ -32,6 +32,12 @@ namespace FusionIK
                     {
                         robots.Add(r);
                     }
+                    
+                    r = CreateRobot(Robot.SolverMode.FusionIkIterative);
+                    if (r != null)
+                    {
+                        robots.Add(r);
+                    }
                 }
             }
 

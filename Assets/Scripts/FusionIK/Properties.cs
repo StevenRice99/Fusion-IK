@@ -282,7 +282,7 @@ namespace FusionIK
             // Add all results.
             foreach (Details result in results)
             {
-                for (int i = 0; i < result.milliseconds.Length; i++)
+                for (long i = 0; i < result.milliseconds; i++)
                 {
                     string file;
                     if (result.robot.mode == Robot.SolverMode.Network)
@@ -307,7 +307,7 @@ namespace FusionIK
                             return;
                         }
                         
-                        file = Path.Combine(file, $"{result.milliseconds[i]}.csv");
+                        file = Path.Combine(file, $"{i}.csv");
                     }
 
                     // If file exceeds what is needed, return.

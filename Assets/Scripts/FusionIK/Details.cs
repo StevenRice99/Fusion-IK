@@ -13,7 +13,7 @@ namespace FusionIK
         /// <summary>
         /// If the algorithm should end.
         /// </summary>
-        public bool Done => _stopwatch.ElapsedMilliseconds >= milliseconds[^1];
+        public bool Done => _stopwatch.ElapsedMilliseconds >= milliseconds;
         
         /// <summary>
         /// If the move was successful.
@@ -43,7 +43,7 @@ namespace FusionIK
         /// <summary>
         /// The time the algorithm is allowed to run for.
         /// </summary>
-        public readonly long[] milliseconds;
+        public readonly long milliseconds;
         
         /// <summary>
         /// If the move was successful.
@@ -74,29 +74,17 @@ namespace FusionIK
         /// Store a move result.
         /// </summary>
         /// <param name="robot">The robot that did the move.</param>
-        /// <param name="increment">The milliseconds to increment by.</param>
-        /// <param name="maximum">The maximum milliseconds to run for.</param>
-        public Details(Robot robot, long increment, long maximum)
+        /// <param name="milliseconds">The maximum milliseconds to run for.</param>
+        public Details(Robot robot, long milliseconds)
         {
             this.robot = robot;
-            if (increment > maximum)
-            {
-                increment = maximum;
-            }
-
-            List<long> timeouts = new();
-            for (long i = increment; i <= maximum; i += increment)
-            {
-                timeouts.Add(i);
-            }
             
-            milliseconds = timeouts.ToArray();
-            success = new bool[milliseconds.Length];
-            time = new double[milliseconds.Length];
-            fitness = new double[milliseconds.Length];
-            for (int i = 0; i < milliseconds.Length; i++)
+            this.milliseconds = milliseconds;
+            success = new bool[this.milliseconds];
+            time = new double[this.milliseconds];
+            fitness = new double[this.milliseconds];
+            for (int i = 0; i < this.milliseconds; i++)
             {
-                milliseconds[i] = milliseconds[i];
                 success[i] = false;
                 time[i] = 0;
                 fitness[i] = double.MaxValue;
@@ -124,7 +112,7 @@ namespace FusionIK
             bool s = robot.Virtual.CheckConvergence(Joints, position, rotation);
             double f = s ? 0 : robot.Virtual.ComputeLoss(j);
             
-            for (int i = 0; i < milliseconds.Length; i++)
+            for (int i = 0; i < success.Length; i++)
             {
                 success[i] = s;
                 time[i] = 0;
@@ -183,14 +171,11 @@ namespace FusionIK
                 _stopwatch.Stop();
                 wasRunning = true;
             }
+
+            long elapsed = _stopwatch.ElapsedMilliseconds < milliseconds ? _stopwatch.ElapsedMilliseconds : milliseconds - 1;
             
-            for (int i = 0; i < milliseconds.Length; i++)
+            for (long i = elapsed; i < milliseconds; i++)
             {
-                if (i != milliseconds.Length - 1 && _stopwatch.ElapsedMilliseconds > milliseconds[i])
-                {
-                    continue;
-                }
-                
                 success[i] = s;
                 time[i] = t;
                 fitness[i] = f;
