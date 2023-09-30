@@ -108,9 +108,9 @@ namespace FusionIK
         private float[] _currentSpeeds;
 
         /// <summary>
-        /// The network workers.
+        /// The network worker.
         /// </summary>
-        private IWorker[] _workers;
+        private IWorker _worker;
 
         /// <summary>
         /// Get a name for display.
@@ -387,22 +387,21 @@ namespace FusionIK
         {
             // Get initial input values and prepare for outputs.
             float[] forwards = inputs.ToArray();
-            List<float> outputs = new(_workers.Length);
             Tensor input = new(1, 1, 1, forwards.Length, forwards, "INPUTS");
             
-            // Go through every joint's network.
-            for (int i = 0; i < _workers.Length; i++)
-            {
-                // Run the current joint network.
-                Tensor output = _workers[i].Execute(input).PeekOutput();
-                
-                // Add the output and replace the input for the next joint's network.
-                outputs.Add(math.clamp(output[0, 0, 0, 0], 0, 1));
-                input[0, 0, 0, i] = output[0, 0, 0, 0];
-                output.Dispose();
-            }
-            
+            // Run the current joint network.
+            _worker.Execute(input);
+            _worker.FlushSchedule(true);
+            Tensor output = _worker.PeekOutput();
             input.Dispose();
+            
+            // Add the output and replace the input for the next joint's network.
+            List<float> outputs = new(_limits.Length);
+            for (int i = 0; i < _limits.Length; i++)
+            {
+                outputs.Add(math.clamp(output[0, 0, 0, i], 0, 1));
+            }
+            output.Dispose();
 
             return ResultsScaled(outputs);
         }
@@ -651,21 +650,9 @@ namespace FusionIK
             // Setup networks.
             if (properties.NetworksValid)
             {
-                bool valid = true;
-                _workers = new IWorker[properties.networks.Length];
-                for (int i = 0; i < _workers.Length; i++)
-                {
-                    _workers[i] = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledNetwork(i));
-                    if (_workers[i] != null)
-                    {
-                        continue;
-                    }
+                _worker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledNetwork);
 
-                    valid = false;
-                    break;
-                }
-
-                if (valid)
+                if (_worker != null)
                 {
                     RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
                 }
@@ -736,15 +723,7 @@ namespace FusionIK
         /// </summary>
         private void CleanupWorkers()
         {
-            if (_workers == null)
-            {
-                return;
-            }
-
-            foreach (IWorker worker in _workers)
-            {
-                worker.Dispose();
-            }
+            _worker?.Dispose();
         }
     }
 }

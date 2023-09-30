@@ -126,6 +126,7 @@ namespace FusionIK
             // If already at the destination do nothing.
             if (details.Success)
             {
+                Debug.Log($"{Robot.Name(details.robot.mode)} at solution already.");
                 return;
             }
 

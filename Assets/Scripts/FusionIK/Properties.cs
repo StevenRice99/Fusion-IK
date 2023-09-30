@@ -46,7 +46,7 @@ namespace FusionIK
         private float repeatability = 8e-5f;
 
         [Tooltip("Network to control the robot.")]
-        public NNModel[] networks;
+        public NNModel network;
 
         [Header("Bio IK")]
         [Tooltip("The population size of each generation during Bio IK evolution.")]
@@ -94,14 +94,13 @@ namespace FusionIK
         /// <summary>
         /// Check if networks are valid.
         /// </summary>
-        public bool NetworksValid => networks is {Length: > 0} && networks.All(network => network != null);
+        public bool NetworksValid => network != null;
         
         /// <summary>
         /// A network to run inference on.
         /// </summary>
-        /// <param name="index">The network index.</param>
         /// <returns>The joint network at a given index that is desired.</returns>
-        public Model CompiledNetwork(int index) => networks is {Length: > 0} && index >= 0 && index < networks.Length && networks[index] != null ? ModelLoader.Load(networks[index]) : null;
+        public Model CompiledNetwork => network != null ? ModelLoader.Load(network) : null;
         
         /// <summary>
         /// The last pose the robot was in.
