@@ -282,7 +282,7 @@ namespace FusionIK
             // Add all results.
             foreach (Details result in results)
             {
-                for (long i = 0; i < result.milliseconds; i++)
+                for (long i = 0; i <= result.milliseconds; i++)
                 {
                     string file;
                     if (result.robot.mode == Robot.SolverMode.Network)

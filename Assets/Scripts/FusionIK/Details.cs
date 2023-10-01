@@ -80,10 +80,10 @@ namespace FusionIK
             this.robot = robot;
             
             this.milliseconds = milliseconds;
-            success = new bool[this.milliseconds];
-            time = new double[this.milliseconds];
-            fitness = new double[this.milliseconds];
-            for (int i = 0; i < this.milliseconds; i++)
+            success = new bool[this.milliseconds + 1];
+            time = new double[success.Length];
+            fitness = new double[success.Length];
+            for (int i = 0; i < success.Length; i++)
             {
                 success[i] = false;
                 time[i] = 0;
@@ -171,10 +171,8 @@ namespace FusionIK
                 _stopwatch.Stop();
                 wasRunning = true;
             }
-
-            long elapsed = _stopwatch.ElapsedMilliseconds < milliseconds ? _stopwatch.ElapsedMilliseconds : milliseconds - 1;
             
-            for (long i = elapsed; i < milliseconds; i++)
+            for (long i = _stopwatch.ElapsedMilliseconds <= milliseconds ? _stopwatch.ElapsedMilliseconds : milliseconds; i <= milliseconds; i++)
             {
                 success[i] = s;
                 time[i] = t;
