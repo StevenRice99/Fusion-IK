@@ -200,17 +200,6 @@ def save(robot: str, model, best, epoch: int, score: float, joints: int):
     model.load_state_dict(old)
 
 
-def count_joints(df):
-    """
-    Count the number of joints.
-    :return: The number of joints.
-    """
-    joints = 0
-    while f"O{joints + 1}" in df.columns:
-        joints += 1
-    return joints
-
-
 def train(epochs: int, batch: int):
     """
     Train robot joint networks.
@@ -218,6 +207,11 @@ def train(epochs: int, batch: int):
     :param batch: Batch size.
     :return: Nothing.
     """
+    # Ensure values are valid.
+    if batch < 1:
+        batch = 1
+    if epochs < 1:
+        epochs = 1
     print(f"Fusion-IK Training")
     print(f"Running on GPU with CUDA {torch.version.cuda}." if torch.cuda.is_available() else "Running on CPU.")
     # Check if there is data to train on.
@@ -228,21 +222,17 @@ def train(epochs: int, batch: int):
     for robot in robots:
         if not os.path.isfile(os.path.join(os.getcwd(), "Training", robot)):
             continue
-        # Load data.
-        print("Loading data...")
         df = pd.read_csv(os.path.join(os.getcwd(), "Training", robot))
         # We don't need the .csv anymore.
         robot = robot.replace(".csv", "")
         # If there are no joints meaning the data is invalid, exit.
-        joints = count_joints(df)
+        joints = 0
+        while f"O{joints + 1}" in df.columns:
+            joints += 1
         if joints == 0:
-            return
-        print(f"Dataset: {len(df)}")
-        # Ensure values are valid.
-        if batch < 1:
-            batch = 1
-        if epochs < 1:
-            epochs = 1
+            print(f"{robot} | No joint values.")
+            continue
+        print(f"{robot} | {len(df)} records")
         # Ensure folder to save models exists.
         if not os.path.exists(os.path.join(os.getcwd(), "Networks")):
             os.mkdir(os.path.join(os.getcwd(), "Networks"))
@@ -260,34 +250,30 @@ def train(epochs: int, batch: int):
                 best_score = saved['Score']
                 # If already done training this joint, skip to the next.
                 if epoch >= epochs:
-                    print(f"{robot} = {best_score}%")
+                    print(f"{robot} | {best_score}%")
                     continue
                 best = saved['Best']
                 model.load_state_dict(saved['Training'])
                 model.optimizer.load_state_dict(saved['Optimizer'])
-                print(f"Continuing training for {robot} from epoch {epoch} with batch size {batch} for {epochs} epochs.")
+                print(f"{robot} | Continuing training from epoch {epoch} with batch size {batch} for {epochs} epochs.")
             except:
-                print("Unable to load training data, exiting.")
-                return
+                print(f"{robot} | Unable to load training data, exiting.")
+                continue
         # Otherwise, start a new training.
         else:
             epoch = 1
-            print(f"Starting training for {robot} with batch size {batch} for {epochs} epochs.")
-        score = test(model, dataset)
+            print(f"{robot} | Starting training with batch size {batch} for {epochs} epochs.")
         # If new training, write initial files.
         if epoch == 1:
-            best_score = score
-            f = open(os.path.join(os.getcwd(), "Networks", f"{robot}.csv"), "w")
-            f.write("Epoch,Testing (%),Best (%)")
-            f.close()
+            best_score = test(model, dataset)
             save(robot, model, best, epoch, best_score, joints)
         # Train for set epochs.
         while True:
             # Exit once done.
             if epoch > epochs:
-                print(f"{robot} = {best_score}%")
+                print(f"{robot} | {best_score}%")
                 break
-            msg = f"{robot} | Epoch {epoch}/{epochs} | {score:.4}% | Best = {best_score:.4}%"
+            msg = f"{robot} | Epoch {epoch}/{epochs} | {best_score:.4}%"
             # Train on the training dataset.
             model.train()
             for inputs, outputs in tqdm(dataset, msg):
@@ -299,9 +285,6 @@ def train(epochs: int, batch: int):
                 best = model.state_dict()
                 best_score = score
             # Save data.
-            f = open(os.path.join(os.getcwd(), "Networks", f"{robot}.csv"), "a")
-            f.write(f"\n{epoch},{score}%,{best_score}%")
-            f.close()
             epoch += 1
             save(robot, model, best, epoch, best_score, joints)
 
