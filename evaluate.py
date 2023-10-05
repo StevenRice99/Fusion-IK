@@ -31,6 +31,7 @@ def read_file(path: str):
     time = "" if success == 0 else time / success
     fitness = 0 if success == rows else fitness / (rows - success)
     success = success / rows * 100
+    print(f"Read {path}")
     return success, time, fitness
 
 
