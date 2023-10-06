@@ -61,7 +61,7 @@ def evaluate():
                 if mode != "Network.csv":
                     continue
                 success, time, fitness = read_file(path)
-                f = open(os.path.join(os.getcwd(), "Results", robot, "Network Testing.csv"), "w")
+                f = open(os.path.join(os.getcwd(), "Results", robot, "Network.csv"), "w")
                 if time == "":
                     print(f"Network | Success Rate (%) = {success}% | Fitness Score = {fitness}")
                     f.write(f"Success Rate (%),Fitness Score\n{success}%,{fitness}")

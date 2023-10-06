@@ -51,7 +51,7 @@ class JointNetwork(nn.Module):
     The neural network to train.
     """
 
-    def __init__(self, joints: int, lr: float = 0.001, b1: float = 0.9, b2: float = 0.999, eps: float = 1e-08, decay: float = 0, amsgrad: bool = False):
+    def __init__(self, joints: int):
         """
         Create the neural network.
         :param joints: The number of joints.
@@ -73,7 +73,7 @@ class JointNetwork(nn.Module):
         self.layers.append(nn.Linear(hidden_size, joints))
         self.layers.append(nn.ReLU())
         self.loss = nn.MSELoss()
-        self.optimizer = optim.Adam(self.parameters(), lr, (b1, b2), eps, decay, amsgrad)
+        self.optimizer = optim.Adam(self.parameters())
         # Run on GPU if available.
         self.to(get_processing_device())
 
