@@ -21,22 +21,13 @@ namespace FusionIK
                 robots.Add(r);
                 if (r.Properties.NetworksValid)
                 {
-                    r = CreateRobot(Robot.SolverMode.Network);
-                    if (r != null)
+                    for (Robot.SolverMode mode = Robot.SolverMode.Network; mode <= Robot.SolverMode.IterativeFusionIk; mode++)
                     {
-                        robots.Add(r);
-                    }
-                    
-                    r = CreateRobot(Robot.SolverMode.FusionIk);
-                    if (r != null)
-                    {
-                        robots.Add(r);
-                    }
-                    
-                    r = CreateRobot(Robot.SolverMode.FusionIkIterative);
-                    if (r != null)
-                    {
-                        robots.Add(r);
+                        r = CreateRobot(mode);
+                        if (r != null)
+                        {
+                            robots.Add(r);
+                        }
                     }
                 }
             }

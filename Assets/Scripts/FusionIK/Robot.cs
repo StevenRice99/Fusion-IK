@@ -20,10 +20,11 @@ namespace FusionIK
         /// </summary>
         public enum SolverMode
         {
-            Network,
             BioIk,
+            Network,
             FusionIk,
-            FusionIkIterative
+            ExhaustiveFusionIk,
+            IterativeFusionIk
         }
 
         /// <summary>
@@ -122,15 +123,17 @@ namespace FusionIK
         {
             switch (mode)
             {
-                case SolverMode.Network:
-                    return "Network";
                 case SolverMode.BioIk:
                     return "Bio IK";
+                case SolverMode.Network:
+                    return "Network";
                 case SolverMode.FusionIk:
                     return "Fusion IK";
-                case SolverMode.FusionIkIterative:
+                case SolverMode.ExhaustiveFusionIk:
+                    return "Exhaustive Fusion IK";
+                case SolverMode.IterativeFusionIk:
                 default:
-                    return "Fusion IK Iterative";
+                    return "Iterative Fusion IK";
             }
         }
 
@@ -143,15 +146,17 @@ namespace FusionIK
         {
             switch (mode)
             {
-                case SolverMode.Network:
-                    return Color.magenta;
                 case SolverMode.BioIk:
                     return Color.cyan;
+                case SolverMode.Network:
+                    return Color.magenta;
                 case SolverMode.FusionIk:
                     return Color.white;
-                case SolverMode.FusionIkIterative:
-                default:
+                case SolverMode.ExhaustiveFusionIk:
                     return Color.yellow;
+                case SolverMode.IterativeFusionIk:
+                default:
+                    return new(1, 0.5f, 0);
             }
         }
 

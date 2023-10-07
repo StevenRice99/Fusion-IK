@@ -209,6 +209,9 @@ namespace FusionIK
                 _upperBounds[i] = _virtual.motionPointers[i].motion.GetUpperLimit();
             }
             
+            // The number of generations that have passed. Used in iterative Fusion IK.
+            int generations = 0;
+            
             details.Start();
 
             // Loop for all available time.
@@ -324,22 +327,25 @@ namespace FusionIK
                             continue;
                         }
 
-                        // In Bio IK and standard Fusion IK, create a random member.
-                        if (details.robot.mode != Robot.SolverMode.FusionIkIterative)
+                        // In Bio IK, standard Fusion IK, and iterative Fusion IK create a random member.
+                        if (details.robot.mode != Robot.SolverMode.ExhaustiveFusionIk)
                         {
                             RandomMember(_offspring[i]);
                             continue;
                         }
 
                         // Otherwise, pass the current value through the network.
-                        List<float> starting = new(_offspring[i].genes.Length);
-                        for (int j = 0; j < _offspring[i].genes.Length; j++)
+                        List<float> starting = new(_dimensionality);
+                        for (int j = 0; j < _dimensionality; j++)
                         {
                             starting.Add((float) _offspring[i].genes[j]);
                         }
 
+                        // Run the network.
                         List<float> results = details.robot.RunNetwork(details.robot.PrepareInputs(targetPosition, targetRotation, starting));
-                        for (int j = 0; j < _offspring[i].genes.Length; j++)
+                        
+                        // Update the values.
+                        for (int j = 0; j < _dimensionality; j++)
                         {
                             _offspring[i].genes[j] = results[j];
                             _offspring[i].momentum[j] = 0;
@@ -384,8 +390,46 @@ namespace FusionIK
                     }
                     
                     // Break out if there was no improvement or out of time.
-                    if (!improvement || details.Done)
+                    if ((details.robot.mode == Robot.SolverMode.IterativeFusionIk && generations >= details.robot.Properties.Generations) || !improvement || details.Done)
                     {
+                        // Keep the best values and pass then into the network.
+                        if (details.robot.mode == Robot.SolverMode.IterativeFusionIk)
+                        {
+                            // Reset the generations.
+                            generations = 0;
+                            
+                            // Keep the best of the population along with the original seed.
+                            double[][] temp = new double[2 + details.robot.Properties.Kept][];
+                            
+                            // Copy the original seed values.
+                            temp[0] = seed[0];
+                            temp[1] = seed[1];
+                            
+                            // Copy the best of the population.
+                            for (int i = 0; i < details.robot.Properties.Kept; i++)
+                            {
+                                // Convert to floats.
+                                List<float> starting = new(_dimensionality);
+                                for (int j = 0; j < _dimensionality; j++)
+                                {
+                                    starting.Add((float) _population[i].genes[j]);
+                                }
+                                
+                                // Run the network.
+                                List<float> results = details.robot.RunNetwork(details.robot.PrepareInputs(targetPosition, targetRotation, starting));
+                                temp[i + 2] = new double[_dimensionality];
+                                
+                                // Copy to the new seeds.
+                                for (int j = 0; j < _dimensionality; j++)
+                                {
+                                    temp[i + 2][j] = results[j];
+                                }
+                            }
+
+                            // Update the seed.
+                            seed = temp;
+                        }
+                        
                         break;
                     }
                     

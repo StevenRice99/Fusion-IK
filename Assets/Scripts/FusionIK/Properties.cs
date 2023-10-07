@@ -30,6 +30,16 @@ namespace FusionIK
         public int Elites => elites;
 
         /// <summary>
+        /// The number of generations after which to do the iterative process in iterative Fusion IK.
+        /// </summary>
+        public int Generations => generations;
+
+        /// <summary>
+        /// The number of the best population members to keep during each iterative process in iterative Fusion IK.
+        /// </summary>
+        public int Kept => kept;
+
+        /// <summary>
         /// Material to apply to the best robot during visualization
         /// </summary>
         public Material Normal => normal;
@@ -58,6 +68,16 @@ namespace FusionIK
         [Min(1)]
         [SerializeField]
         private int elites = 3;
+
+        [Tooltip("The number of generations after which to do the iterative process in iterative Fusion IK.")]
+        [Min(1)]
+        [SerializeField]
+        private int generations = 10;
+
+        [Tooltip("The number of the best population members to keep during each iterative process in iterative Fusion IK.")]
+        [Min(1)]
+        [SerializeField]
+        private int kept = 10;
 
         [Header("Datasets")]
         [Tooltip("The total number of entries to generate for training.")]
