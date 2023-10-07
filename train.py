@@ -240,31 +240,22 @@ def train(epochs: int, batch: int):
         dataset = DataLoader(InverseKinematicsDataset(df, joints), batch_size=batch, shuffle=False)
         # Define the model.
         model = JointNetwork(joints)
-        best = model.state_dict()
-        best_score = 0
         # Check if an existing model exists for this joint, load it.
         if os.path.exists(os.path.join(os.getcwd(), "Networks", f"{robot}.pt")):
             try:
                 saved = torch.load(os.path.join(os.getcwd(), "Networks", f"{robot}.pt"))
                 epoch = saved['Epoch']
                 best_score = saved['Score']
-                # If already done training this joint, skip to the next.
-                if epoch >= epochs:
-                    print(f"{robot} | {best_score}%")
-                    continue
                 best = saved['Best']
                 model.load_state_dict(saved['Training'])
                 model.optimizer.load_state_dict(saved['Optimizer'])
-                print(f"{robot} | Continuing training from epoch {epoch} with batch size {batch} for {epochs} epochs.")
             except:
-                print(f"{robot} | Unable to load training data, exiting.")
+                print(f"{robot} | Unable to load existing data.")
                 continue
         # Otherwise, start a new training.
         else:
             epoch = 1
-            print(f"{robot} | Starting training with batch size {batch} for {epochs} epochs.")
-        # If new training, write initial files.
-        if epoch == 1:
+            best = model.state_dict()
             best_score = test(model, dataset)
             save(robot, model, best, epoch, best_score, joints)
         # Train for set epochs.
@@ -273,7 +264,7 @@ def train(epochs: int, batch: int):
             if epoch > epochs:
                 print(f"{robot} | {best_score}%")
                 break
-            msg = f"{robot} | Epoch {epoch}/{epochs} | {best_score:.4}%"
+            msg = f"{robot} | Epoch {epoch}/{epochs} | {best_score}%"
             # Train on the training dataset.
             model.train()
             for inputs, outputs in tqdm(dataset, msg):
@@ -291,7 +282,7 @@ def train(epochs: int, batch: int):
 
 if __name__ == '__main__':
     try:
-        desc = "Fusion-IK Training"
+        desc = "Fusion IK Training"
         parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
         parser.add_argument("-e", "--epoch", type=int, help="Number of epochs to train for.", default=100)
         parser.add_argument("-b", "--batch", type=int, help="Batch size.", default=64)
