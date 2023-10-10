@@ -320,7 +320,7 @@ namespace FusionIK
             }
             
             GUI.color = color;
-            GUI.Label(new(10, y, 115, 20), $"{title}");
+            GUI.Label(new(10, y, 150, 20), $"{title}");
 
             string success;
             string description;
@@ -336,8 +336,8 @@ namespace FusionIK
                 description = $"{data.Fitness} Fitness Score";
             }
             
-            GUI.Label(new(125, y, 55, 20), success);
-            GUI.Label(new(180, y, Screen.width - 190, 20), description);
+            GUI.Label(new(160, y, 55, 20), success);
+            GUI.Label(new(225, y, Screen.width - 235, 20), description);
         }
 
         private void OnGUI()
@@ -434,7 +434,7 @@ namespace FusionIK
             float offset = results.Length * 20 + 10;
             foreach (Details data in _ordered)
             {
-                RobotLabel(Screen.height - offset, data, Robot.Name(data.robot.mode), Robot.RobotColor(data.robot.mode));
+                RobotLabel(Screen.height - offset, data, data.robot.ToString(), Robot.RobotColor(data.robot.mode));
                 offset -= 20;
             }
         }

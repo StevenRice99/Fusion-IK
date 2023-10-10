@@ -19,11 +19,11 @@ namespace FusionIK
             if (r != null)
             {
                 robots.Add(r);
-                if (r.Properties.NetworksValid)
+                for (Robot.SolverMode mode = Robot.SolverMode.Network; mode <= Robot.SolverMode.IterativeFusionIk; mode++)
                 {
-                    for (Robot.SolverMode mode = Robot.SolverMode.Network; mode <= Robot.SolverMode.IterativeFusionIk; mode++)
+                    for (Robot.NetworkUsed network = Robot.NetworkUsed.Large; network <= Robot.NetworkUsed.Minimal; network++)
                     {
-                        r = CreateRobot(mode);
+                        r = CreateRobot(mode, network);
                         if (r != null)
                         {
                             robots.Add(r);
@@ -35,8 +35,13 @@ namespace FusionIK
             return robots.ToArray();
         }
 
-        private Robot CreateRobot(Robot.SolverMode solverMode)
+        private Robot CreateRobot(Robot.SolverMode solverMode, Robot.NetworkUsed networkUsed = Robot.NetworkUsed.Large)
         {
+            if (networkUsed == Robot.NetworkUsed.Minimal && solverMode is Robot.SolverMode.ExhaustiveFusionIk or Robot.SolverMode.IterativeFusionIk)
+            {
+                return null;
+            }
+            
             GameObject go = Instantiate(robotPrefab, Vector3.zero, Quaternion.identity);
             Robot r = go.GetComponent<Robot>();
             if (r == null)
@@ -45,8 +50,15 @@ namespace FusionIK
                 return null;
             }
 
+            if (solverMode != Robot.SolverMode.BioIk && ((networkUsed == Robot.NetworkUsed.Large && !r.Properties.LargeNetworkValid) || (networkUsed == Robot.NetworkUsed.Small && !r.Properties.SmallNetworkValid) || (networkUsed == Robot.NetworkUsed.Minimal && !r.Properties.MinimalNetworkValid)))
+            {
+                Destroy(go);
+                return null;
+            }
+
             r.mode = solverMode;
-            go.name = $"{r.Properties.name} {Robot.Name(r.mode)}";
+            r.networkUsed = networkUsed;
+            go.name = $"{r.Properties.name} {r}";
             
             return r;
         }

@@ -49,11 +49,7 @@ namespace FusionIK
         [Min(0)]
         [SerializeField]
         private float repeatability = 8e-5f;
-
-        [Tooltip("Network to control the robot.")]
-        public NNModel network;
-
-        [Header("Bio IK")]
+        
         [Tooltip("The population size of each generation during Bio IK evolution.")]
         [Min(1)]
         [SerializeField]
@@ -74,6 +70,16 @@ namespace FusionIK
         [SerializeField]
         private int kept = 10;
 
+        [Header("Networks")]
+        [Tooltip("Large network.")]
+        public NNModel largeNetwork;
+
+        [Tooltip("Small network.")]
+        public NNModel smallNetwork;
+
+        [Tooltip("Minimal network.")]
+        public NNModel minimalNetwork;
+
         [Header("Materials")]
         [Tooltip("Material to apply to the best robot during visualization.")]
         [SerializeField]
@@ -86,13 +92,35 @@ namespace FusionIK
         /// <summary>
         /// Check if networks are valid.
         /// </summary>
-        public bool NetworksValid => network != null;
+        public bool LargeNetworkValid => largeNetwork != null;
+
+        /// <summary>
+        /// Check if networks are valid.
+        /// </summary>
+        public bool SmallNetworkValid => smallNetwork != null;
+
+        /// <summary>
+        /// Check if networks are valid.
+        /// </summary>
+        public bool MinimalNetworkValid => minimalNetwork != null;
         
         /// <summary>
-        /// A network to run inference on.
+        /// Compile the large network.
         /// </summary>
-        /// <returns>The joint network at a given index that is desired.</returns>
-        public Model CompiledNetwork => network != null ? ModelLoader.Load(network) : null;
+        /// <returns>The large network compiled.</returns>
+        public Model CompiledLargeNetwork => LargeNetworkValid ? ModelLoader.Load(largeNetwork) : null;
+        
+        /// <summary>
+        /// Compile the small network.
+        /// </summary>
+        /// <returns>The small network compiled.</returns>
+        public Model CompiledSmallNetwork => SmallNetworkValid ? ModelLoader.Load(smallNetwork) : null;
+        
+        /// <summary>
+        /// Compile the minimal network.
+        /// </summary>
+        /// <returns>The minimal network compiled.</returns>
+        public Model CompiledMinimalNetwork => MinimalNetworkValid ? ModelLoader.Load(minimalNetwork) : null;
 
         private void OnValidate()
         {

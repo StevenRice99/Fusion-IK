@@ -139,7 +139,7 @@ namespace FusionIK
             // Run through neural networks if it should.
             if (details.robot.mode != Robot.SolverMode.BioIk)
             {
-                List<float> starting = details.robot.GetJoints();
+                List<float> starting = details.robot.networkUsed == Robot.NetworkUsed.Minimal ? null : details.robot.GetJoints();
                 
                 details.Start();
                 List<float> joints = details.robot.RunNetwork(details.robot.PrepareInputs(targetPosition, targetRotation, starting));
@@ -156,9 +156,17 @@ namespace FusionIK
                 // Get the existing fitness.
                 details.Set(reached, details.robot.CalculateTime(seed[0], seed[1]), reached ? 0 : details.robot.Virtual.ComputeLoss(seed[1]), seed[1]);
                 
+                // If it was reached, don't use it in future attempts for even faster times as it will always be the exact same.
                 if (reached)
                 {
-                    return;
+                    double[][] temp = new double[1][];
+                    temp[0] = new double[seed[0].Length];
+                    for (int i = 0; i < temp[0].Length; i++)
+                    {
+                        temp[0][i] = seed[0][i];
+                    }
+
+                    seed = temp;
                 }
             }
             else

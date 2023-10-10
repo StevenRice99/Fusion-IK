@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Barracuda;
@@ -25,6 +26,16 @@ namespace FusionIK
             FusionIk,
             ExhaustiveFusionIk,
             IterativeFusionIk
+        }
+        
+        /// <summary>
+        /// The network to use for a Fusion IK variation.
+        /// </summary>
+        public enum NetworkUsed
+        {
+            Large,
+            Small,
+            Minimal
         }
 
         /// <summary>
@@ -71,8 +82,17 @@ namespace FusionIK
         [SerializeField]
         private Properties properties;
 
-        [Tooltip("Mode to perform solving in.")]
-        public SolverMode mode = SolverMode.BioIk;
+        /// <summary>
+        /// The mode to solve in.
+        /// </summary>
+        [NonSerialized]
+        public SolverMode mode;
+
+        /// <summary>
+        /// The network to use.
+        /// </summary>
+        [NonSerialized]
+        public NetworkUsed networkUsed;
 
         /// <summary>
         /// The root joint of the robot.
@@ -110,30 +130,39 @@ namespace FusionIK
         private float[] _currentSpeeds;
 
         /// <summary>
-        /// The network worker.
+        /// The large network worker.
         /// </summary>
-        private IWorker _worker;
+        private IWorker _largeWorker;
+
+        /// <summary>
+        /// The small network worker.
+        /// </summary>
+        private IWorker _smallWorker;
+
+        /// <summary>
+        /// The minimal network worker.
+        /// </summary>
+        private IWorker _minimalWorker;
 
         /// <summary>
         /// Get a name for display.
         /// </summary>
-        /// <param name="mode">The mode of a robot.</param>
         /// <returns>A name for a robot.</returns>
-        public static string Name(SolverMode mode)
+        public override string ToString()
         {
             switch (mode)
             {
                 case SolverMode.BioIk:
                     return "Bio IK";
                 case SolverMode.Network:
-                    return "Network";
+                    return $"Network {networkUsed}";
                 case SolverMode.FusionIk:
-                    return "Fusion IK";
+                    return $"Fusion IK {networkUsed}";
                 case SolverMode.ExhaustiveFusionIk:
-                    return "Exhaustive Fusion IK";
+                    return $"Exhaustive Fusion IK {networkUsed}";
                 case SolverMode.IterativeFusionIk:
                 default:
-                    return "Iterative Fusion IK";
+                    return $"Iterative Fusion IK {networkUsed}";
             }
         }
 
@@ -263,14 +292,6 @@ namespace FusionIK
         }
 
         /// <summary>
-        /// If a position and rotation were reached.
-        /// </summary>
-        /// <param name="targetPosition">The position to check.</param>
-        /// <param name="targetRotation">The rotation to check.</param>
-        /// <returns>True if reached, false otherwise.</returns>
-        public bool Reached(Vector3 targetPosition, Quaternion targetRotation) => Reached(targetPosition, targetRotation, LastJoint.position, LastJoint.rotation);
-        
-        /// <summary>
         /// If a position and rotation were reached relative to a root position and rotation.
         /// </summary>
         /// <param name="targetPosition">The position to check.</param>
@@ -360,14 +381,19 @@ namespace FusionIK
         /// <param name="targetRotation">The rotation to reach.</param>
         /// <param name="starting">The starting joint values.</param>
         /// <returns>The values to be passed to the networks.</returns>
-        public float[] PrepareInputs(Vector3 targetPosition, Quaternion targetRotation, List<float> starting)
+        public float[] PrepareInputs(Vector3 targetPosition, Quaternion targetRotation, List<float> starting = null)
         {
+            int offset = starting?.Count ?? 0;
+            float[] inputs = new float[offset + 7];
+            
             // Scale and add joints.
-            List<float> scaled = NetScaledJoints(starting);
-            float[] inputs = new float[scaled.Count + 7];
-            for (int i = 0; i < scaled.Count; i++)
+            if (offset > 0)
             {
-                inputs[i] = scaled[i];
+                List<float> scaled = NetScaledJoints(starting);
+                for (int i = 0; i < offset; i++)
+                {
+                    inputs[i] = scaled[i];
+                }
             }
 
             // Get relative values.
@@ -375,15 +401,15 @@ namespace FusionIK
             targetRotation = RelativeRotation(targetRotation);
             
             // Add scaled position.
-            inputs[scaled.Count] = (targetPosition.x + 1) / 2;
-            inputs[scaled.Count + 1] = (targetPosition.y + 1) / 2;
-            inputs[scaled.Count + 2] = (targetPosition.z + 1) / 2;
+            inputs[offset] = (targetPosition.x + 1) / 2;
+            inputs[offset + 1] = (targetPosition.y + 1) / 2;
+            inputs[offset + 2] = (targetPosition.z + 1) / 2;
             
             // Add scaled rotation.
-            inputs[scaled.Count + 3] = (targetRotation.x + 1) / 2;
-            inputs[scaled.Count + 4] = (targetRotation.y + 1) / 2;
-            inputs[scaled.Count + 5] = (targetRotation.z + 1) / 2;
-            inputs[scaled.Count + 6] = (targetRotation.w + 1) / 2;
+            inputs[offset + 3] = (targetRotation.x + 1) / 2;
+            inputs[offset + 4] = (targetRotation.y + 1) / 2;
+            inputs[offset + 5] = (targetRotation.z + 1) / 2;
+            inputs[offset + 6] = (targetRotation.w + 1) / 2;
 
             return inputs;
         }
@@ -398,11 +424,18 @@ namespace FusionIK
             // Get initial input values and prepare for outputs.
             float[] forwards = inputs.ToArray();
             Tensor input = new(1, 1, 1, forwards.Length, forwards, "INPUTS");
-            
+
+            IWorker worker = networkUsed switch
+            {
+                NetworkUsed.Large => _largeWorker,
+                NetworkUsed.Small => _smallWorker,
+                _ => _minimalWorker
+            };
+
             // Run the current joint network.
-            _worker.Execute(input);
-            _worker.FlushSchedule(true);
-            Tensor output = _worker.PeekOutput();
+            worker.Execute(input);
+            worker.FlushSchedule(true);
+            Tensor output = worker.PeekOutput();
             input.Dispose();
             
             // Add the output and replace the input for the next joint's network.
@@ -657,25 +690,57 @@ namespace FusionIK
                 j.UpdateData();
             }
 
-            // Setup networks.
-            if (properties.NetworksValid)
-            {
-                _worker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledNetwork);
+            NetworkUsed original = networkUsed;
 
-                if (_worker != null)
+            // Setup large network.
+            if (properties.LargeNetworkValid)
+            {
+                _largeWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledLargeNetwork);
+
+                if (_largeWorker != null)
                 {
+                    networkUsed = NetworkUsed.Large;
                     RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
                 }
                 else
                 {
-                    CleanupWorkers();
-                    mode = SolverMode.BioIk;
+                    _largeWorker?.Dispose();
                 }
             }
-            else
+
+            // Setup small network.
+            if (properties.SmallNetworkValid)
             {
-                mode = SolverMode.BioIk;
+                _smallWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledSmallNetwork);
+
+                if (_smallWorker != null)
+                {
+                    networkUsed = NetworkUsed.Small;
+                    RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
+                }
+                else
+                {
+                    _smallWorker?.Dispose();
+                }
             }
+
+            // Setup minimal network.
+            if (properties.MinimalNetworkValid)
+            {
+                _minimalWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledMinimalNetwork);
+
+                if (_minimalWorker != null)
+                {
+                    networkUsed = NetworkUsed.Minimal;
+                    RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity));
+                }
+                else
+                {
+                    _minimalWorker?.Dispose();
+                }
+            }
+
+            networkUsed = original;
 
             Virtual = new(this);
         }
@@ -725,15 +790,9 @@ namespace FusionIK
 
         private void OnDestroy()
         {
-            CleanupWorkers();
-        }
-
-        /// <summary>
-        /// Cleanup all network workers.
-        /// </summary>
-        private void CleanupWorkers()
-        {
-            _worker?.Dispose();
+            _largeWorker?.Dispose();
+            _smallWorker?.Dispose();
+            _minimalWorker?.Dispose();
         }
     }
 }

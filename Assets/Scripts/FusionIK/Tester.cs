@@ -83,7 +83,7 @@ namespace FusionIK
                     }
                     else
                     {
-                        file = DirectoryPath(new[] {"Testing", result.robot.name, Robot.Name(result.robot.mode)});
+                        file = DirectoryPath(new[] {"Testing", result.robot.name, result.robot.ToString()});
                         if (file == null)
                         {
 #if UNITY_EDITOR
