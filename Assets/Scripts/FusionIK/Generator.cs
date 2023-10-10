@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace FusionIK
@@ -11,13 +11,25 @@ namespace FusionIK
     [DisallowMultipleComponent]
     public sealed class Generator : Controller
     {
+        [Tooltip("The total number of entries to generate for training.")]
+        [Min(1)]
+        [SerializeField]
+        private int generatedTotal = 250000;
+        
         [Tooltip("The time the algorithm is allowed to run for.")]
         [Min(1)]
         [SerializeField]
         private long milliseconds = 500;
-        
-        // The joints to start at for the next attempt.
-        private List<float> _starting;
+
+        /// <summary>
+        /// How much training data has been generated.
+        /// </summary>
+        private int _generatedCount = -1;
+
+        /// <summary>
+        /// The path to write data to.
+        /// </summary>
+        private string _path;
 
         private void Start()
         {
@@ -30,6 +42,26 @@ namespace FusionIK
             {
                 Destroy(gameObject);
             }
+            
+            // Ensure folder exists.
+            _path = DirectoryPath(new[] { "Training" });
+            if (_path == null)
+            {
+#if UNITY_EDITOR
+                EditorApplication.ExitPlaymode();
+#else
+                Application.Quit();
+#endif
+                return;
+            }
+
+            _path = Path.Combine(_path, $"{robot.Properties.name}.csv");
+            
+            // Read total from file in case it exceeds amount.
+            if (_generatedCount < 0)
+            {
+                _generatedCount = CountLines(_path);
+            }
 
             // Ensure in Bio IK mode.
             robot.mode = Robot.SolverMode.BioIk;
@@ -38,16 +70,59 @@ namespace FusionIK
             
             // Don't need visuals during this process.
             NoVisuals();
+
+            // Attempt to load the last pose.
+            string path = DirectoryPath(new[] { "Testing" });
+            if (path == null)
+            {
+                return;
+            }
+            
+            path = Path.Combine(path, $"{robot.Properties.name}.csv");
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            string[] lines = File.ReadLines(path).ToArray();
+            if (lines.Length <= 1)
+            {
+                return;
+            }
+
+            // Count the joints.
+            string[] strings = lines[0].Split(',');
+            int joints = strings.Count(s => s.Contains("I")) - 7;
+            if (joints <= 0)
+            {
+                return;
+            }
+            
+            // Create the joints.
+            strings = lines[^1].Split(',').Skip(joints + 7).ToArray();
+            lastPose = new(joints);
+            for (int i = 0; i < joints; i++)
+            {
+                lastPose.Add(float.Parse(strings[i]));
+            }
         }
 
         private void Update()
         {
-            // If no previous starting values, load last known values.
-            if (_starting == null)
+            // If already generated required amount, exit.
+            if (_generatedCount >= generatedTotal)
             {
-                List<float> lastOutput = R.Properties.LastPose ?? Load();
-                _starting = lastOutput ?? R.GetJoints();
+                Debug.Log("Finished generation.");
+#if UNITY_EDITOR
+                EditorApplication.ExitPlaymode();
+#else
+                Application.Quit();
+#endif
+                return;
             }
+            
+            // If no previous starting values, load last known values.
+            lastPose ??= R.GetJoints();
             
             // Randomly move the robot.
             R.Snap(R.RandomJoints());
@@ -57,7 +132,7 @@ namespace FusionIK
             (Vector3 position, Quaternion rotation) target = results[0].robot.EndTransform;
             
             // Reset the robot back to its starting position.
-            R.Snap(_starting);
+            R.Snap(lastPose);
             Robot.PhysicsStep();
 
             // Get the best result to reach the target.
@@ -66,7 +141,7 @@ namespace FusionIK
             // If failed to reach, don't use this data.
             if (!results[0].Success)
             {
-                R.Snap(_starting);
+                R.Snap(lastPose);
                 Robot.PhysicsStep();
                 return;
             }
@@ -76,53 +151,52 @@ namespace FusionIK
             Robot.PhysicsStep();
 
             // If reached, add the result, update the last pose, and set the start of the next generation to the result.
-            R.Properties.AddTrainingData(R.PrepareInputs(R.EndTransform.position, R.EndTransform.rotation, _starting), R.NetScaledJoints(results[0].Floats).ToArray());
-            R.Properties.SetLastPose(_starting);
-            _starting = results[0].Floats;
-        }
+            float[] inputs = R.PrepareInputs(R.EndTransform.position, R.EndTransform.rotation, lastPose);
+            float[] outputs = R.NetScaledJoints(results[0].Floats).ToArray();
 
-        /// <summary>
-        /// Attempt to restore any previous joints from the CSV data.
-        /// </summary>
-        /// <returns></returns>
-        private List<float> Load()
-        {
-            string path = Properties.DirectoryPath(new[] { "Testing" });
-            if (path == null)
-            {
-                return null;
-            }
+            string s = string.Empty;
             
-            path = Path.Combine(path, $"{R.Properties.name}.csv");
-            if (!File.Exists(path))
+            // Write header if new file.
+            if (!File.Exists(_path))
             {
-                return null;
-            }
-
-            string[] lines = File.ReadLines(path).ToArray();
-
-            if (lines.Length <= 1)
-            {
-                return null;
-            }
-
-            string[] strings = lines[0].Split(',');
-            int joints = strings.Count(s => s.Contains("I")) - 7;
-            if (joints <= 0)
-            {
-                return null;
-            }
+                for (int i = 0; i < inputs.Length; i++)
+                {
+                    s += $"I{i + 1},";
+                }
+                
+                for (int i = 0; i < outputs.Length; i++)
+                {
+                    s += $"O{i + 1}";
+                    if (i < outputs.Length - 1)
+                    {
+                        s += ",";
+                    }
+                }
             
-            strings = lines[^1].Split(',').Skip(joints + 7).ToArray();
-            List<float> lastPose = new(joints);
-            for (int i = 0; i < joints; i++)
-            {
-                lastPose.Add(float.Parse(strings[i]));
+                File.WriteAllText(_path, s);
             }
 
-            // The CSV results are relative to joint values so scale them back to joint values.
-            R.Properties.SetLastPose(R.ResultsScaled(lastPose));
-            return R.Properties.LastPose;
+            // Write data.
+            s = "\n";
+            for (int j = 0; j < inputs.Length; j++)
+            {
+                s += $"{inputs[j]},";
+            }
+            for (int j = 0; j < outputs.Length; j++)
+            {
+                s += $"{outputs[j]}";
+                if (j < outputs.Length - 1)
+                {
+                    s += ",";
+                }
+            }
+                
+            File.AppendAllText(_path, s);
+            
+            Debug.Log($"{name} | Generated {++_generatedCount} of {generatedTotal}.");
+            
+            // Update the pose to start at.
+            lastPose = results[0].Floats;
         }
     }
 }

@@ -200,7 +200,7 @@ namespace FusionIK
             }
             
             // Start at the last position.
-            return R.Properties.LastPose ?? R.GetJoints();
+            return lastPose ?? R.GetJoints();
         }
 
         private void MovePerform(List<float> starting)
@@ -230,7 +230,7 @@ namespace FusionIK
             }
 
             // Store the best result.
-            R.Properties.SetLastPose(best.Floats);
+           lastPose = best.Floats;
 
             // Store the endings and snap back to the start.
             for (int i = 0; i < results.Length; i++)

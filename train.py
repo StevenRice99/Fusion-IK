@@ -57,8 +57,8 @@ class JointNetwork(nn.Module):
         :param joints: The number of joints.
         """
         # Define the size of each joint network.
-        hidden_layers = 2
-        hidden_size = 128
+        hidden_layers = 0
+        hidden_size = joints + 7
         super().__init__()
         # Take in all joint, position, and rotation values.
         self.layers = nn.Sequential(
@@ -70,7 +70,7 @@ class JointNetwork(nn.Module):
             self.layers.append(nn.Linear(hidden_size, hidden_size))
             self.layers.append(nn.ReLU())
         # Outputs for joints.
-        self.layers.append(nn.Linear(hidden_size, joints))
+        self.layers.append(nn.Linear(joints + 7 if hidden_layers == 0 else hidden_size, joints))
         self.layers.append(nn.ReLU())
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters())
@@ -149,26 +149,26 @@ def to_tensor(tensor, device=get_processing_device()):
     return tensor.to(device)
 
 
-def test(model, dataloader):
+def test(net, dataloader):
     """
     Test a neural network.
-    :param model: The neural network.
+    :param net: The network.
     :param dataloader: The dataloader to test.
     :return: The model's accuracy.
     """
-    model.eval()
+    net.eval()
     accuracy = 0
     for inputs, outputs in dataloader:
-        accuracy += model.calculate_score(to_tensor(inputs), to_tensor(outputs))
+        accuracy += net.calculate_score(to_tensor(inputs), to_tensor(outputs))
     # Convert into human-readable accuracy.
     return (1 - accuracy / len(dataloader)) * 100
 
 
-def save(robot: str, model, best, epoch: int, score: float, joints: int):
+def save(robot: str, net, best, epoch: int, score: float, joints: int):
     """
     Save the model and ONNX export.
     :param robot: The robot the network is for.
-    :param model: The network model.
+    :param net: The network.
     :param best: The best network model.
     :param epoch: The current epoch.
     :param score: The score.
@@ -177,17 +177,17 @@ def save(robot: str, model, best, epoch: int, score: float, joints: int):
     """
     torch.save({
         'Best': best,
-        'Training': model.state_dict(),
-        'Optimizer': model.optimizer.state_dict(),
+        'Training': net.state_dict(),
+        'Optimizer': net.optimizer.state_dict(),
         'Epoch': epoch,
         'Score': score
     }, os.path.join(os.getcwd(), "Networks", f"{robot}.pt"))
     # Store the current training state.
-    old = model.state_dict()
+    old = net.state_dict()
     # Export the best state.
-    model.load_state_dict(best)
+    net.load_state_dict(best)
     torch.onnx.export(
-        model,
+        net,
         to_tensor(torch.randn(1, joints + 7, dtype=torch.float32)),
         os.path.join(os.getcwd(), "Networks", f"{robot}.onnx"),
         export_params=True,
@@ -197,7 +197,7 @@ def save(robot: str, model, best, epoch: int, score: float, joints: int):
         output_names=['output']
     )
     # Restore the current training state.
-    model.load_state_dict(old)
+    net.load_state_dict(old)
 
 
 def train(epochs: int, batch: int):
@@ -238,46 +238,46 @@ def train(epochs: int, batch: int):
             os.mkdir(os.path.join(os.getcwd(), "Networks"))
         # Setup datasets.
         dataset = DataLoader(InverseKinematicsDataset(df, joints), batch_size=batch, shuffle=False)
-        # Define the model.
-        model = JointNetwork(joints)
-        # Check if an existing model exists for this joint, load it.
+        # Define the network.
+        net = JointNetwork(joints)
+        # Check if an existing net exists for this joint, load it.
         if os.path.exists(os.path.join(os.getcwd(), "Networks", f"{robot}.pt")):
             try:
                 saved = torch.load(os.path.join(os.getcwd(), "Networks", f"{robot}.pt"))
                 epoch = saved['Epoch']
-                best_score = saved['Score']
+                score = saved['Score']
                 best = saved['Best']
-                model.load_state_dict(saved['Training'])
-                model.optimizer.load_state_dict(saved['Optimizer'])
+                net.load_state_dict(saved['Training'])
+                net.optimizer.load_state_dict(saved['Optimizer'])
             except:
                 print(f"{robot} | Unable to load existing data.")
                 continue
         # Otherwise, start a new training.
         else:
             epoch = 1
-            best = model.state_dict()
-            best_score = test(model, dataset)
-            save(robot, model, best, epoch, best_score, joints)
+            best = net.state_dict()
+            score = test(net, dataset)
+            save(robot, net, best, epoch, score, joints)
         # Train for set epochs.
         while True:
             # Exit once done.
             if epoch > epochs:
-                print(f"{robot} | {best_score}%")
+                print(f"{robot} | {score}% | {sum(p.numel() for p in net.parameters() if p.requires_grad)} Parameters")
                 break
-            msg = f"{robot} | Epoch {epoch}/{epochs} | {best_score}%"
+            msg = f"{robot} | Epoch {epoch}/{epochs} | {score}%"
             # Train on the training dataset.
-            model.train()
+            net.train()
             for inputs, outputs in tqdm(dataset, msg):
-                model.optimize(to_tensor(inputs), to_tensor(outputs))
+                net.optimize(to_tensor(inputs), to_tensor(outputs))
             # Check how well the newest epoch performs.
-            score = test(model, dataset)
-            # Check if this is the new best model.
-            if score > best_score:
-                best = model.state_dict()
-                best_score = score
+            temp = test(net, dataset)
+            # Check if this is the new best net.
+            if temp > score:
+                best = net.state_dict()
+                score = temp
             # Save data.
             epoch += 1
-            save(robot, model, best, epoch, best_score, joints)
+            save(robot, net, best, epoch, score, joints)
 
 
 if __name__ == '__main__':
