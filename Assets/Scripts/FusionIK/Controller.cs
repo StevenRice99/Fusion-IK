@@ -29,7 +29,7 @@ namespace FusionIK
         /// <summary>
         /// The last pose moved to.
         /// </summary>
-        protected List<float> lastPose;
+        protected List<float> starting;
 
         /// <summary>
         /// Setup the results storing capability.

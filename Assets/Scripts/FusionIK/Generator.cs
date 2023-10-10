@@ -31,6 +31,11 @@ namespace FusionIK
         /// </summary>
         private string _path;
 
+        /// <summary>
+        /// If minimal mode is being used.
+        /// </summary>
+        private bool _minimal;
+
         private void Start()
         {
             // Spawn the robot.
@@ -42,26 +47,6 @@ namespace FusionIK
             {
                 Destroy(gameObject);
             }
-            
-            // Ensure folder exists.
-            _path = DirectoryPath(new[] { "Training" });
-            if (_path == null)
-            {
-#if UNITY_EDITOR
-                EditorApplication.ExitPlaymode();
-#else
-                Application.Quit();
-#endif
-                return;
-            }
-
-            _path = Path.Combine(_path, $"{robot.Properties.name}.csv");
-            
-            // Read total from file in case it exceeds amount.
-            if (_generatedCount < 0)
-            {
-                _generatedCount = CountLines(_path);
-            }
 
             // Ensure in Bio IK mode.
             robot.mode = Robot.SolverMode.BioIk;
@@ -70,41 +55,8 @@ namespace FusionIK
             
             // Don't need visuals during this process.
             NoVisuals();
-
-            // Attempt to load the last pose.
-            string path = DirectoryPath(new[] { "Testing" });
-            if (path == null)
-            {
-                return;
-            }
             
-            path = Path.Combine(path, $"{robot.Properties.name}.csv");
-            if (!File.Exists(path))
-            {
-                return;
-            }
-
-            string[] lines = File.ReadLines(path).ToArray();
-            if (lines.Length <= 1)
-            {
-                return;
-            }
-
-            // Count the joints.
-            string[] strings = lines[0].Split(',');
-            int joints = strings.Count(s => s.Contains("I")) - 7;
-            if (joints <= 0)
-            {
-                return;
-            }
-            
-            // Create the joints.
-            strings = lines[^1].Split(',').Skip(joints + 7).ToArray();
-            lastPose = new(joints);
-            for (int i = 0; i < joints; i++)
-            {
-                lastPose.Add(float.Parse(strings[i]));
-            }
+            Load(robot);
         }
 
         private void Update()
@@ -112,17 +64,25 @@ namespace FusionIK
             // If already generated required amount, exit.
             if (_generatedCount >= generatedTotal)
             {
-                Debug.Log("Finished generation.");
+                if (!_minimal)
+                {
+                    _minimal = true;
+                    Load(R);
+                }
+                else
+                {
+                    Debug.Log("Finished generation.");
 #if UNITY_EDITOR
-                EditorApplication.ExitPlaymode();
+                    EditorApplication.ExitPlaymode();
 #else
-                Application.Quit();
+                    Application.Quit();
 #endif
-                return;
+                    return;
+                }
             }
             
             // If no previous starting values, load last known values.
-            lastPose ??= R.GetJoints();
+            starting = _minimal ? R.Middle : starting ??= R.GetJoints();
             
             // Randomly move the robot.
             R.Snap(R.RandomJoints());
@@ -132,7 +92,7 @@ namespace FusionIK
             (Vector3 position, Quaternion rotation) target = results[0].robot.EndTransform;
             
             // Reset the robot back to its starting position.
-            R.Snap(lastPose);
+            R.Snap(starting);
             Robot.PhysicsStep();
 
             // Get the best result to reach the target.
@@ -141,7 +101,7 @@ namespace FusionIK
             // If failed to reach, don't use this data.
             if (!results[0].Success)
             {
-                R.Snap(lastPose);
+                R.Snap(starting);
                 Robot.PhysicsStep();
                 return;
             }
@@ -151,7 +111,7 @@ namespace FusionIK
             Robot.PhysicsStep();
 
             // If reached, add the result, update the last pose, and set the start of the next generation to the result.
-            float[] inputs = R.PrepareInputs(R.EndTransform.position, R.EndTransform.rotation, lastPose);
+            float[] inputs = R.PrepareInputs(R.EndTransform.position, R.EndTransform.rotation, _minimal ? null : starting);
             float[] outputs = R.NetScaledJoints(results[0].Floats).ToArray();
 
             string s = string.Empty;
@@ -193,10 +153,60 @@ namespace FusionIK
                 
             File.AppendAllText(_path, s);
             
-            Debug.Log($"{name} | Generated {++_generatedCount} of {generatedTotal}.");
+            string doing = _minimal ? "Minimal" : "Full";
+            Debug.Log($"{name} | {doing} generated {++_generatedCount} of {generatedTotal}.");
             
             // Update the pose to start at.
-            lastPose = results[0].Floats;
+            starting = results[0].Floats;
+        }
+
+        private void Load(Robot robot)
+        {
+            // Ensure folder exists.
+            _path = DirectoryPath(new[] { "Training", robot.Properties.name });
+            if (_path == null)
+            {
+#if UNITY_EDITOR
+                EditorApplication.ExitPlaymode();
+#else
+                Application.Quit();
+#endif
+                return;
+            }
+
+            string doing = _minimal ? "Minimal" : "Full";
+            _path = Path.Combine(_path, $"{doing}.csv");
+            
+            // Read total from file in case it exceeds amount.
+            _generatedCount = CountLines(_path);
+
+            if (_minimal)
+            {
+                return;
+            }
+
+            // Attempt to load the last pose.
+            string[] lines = File.ReadLines(_path).ToArray();
+            if (lines.Length <= 1)
+            {
+                return;
+            }
+
+            // Count the joints.
+            string[] strings = lines[0].Split(',');
+            int joints = strings.Count(s => s.Contains("I")) - 7;
+            if (joints <= 0)
+            {
+                return;
+            }
+            
+            // Create the joints.
+            strings = lines[^1].Split(',').Skip(joints + 7).ToArray();
+            starting = new(joints);
+            for (int i = 0; i < joints; i++)
+            {
+                starting.Add(float.Parse(strings[i]));
+            }
         }
     }
 }

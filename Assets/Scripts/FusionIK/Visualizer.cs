@@ -200,10 +200,10 @@ namespace FusionIK
             }
             
             // Start at the last position.
-            return lastPose ?? R.GetJoints();
+            return starting ?? R.GetJoints();
         }
 
-        private void MovePerform(List<float> starting)
+        private void MovePerform(List<float> start)
         {
             // Get the best robot and order the rest.
             Details best = Best(results, out _ordered);
@@ -230,12 +230,12 @@ namespace FusionIK
             }
 
             // Store the best result.
-           lastPose = best.Floats;
+           starting = best.Floats;
 
             // Store the endings and snap back to the start.
             for (int i = 0; i < results.Length; i++)
             {
-                results[i].robot.Snap(starting);
+                results[i].robot.Snap(start);
             }
             Robot.PhysicsStep();
 
@@ -253,9 +253,9 @@ namespace FusionIK
                 return;
             }
             
-            List<float> starting = GetStarting();
-            MoveResults(starting, _targetPosition.Value, _targetRotation.Value);
-            MovePerform(starting);
+            List<float> start = GetStarting();
+            MoveResults(start, _targetPosition.Value, _targetRotation.Value);
+            MovePerform(start);
         }
 
         /// <summary>
@@ -263,14 +263,14 @@ namespace FusionIK
         /// </summary>
         private void RandomMove()
         {
-            List<float> starting = GetStarting();
+            List<float> start = GetStarting();
 
             // Solve for random target.
-            RandomMoveResults(starting, out Vector3 position, out Quaternion rotation);
+            RandomMoveResults(start, out Vector3 position, out Quaternion rotation);
             _targetPosition = position;
             _targetRotation = rotation;
 
-            MovePerform(starting);
+            MovePerform(start);
         }
 
         /// <summary>

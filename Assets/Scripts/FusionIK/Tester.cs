@@ -64,7 +64,7 @@ namespace FusionIK
             }
             
             // Get all results.
-            RandomMoveResults(lastPose ?? R.GetJoints(), out Vector3 _, out Quaternion _);
+            RandomMoveResults(starting ?? R.GetJoints(), out Vector3 _, out Quaternion _);
 
             // Add all results.
             foreach (Details result in results)
@@ -119,7 +119,7 @@ namespace FusionIK
             Debug.Log($"{name} | Tested {++_testingCount} of {testingTotal}.");
 
             // Start at the best result for the next test.
-            lastPose = Best(results, out _).Floats;
+            starting = Best(results, out _).Floats;
         }
     }
 }

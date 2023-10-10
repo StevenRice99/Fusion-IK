@@ -67,6 +67,11 @@ namespace FusionIK
         /// Ghost for calculations.
         /// </summary>
         public VirtualRobot Virtual { get; private set; }
+        
+        /// <summary>
+        /// Middle joint values.
+        /// </summary>
+        public List<float> Middle { get; private set; }
 
         /// <summary>
         /// Get the end position and rotation of the robot.
@@ -519,6 +524,12 @@ namespace FusionIK
             Rescaling = math.PI * math.PI / (ChainLength * ChainLength);
 
             _limits = limits.ToArray();
+
+            Middle = new(_limits.Length);
+            for (int i = 0; i < _limits.Length; i++)
+            {
+                Middle.Add((_limits[i].lower + _limits[i].upper) / 2);
+            }
             
             List<float> joints = GetJoints();
             
