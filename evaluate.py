@@ -28,7 +28,7 @@ def read_file(path: str):
             fitness += float(data["Fitness"])
     # Calculate the averages.
     time = "" if success == 0 else time / success
-    fitness = 0 if success == rows else fitness / (rows - success)
+    fitness = "" if success == rows else fitness / (rows - success)
     success = success / rows * 100
     print(f"Read {path}")
     return success, time, fitness
@@ -58,15 +58,14 @@ def evaluate():
             path = os.path.join(testing, robot, mode)
             # The network inference is in its own file.
             if os.path.isfile(path):
-                if mode != "Network.csv":
-                    continue
                 success, time, fitness = read_file(path)
-                f = open(os.path.join(os.getcwd(), "Results", robot, "Network.csv"), "w")
+                f = open(os.path.join(os.getcwd(), "Results", robot, mode), "w")
+                mode = mode.replace(".csv", "")
                 if time == "":
-                    print(f"Network | Success Rate (%) = {success}% | Fitness Score = {fitness}")
+                    print(f"{mode} | Success Rate (%) = {success}% | Fitness Score = {fitness}")
                     f.write(f"Success Rate (%),Fitness Score\n{success}%,{fitness}")
                 else:
-                    print(f"Network | Success Rate (%) = {success}% | Move Time (s) = {time} s | Fitness Score = {fitness}")
+                    print(f"{mode} | Success Rate (%) = {success}% | Move Time (s) = {time} s | Fitness Score = {fitness}")
                     f.write(f"Success Rate (%),Move Time (s),Fitness Score\n{success}%,{time},{fitness}")
                 f.close()
                 continue
@@ -82,80 +81,87 @@ def evaluate():
                 success, time, fitness = read_file(file)
                 results[timeout][mode] = {"Success": success, "Time": time, "Fitness": fitness}
         # Write the results to CSV.
+        modes = ["Bio IK", "Fusion IK Large", "Fusion IK Small", "Fusion IK Minimal", "Iterative Fusion IK Large", "Iterative Fusion IK Small", "Exhaustive Fusion IK Large", "Exhaustive Fusion IK Small"]
+        longest = 0
+        s = "Timeout (ms)"
+        for mode in modes:
+            s += f",{mode}"
+            length = len(mode)
+            if length > longest:
+                longest = length
         for file in ["Success Rate (%).csv", "Move Time (s).csv", "Fitness Score.csv"]:
             f = open(os.path.join(os.getcwd(), "Results", robot, file), "w")
-            f.write("Timeout (ms),Bio IK,Fusion IK,Iterative Fusion IK,Exhaustive Fusion IK")
+            f.write(s)
             f.close()
         results = dict(sorted(results.items()))
         for timeout in results:
-            b_success = results[timeout]["Bio IK"]["Success"]
-            f_success = results[timeout]["Fusion IK"]["Success"]
-            i_success = results[timeout]["Iterative Fusion IK"]["Success"]
-            e_success = results[timeout]["Exhaustive Fusion IK"]["Success"]
-            b_time = results[timeout]["Bio IK"]["Time"]
-            f_time = results[timeout]["Fusion IK"]["Time"]
-            i_time = results[timeout]["Iterative Fusion IK"]["Time"]
-            e_time = results[timeout]["Exhaustive Fusion IK"]["Time"]
-            b_fitness = results[timeout]["Bio IK"]["Fitness"]
-            f_fitness = results[timeout]["Fusion IK"]["Fitness"]
-            i_fitness = results[timeout]["Iterative Fusion IK"]["Fitness"]
-            e_fitness = results[timeout]["Exhaustive Fusion IK"]["Fitness"]
+            c_timeout = f"Timeout (ms) = {timeout} ms"
+            padding = max(len(c_timeout), longest)
+            c_timeout = c_timeout.ljust(padding)
+            c_padding = "".ljust(padding, "-")
+            success = {}
+            time = {}
+            fitness = {}
+            titles = {"h": f"Timeout (ms) = {timeout} ms".ljust(padding)}
+            for mode in modes:
+                if results[timeout][mode] is None:
+                    success[mode] = ""
+                    time[mode] = ""
+                    fitness[mode] = ""
+                    continue
+                success[mode] = f"{results[timeout][mode]['Success']}%"
+                time[mode] = results[timeout][mode]["Time"]
+                fitness[mode] = f"{results[timeout][mode]['Fitness']}"
+                titles[mode] = mode.ljust(padding)
+            s = f"\n{timeout}"
+            padding = len("Success Rate (%)")
+            for mode in success:
+                s += f",{success[mode]}"
+                length = len(success[mode])
+                if length > padding:
+                    padding = length
             f = open(os.path.join(os.getcwd(), "Results", robot, "Success Rate (%).csv"), "a")
-            f.write(f"\n{timeout},{b_success}%,{f_success}%,{i_success}%,{e_success}")
+            f.write(s)
             f.close()
+            h_success = "Success Rate (%)".ljust(padding)
+            p_success = "".ljust(padding, "-")
+            for mode in success:
+                success[mode] = success[mode].ljust(padding)
+            s = f"\n{timeout}"
+            padding = len("Move Time (s)")
+            for mode in time:
+                s += f",{time[mode]}"
+                time[mode] = "-" if time[mode] == "" else f"{time[mode]} s"
+                length = len(time[mode])
+                if length > padding:
+                    padding = length
             f = open(os.path.join(os.getcwd(), "Results", robot, "Move Time (s).csv"), "a")
-            f.write(f"\n{timeout},{b_time},{f_time},{i_time},{e_time}")
+            f.write(s)
             f.close()
+            h_time = "Move Time (s)".ljust(padding)
+            p_time = "".ljust(padding, "-")
+            for mode in time:
+                time[mode] = time[mode].ljust(padding)
+            s = f"\n{timeout}"
+            padding = len("Fitness Score")
+            for mode in fitness:
+                s += f",{fitness[mode]}"
+                length = len(fitness[mode])
+                if length > padding:
+                    padding = length
             f = open(os.path.join(os.getcwd(), "Results", robot, "Fitness Score.csv"), "a")
-            f.write(f"\n{timeout},{b_fitness},{f_fitness},{i_fitness},{e_fitness}")
+            f.write(s)
             f.close()
-            b_success = f"{b_success}%"
-            f_success = f"{f_success}%"
-            i_success = f"{i_success}%"
-            e_success = f"{e_success}%"
-            b_time = "-" if b_time == "" else f"{str(b_time)} s"
-            f_time = "-" if f_time == "" else f"{str(f_time)} s"
-            i_time = "-" if i_time == "" else f"{str(i_time)} s"
-            e_time = "-" if e_time == "" else f"{str(e_time)} s"
-            b_fitness = str(b_fitness)
-            f_fitness = str(f_fitness)
-            i_fitness = str(i_fitness)
-            e_fitness = str(e_fitness)
-            c = max(len(f"Timeout (ms) = {timeout} ms"), len("Exhaustive Fusion IK"))
-            s = max(len("Success Rate (%)"), len(b_success), len(f_success), len(i_success), len(e_success))
-            t = max(len("Move Time (s)"), len(b_time), len(f_time), len(i_time), len(e_time))
-            f = max(len("Fitness Score"), len(b_fitness), len(f_fitness), len(i_fitness), len(i_time))
-            c_h = f"Timeout (ms) = {timeout} ms".ljust(c)
-            c_b = "Bio IK".ljust(c)
-            c_f = "Fusion IK".ljust(c)
-            c_i = "Iterative Fusion IK".ljust(c)
-            c_e = "Exhaustive Fusion IK".ljust(c)
-            c_p = "".ljust(c, "-")
-            b_success = b_success.ljust(s)
-            f_success = f_success.ljust(s)
-            i_success = i_success.ljust(s)
-            e_success = e_success.ljust(s)
-            h_success = "Success Rate (%)".ljust(s)
-            p_success = "".ljust(s, "-")
-            b_time = b_time.ljust(t)
-            f_time = f_time.ljust(t)
-            i_time = i_time.ljust(t)
-            e_time = e_time.ljust(t)
-            h_time = "Move Time (s)".ljust(t)
-            p_time = "".ljust(t, "-")
-            b_fitness = b_fitness.ljust(f)
-            f_fitness = f_fitness.ljust(f)
-            i_fitness = i_fitness.ljust(f)
-            e_fitness = e_fitness.ljust(f)
-            h_fitness = "Fitness Score".ljust(f)
-            p_fitness = "".ljust(f, "-")
-            print(f"\n"
-                  f"{c_h} | {h_success} | {h_time} | {h_fitness}\n"
-                  f"{c_p}-|-{p_success}-|-{p_time}-|-{p_fitness}-\n"
-                  f"{c_b} | {b_success} | {b_time} | {b_fitness}\n"
-                  f"{c_f} | {f_success} | {f_time} | {f_fitness}\n"
-                  f"{c_i} | {i_success} | {i_time} | {i_fitness}\n"
-                  f"{c_e} | {e_success} | {e_time} | {e_fitness}")
+            h_fitness = "Fitness Score".ljust(padding)
+            p_fitness = "".ljust(padding, "-")
+            for mode in fitness:
+                fitness[mode] = fitness[mode].ljust(padding)
+            s = (f"\n"
+                 f"{c_timeout} | {h_success} | {h_time} | {h_fitness}\n"
+                 f"{c_padding}-|-{p_success}-|-{p_time}-|-{p_fitness}-")
+            for mode in success:
+                s += f"\n{titles[mode]} | {success[mode]} | {time[mode]} | {fitness[mode]}"
+            print(s)
 
 
 if __name__ == '__main__':
