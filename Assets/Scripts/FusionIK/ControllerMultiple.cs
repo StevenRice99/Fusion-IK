@@ -92,7 +92,7 @@ namespace FusionIK
                 return null;
             }
 
-            if (solverMode != Robot.SolverMode.BioIk && ((!minimal && !r.Properties.NormalNetworkValid) || (minimal && !r.Properties.MinimalNetworkValid)))
+            if (solverMode != Robot.SolverMode.BioIk && ((!minimal && !r.Properties.StandardNetworkValid) || (minimal && !r.Properties.MinimalNetworkValid)))
             {
                 Destroy(go);
                 return null;

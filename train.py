@@ -194,7 +194,7 @@ def save(robot: str, minimal: bool, net, best, epoch: int, score: float, joints:
 
 def train(epochs: int, batch: int):
     """
-    Train robot joint networks.
+    Train robot networks.
     :param epochs: Number of epochs to train for.
     :param batch: Batch size.
     :return: Nothing.
@@ -204,8 +204,7 @@ def train(epochs: int, batch: int):
         batch = 1
     if epochs < 1:
         epochs = 1
-    print(f"Fusion-IK Training")
-    print(f"Running on GPU with CUDA {torch.version.cuda}." if torch.cuda.is_available() else "Running on CPU.")
+    print(f"Fusion IK training running on GPU with CUDA {torch.version.cuda}." if torch.cuda.is_available() else "Fusion IK training running on CPU.")
     # Check if there is data to train on.
     if not os.path.exists(os.path.join(os.getcwd(), "Training")):
         print("No data to train on.")
@@ -215,7 +214,7 @@ def train(epochs: int, batch: int):
         if not os.path.isdir(os.path.join(os.getcwd(), "Training", robot)):
             continue
         for minimal in [False, True]:
-            mode = "Minimal.csv" if minimal else "Normal.csv"
+            mode = "Minimal.csv" if minimal else "Standard.csv"
             if not os.path.exists(os.path.join(os.getcwd(), "Training", robot, mode)):
                 continue
             df = pd.read_csv(os.path.join(os.getcwd(), "Training", robot, mode))

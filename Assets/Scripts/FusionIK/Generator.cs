@@ -153,7 +153,7 @@ namespace FusionIK
             
             File.AppendAllText(_path, s);
             
-            string doing = _minimal ? "Minimal" : "Normal";
+            string doing = _minimal ? "Minimal" : "Standard";
             Debug.Log($"{R.Properties.name} | {doing} | Generated {++_generatedCount} of {generatedTotal}.");
             
             // Update the pose to start at.
@@ -174,7 +174,7 @@ namespace FusionIK
                 return;
             }
 
-            string doing = _minimal ? "Minimal" : "Normal";
+            string doing = _minimal ? "Minimal" : "Standard";
             _path = Path.Combine(_path, $"{doing}.csv");
             
             // Read total from file in case it exceeds amount.
