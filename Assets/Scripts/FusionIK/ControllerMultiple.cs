@@ -10,6 +10,10 @@ namespace FusionIK
     [DisallowMultipleComponent]
     public class ControllerMultiple : Controller
     {
+        /// <summary>
+        /// Create the robots.
+        /// </summary>
+        /// <returns>The robots that were created.</returns>
         protected Robot[] CreateRobots()
         {
             // Create a robot for every movement type.
@@ -21,13 +25,16 @@ namespace FusionIK
                 robots.Add(r);
                 for (Robot.SolverMode mode = Robot.SolverMode.Network; mode <= Robot.SolverMode.IterativeFusionIk; mode++)
                 {
-                    for (Robot.NetworkUsed network = Robot.NetworkUsed.Large; network <= Robot.NetworkUsed.Minimal; network++)
+                    r = CreateRobot(mode);
+                    if (r != null)
                     {
-                        r = CreateRobot(mode, network);
-                        if (r != null)
-                        {
-                            robots.Add(r);
-                        }
+                        robots.Add(r);
+                    }
+                    
+                    r = CreateRobot(mode, true);
+                    if (r != null)
+                    {
+                        robots.Add(r);
                     }
                 }
             }
@@ -35,9 +42,15 @@ namespace FusionIK
             return robots.ToArray();
         }
 
-        private Robot CreateRobot(Robot.SolverMode solverMode, Robot.NetworkUsed networkUsed = Robot.NetworkUsed.Large)
+        /// <summary>
+        /// Create a robot.
+        /// </summary>
+        /// <param name="solverMode">The mode to solve in.</param>
+        /// <param name="minimal">If it is a minimal network.</param>
+        /// <returns>The robot if it was created, false otherwise.</returns>
+        private Robot CreateRobot(Robot.SolverMode solverMode, bool minimal = false)
         {
-            if (networkUsed == Robot.NetworkUsed.Minimal && solverMode is Robot.SolverMode.ExhaustiveFusionIk or Robot.SolverMode.IterativeFusionIk)
+            if (minimal && solverMode is Robot.SolverMode.ExhaustiveFusionIk or Robot.SolverMode.IterativeFusionIk)
             {
                 return null;
             }
@@ -50,14 +63,14 @@ namespace FusionIK
                 return null;
             }
 
-            if (solverMode != Robot.SolverMode.BioIk && ((networkUsed == Robot.NetworkUsed.Large && !r.Properties.LargeNetworkValid) || (networkUsed == Robot.NetworkUsed.Small && !r.Properties.SmallNetworkValid) || (networkUsed == Robot.NetworkUsed.Minimal && !r.Properties.MinimalNetworkValid)))
+            if (solverMode != Robot.SolverMode.BioIk && ((!minimal && !r.Properties.NormalNetworkValid) || (minimal && !r.Properties.MinimalNetworkValid)))
             {
                 Destroy(go);
                 return null;
             }
 
             r.mode = solverMode;
-            r.networkUsed = networkUsed;
+            r.minimal = minimal;
             go.name = $"{r.Properties.name} {r}";
             
             return r;

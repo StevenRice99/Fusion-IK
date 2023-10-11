@@ -139,7 +139,7 @@ namespace FusionIK
             // Run through neural networks if it should.
             if (details.robot.mode != Robot.SolverMode.BioIk)
             {
-                List<float> starting = details.robot.networkUsed == Robot.NetworkUsed.Minimal ? null : details.robot.GetJoints();
+                List<float> starting = details.robot.minimal ? null : details.robot.GetJoints();
                 
                 details.Start();
                 List<float> joints = details.robot.RunNetwork(details.robot.PrepareInputs(targetPosition, targetRotation, starting));

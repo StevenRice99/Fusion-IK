@@ -150,10 +150,10 @@ namespace FusionIK
                     s += ",";
                 }
             }
-                
+            
             File.AppendAllText(_path, s);
             
-            string doing = _minimal ? "Minimal" : "Full";
+            string doing = _minimal ? "Minimal" : "Normal";
             Debug.Log($"{name} | {doing} generated {++_generatedCount} of {generatedTotal}.");
             
             // Update the pose to start at.
@@ -174,7 +174,7 @@ namespace FusionIK
                 return;
             }
 
-            string doing = _minimal ? "Minimal" : "Full";
+            string doing = _minimal ? "Minimal" : "Normal";
             _path = Path.Combine(_path, $"{doing}.csv");
             
             // Read total from file in case it exceeds amount.

@@ -27,16 +27,6 @@ namespace FusionIK
             ExhaustiveFusionIk,
             IterativeFusionIk
         }
-        
-        /// <summary>
-        /// The network to use for a Fusion IK variation.
-        /// </summary>
-        public enum NetworkUsed
-        {
-            Large,
-            Small,
-            Minimal
-        }
 
         /// <summary>
         /// The properties of the robot.
@@ -93,11 +83,8 @@ namespace FusionIK
         [NonSerialized]
         public SolverMode mode;
 
-        /// <summary>
-        /// The network to use.
-        /// </summary>
         [NonSerialized]
-        public NetworkUsed networkUsed;
+        public bool minimal;
 
         /// <summary>
         /// The root joint of the robot.
@@ -135,14 +122,9 @@ namespace FusionIK
         private float[] _currentSpeeds;
 
         /// <summary>
-        /// The large network worker.
+        /// The normal network worker.
         /// </summary>
-        private IWorker _largeWorker;
-
-        /// <summary>
-        /// The small network worker.
-        /// </summary>
-        private IWorker _smallWorker;
+        private IWorker _normalWorker;
 
         /// <summary>
         /// The minimal network worker.
@@ -155,19 +137,21 @@ namespace FusionIK
         /// <returns>A name for a robot.</returns>
         public override string ToString()
         {
+            string minimalString = minimal ? " Minimal" : string.Empty;
+            
             switch (mode)
             {
                 case SolverMode.BioIk:
                     return "Bio IK";
                 case SolverMode.Network:
-                    return $"Network {networkUsed}";
+                    return $"Network{minimalString}";
                 case SolverMode.FusionIk:
-                    return $"Fusion IK {networkUsed}";
+                    return $"Fusion IK{minimalString}";
                 case SolverMode.ExhaustiveFusionIk:
-                    return $"Exhaustive Fusion IK {networkUsed}";
+                    return "Exhaustive Fusion IK";
                 case SolverMode.IterativeFusionIk:
                 default:
-                    return $"Iterative Fusion IK {networkUsed}";
+                    return "Iterative Fusion IK";
             }
         }
 
@@ -430,12 +414,7 @@ namespace FusionIK
             float[] forwards = inputs.ToArray();
             Tensor input = new(1, 1, 1, forwards.Length, forwards, "INPUTS");
 
-            IWorker worker = networkUsed switch
-            {
-                NetworkUsed.Large => _largeWorker,
-                NetworkUsed.Small => _smallWorker,
-                _ => _minimalWorker
-            };
+            IWorker worker = minimal ? _minimalWorker : _normalWorker;
 
             // Run the current joint network.
             worker.Execute(input);
@@ -701,37 +680,21 @@ namespace FusionIK
                 j.UpdateData();
             }
 
-            NetworkUsed original = networkUsed;
+            bool original = minimal;
 
             // Setup large network.
-            if (properties.LargeNetworkValid)
+            if (properties.NormalNetworkValid)
             {
-                _largeWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledLargeNetwork);
+                _normalWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledNormalNetwork);
 
-                if (_largeWorker != null)
+                if (_normalWorker != null)
                 {
-                    networkUsed = NetworkUsed.Large;
+                    minimal = false;
                     RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
                 }
                 else
                 {
-                    _largeWorker?.Dispose();
-                }
-            }
-
-            // Setup small network.
-            if (properties.SmallNetworkValid)
-            {
-                _smallWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledSmallNetwork);
-
-                if (_smallWorker != null)
-                {
-                    networkUsed = NetworkUsed.Small;
-                    RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
-                }
-                else
-                {
-                    _smallWorker?.Dispose();
+                    _normalWorker?.Dispose();
                 }
             }
 
@@ -742,7 +705,7 @@ namespace FusionIK
 
                 if (_minimalWorker != null)
                 {
-                    networkUsed = NetworkUsed.Minimal;
+                    minimal = true;
                     RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity));
                 }
                 else
@@ -751,7 +714,7 @@ namespace FusionIK
                 }
             }
 
-            networkUsed = original;
+            minimal = original;
 
             Virtual = new(this);
         }
@@ -801,8 +764,7 @@ namespace FusionIK
 
         private void OnDestroy()
         {
-            _largeWorker?.Dispose();
-            _smallWorker?.Dispose();
+            _normalWorker?.Dispose();
             _minimalWorker?.Dispose();
         }
     }

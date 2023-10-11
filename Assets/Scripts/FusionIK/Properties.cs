@@ -71,11 +71,8 @@ namespace FusionIK
         private int kept = 10;
 
         [Header("Networks")]
-        [Tooltip("Large network.")]
-        public NNModel largeNetwork;
-
-        [Tooltip("Small network.")]
-        public NNModel smallNetwork;
+        [Tooltip("Normal network.")]
+        public NNModel normalNetwork;
 
         [Tooltip("Minimal network.")]
         public NNModel minimalNetwork;
@@ -90,31 +87,20 @@ namespace FusionIK
         private Material transparent;
 
         /// <summary>
-        /// Check if networks are valid.
+        /// Check if the normal network is valid.
         /// </summary>
-        public bool LargeNetworkValid => largeNetwork != null;
+        public bool NormalNetworkValid => normalNetwork != null;
 
         /// <summary>
-        /// Check if networks are valid.
-        /// </summary>
-        public bool SmallNetworkValid => smallNetwork != null;
-
-        /// <summary>
-        /// Check if networks are valid.
+        /// Check if the minimal network is valid.
         /// </summary>
         public bool MinimalNetworkValid => minimalNetwork != null;
         
         /// <summary>
-        /// Compile the large network.
+        /// Compile the normal network.
         /// </summary>
-        /// <returns>The large network compiled.</returns>
-        public Model CompiledLargeNetwork => LargeNetworkValid ? ModelLoader.Load(largeNetwork) : null;
-        
-        /// <summary>
-        /// Compile the small network.
-        /// </summary>
-        /// <returns>The small network compiled.</returns>
-        public Model CompiledSmallNetwork => SmallNetworkValid ? ModelLoader.Load(smallNetwork) : null;
+        /// <returns>The normal network compiled.</returns>
+        public Model CompiledNormalNetwork => NormalNetworkValid ? ModelLoader.Load(normalNetwork) : null;
         
         /// <summary>
         /// Compile the minimal network.

@@ -54,29 +54,17 @@ class JointNetwork(nn.Module):
     The neural network to train.
     """
 
-    def __init__(self, joints: int, mode: str):
+    def __init__(self, joints: int, minimal: bool):
         """
         Create the neural network.
         :param joints: The number of joints.
-        :param mode: The mode to set up for.
+        :param minimal: If this is a minimal network.
         """
-        # Define the size of each joint network.
-        initial_size = 7 if mode == "Minimal" else joints + 7
-        hidden_layers = 0 if mode == "Minimal" else 2
-        hidden_size = initial_size ** 2 if mode == "Large" else initial_size
         super().__init__()
-        # Take in all joint, position, and rotation values.
+        # Define the network architecture.
         self.layers = nn.Sequential(
-            nn.Linear(initial_size, joints if mode == "Minimal" else hidden_size),
-            nn.ReLU()
+            nn.Linear(7 if minimal else joints + 7, joints)
         )
-        # Apply batch normalization and dropout to the hidden layers.
-        for i in range(hidden_layers):
-            self.layers.append(nn.Linear(hidden_size, hidden_size))
-            self.layers.append(nn.ReLU())
-        # Outputs for joints.
-        self.layers.append(nn.Linear(7 if mode == "Minimal" else hidden_size, joints))
-        self.layers.append(nn.ReLU())
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters())
         # Run on GPU if available.
@@ -169,11 +157,11 @@ def test(net, dataloader):
     return (1 - accuracy / len(dataloader)) * 100
 
 
-def save(robot: str, mode: str, net, best, epoch: int, score: float, joints: int):
+def save(robot: str, minimal: bool, net, best, epoch: int, score: float, joints: int):
     """
     Save the model and ONNX export.
     :param robot: The robot the network is for.
-    :param mode: The mode for the network.
+    :param minimal: If this is a minimal network.
     :param net: The network.
     :param best: The best network model.
     :param epoch: The current epoch.
@@ -187,15 +175,15 @@ def save(robot: str, mode: str, net, best, epoch: int, score: float, joints: int
         'Optimizer': net.optimizer.state_dict(),
         'Epoch': epoch,
         'Score': score
-    }, os.path.join(os.getcwd(), "Networks", robot, f"{mode}.pt"))
+    }, os.path.join(os.getcwd(), "Networks", robot, "Minimal.pt" if minimal else "Normal.pt"))
     # Store the current training state.
     old = net.state_dict()
     # Export the best state.
     net.load_state_dict(best)
     torch.onnx.export(
         net,
-        to_tensor(torch.randn(1, 7 if mode == "Minimal" else joints + 7, dtype=torch.float32)),
-        os.path.join(os.getcwd(), "Networks", robot, f"{mode}.onnx"),
+        to_tensor(torch.randn(1, 7 if minimal else joints + 7, dtype=torch.float32)),
+        os.path.join(os.getcwd(), "Networks", robot, "Minimal.onnx" if minimal else "Normal.onnx"),
         export_params=True,
         opset_version=9,
         do_constant_folding=True,
@@ -228,11 +216,12 @@ def train(epochs: int, batch: int):
     for robot in robots:
         if not os.path.isdir(os.path.join(os.getcwd(), "Training", robot)):
             continue
-        for mode in ["Large", "Small", "Minimal"]:
-            file = "Minimal.csv" if mode == "Minimal" else "Full.csv"
-            if not os.path.exists(os.path.join(os.getcwd(), "Training", robot, file)):
+        for minimal in [False, True]:
+            mode = "Minimal.csv" if minimal else "Normal.csv"
+            if not os.path.exists(os.path.join(os.getcwd(), "Training", robot, mode)):
                 continue
-            df = pd.read_csv(os.path.join(os.getcwd(), "Training", robot, file))
+            df = pd.read_csv(os.path.join(os.getcwd(), "Training", robot, mode))
+            mode = mode.replace(".csv", "")
             # If there are no joints meaning the data is invalid, exit.
             joints = 0
             while f"O{joints + 1}" in df.columns:
@@ -240,7 +229,6 @@ def train(epochs: int, batch: int):
             if joints == 0:
                 print(f"{robot} | {mode} | No joint values.")
                 continue
-            print(f"{robot} | {mode} | {len(df)} records")
             # Ensure folder to save models exists.
             if not os.path.exists(os.path.join(os.getcwd(), "Networks")):
                 os.mkdir(os.path.join(os.getcwd(), "Networks"))
@@ -249,11 +237,11 @@ def train(epochs: int, batch: int):
             # Setup datasets.
             dataset = DataLoader(InverseKinematicsDataset(df), batch_size=batch, shuffle=False)
             # Define the network.
-            net = JointNetwork(joints, mode)
+            net = JointNetwork(joints, minimal)
             # Check if an existing net exists for this joint, load it.
-            if os.path.exists(os.path.join(os.getcwd(), "Networks", robot, f"{mode}.pt")):
+            if os.path.exists(os.path.join(os.getcwd(), "Networks", robot, "Minimal.pt" if minimal else "Normal.pt")):
                 try:
-                    saved = torch.load(os.path.join(os.getcwd(), "Networks", robot, f"{mode}.pt"))
+                    saved = torch.load(os.path.join(os.getcwd(), "Networks", robot, "Minimal.pt" if minimal else "Normal.pt"))
                     epoch = saved['Epoch']
                     score = saved['Score']
                     best = saved['Best']
@@ -267,7 +255,7 @@ def train(epochs: int, batch: int):
                 epoch = 1
                 best = net.state_dict()
                 score = test(net, dataset)
-                save(robot, mode, net, best, epoch, score, joints)
+                save(robot, minimal, net, best, epoch, score, joints)
             # Train for set epochs.
             while True:
                 # Exit once done.
@@ -287,7 +275,7 @@ def train(epochs: int, batch: int):
                     score = temp
                 # Save data.
                 epoch += 1
-                save(robot, mode, net, best, epoch, score, joints)
+                save(robot, minimal, net, best, epoch, score, joints)
 
 
 if __name__ == '__main__':
