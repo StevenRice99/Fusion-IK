@@ -23,9 +23,7 @@ namespace FusionIK
         {
             BioIk,
             Network,
-            FusionIk,
-            ExhaustiveFusionIk,
-            IterativeFusionIk
+            FusionIk
         }
 
         /// <summary>
@@ -84,6 +82,12 @@ namespace FusionIK
         public SolverMode mode;
 
         [NonSerialized]
+        public bool exhaustive;
+
+        [NonSerialized]
+        public bool iterative;
+
+        [NonSerialized]
         public bool minimal;
 
         /// <summary>
@@ -137,31 +141,36 @@ namespace FusionIK
         /// <returns>A name for a robot.</returns>
         public override string ToString()
         {
-            string minimalString = minimal ? " Minimal" : string.Empty;
-            
-            switch (mode)
-            {
-                case SolverMode.BioIk:
-                    return "Bio IK";
-                case SolverMode.Network:
-                    return $"Network{minimalString}";
-                case SolverMode.FusionIk:
-                    return $"Fusion IK{minimalString}";
-                case SolverMode.ExhaustiveFusionIk:
-                    return "Exhaustive Fusion IK";
-                case SolverMode.IterativeFusionIk:
-                default:
-                    return "Iterative Fusion IK";
-            }
+            return (exhaustive ? "Exhaustive " : string.Empty) + (iterative ? "Iterative " : string.Empty) +
+                   (minimal ? "Minimal " : string.Empty) + mode switch
+                   {
+                       SolverMode.BioIk => "Bio IK",
+                       SolverMode.Network => "Network",
+                       _ => "Fusion IK"
+                   };
         }
 
         /// <summary>
         /// Get a color for display.
         /// </summary>
-        /// <param name="mode">The mode of a robot.</param>
         /// <returns>A color for a robot.</returns>
-        public static Color RobotColor(SolverMode mode)
+        public Color ToColor()
         {
+            if (minimal)
+            {
+                return Color.white;
+            }
+            
+            if (exhaustive)
+            {
+                return iterative ? new(1, 0.71f, 0.008f) : Color.yellow;
+            }
+
+            if (exhaustive)
+            {
+                return new(1, 0.5f, 0);
+            }
+            
             switch (mode)
             {
                 case SolverMode.BioIk:
@@ -169,22 +178,9 @@ namespace FusionIK
                 case SolverMode.Network:
                     return Color.magenta;
                 case SolverMode.FusionIk:
-                    return Color.white;
-                case SolverMode.ExhaustiveFusionIk:
-                    return Color.yellow;
-                case SolverMode.IterativeFusionIk:
                 default:
-                    return new(1, 0.5f, 0);
+                    return new(0.5f, 1, 1);
             }
-        }
-
-        /// <summary>
-        /// Get the color for the robot.
-        /// </summary>
-        /// <returns>The color for the robot.</returns>
-        public Color RobotColor()
-        {
-            return RobotColor(mode);
         }
 
         /// <summary>

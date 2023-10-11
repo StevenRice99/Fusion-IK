@@ -154,7 +154,7 @@ namespace FusionIK
             File.AppendAllText(_path, s);
             
             string doing = _minimal ? "Minimal" : "Normal";
-            Debug.Log($"{name} | {doing} generated {++_generatedCount} of {generatedTotal}.");
+            Debug.Log($"{R.Properties.name} | {doing} | Generated {++_generatedCount} of {generatedTotal}.");
             
             // Update the pose to start at.
             starting = results[0].Floats;

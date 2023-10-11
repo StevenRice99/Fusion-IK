@@ -23,20 +23,42 @@ namespace FusionIK
             if (r != null)
             {
                 robots.Add(r);
-                for (Robot.SolverMode mode = Robot.SolverMode.Network; mode <= Robot.SolverMode.IterativeFusionIk; mode++)
-                {
-                    r = CreateRobot(mode);
-                    if (r != null)
-                    {
-                        robots.Add(r);
-                    }
-                    
-                    r = CreateRobot(mode, true);
-                    if (r != null)
-                    {
-                        robots.Add(r);
-                    }
-                }
+            }
+
+            r = CreateRobot(Robot.SolverMode.FusionIk);
+            if (r != null)
+            {
+                robots.Add(r);
+            }
+
+            r = CreateRobot(Robot.SolverMode.Network);
+            if (r != null)
+            {
+                robots.Add(r);
+            }
+
+            r = CreateRobot(Robot.SolverMode.FusionIk, true);
+            if (r != null)
+            {
+                robots.Add(r);
+            }
+
+            r = CreateRobot(Robot.SolverMode.FusionIk, iterative:true);
+            if (r != null)
+            {
+                robots.Add(r);
+            }
+
+            r = CreateRobot(Robot.SolverMode.FusionIk, true, true);
+            if (r != null)
+            {
+                robots.Add(r);
+            }
+
+            r = CreateRobot(Robot.SolverMode.FusionIk, minimal:true);
+            if (r != null)
+            {
+                robots.Add(r);
             }
 
             return robots.ToArray();
@@ -46,11 +68,18 @@ namespace FusionIK
         /// Create a robot.
         /// </summary>
         /// <param name="solverMode">The mode to solve in.</param>
+        /// <param name="exhaustive">If exhaustive Fusion IK should be used.</param>
+        /// <param name="iterative">If iterative Fusion IK should be used.</param>
         /// <param name="minimal">If it is a minimal network.</param>
         /// <returns>The robot if it was created, false otherwise.</returns>
-        private Robot CreateRobot(Robot.SolverMode solverMode, bool minimal = false)
+        private Robot CreateRobot(Robot.SolverMode solverMode, bool exhaustive = false, bool iterative = false, bool minimal = false)
         {
-            if (minimal && solverMode is Robot.SolverMode.ExhaustiveFusionIk or Robot.SolverMode.IterativeFusionIk)
+            if (solverMode != Robot.SolverMode.FusionIk && (exhaustive || iterative || minimal))
+            {
+                return null;
+            }
+            
+            if (minimal && (exhaustive || iterative))
             {
                 return null;
             }
@@ -70,6 +99,8 @@ namespace FusionIK
             }
 
             r.mode = solverMode;
+            r.exhaustive = exhaustive;
+            r.iterative = iterative;
             r.minimal = minimal;
             go.name = $"{r.Properties.name} {r}";
             
@@ -79,10 +110,9 @@ namespace FusionIK
         /// <summary>
         /// Get the results of all robots randomly moving for multiple generation values.
         /// </summary>
-        /// <param name="starting">The starting joint values.</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        protected void RandomMoveResults(List<float> starting, out Vector3 position, out Quaternion rotation)
+        protected void RandomMoveResults(out Vector3 position, out Quaternion rotation)
         {
             // Move to robot to a random position.
             R.Snap(R.RandomJoints());
@@ -93,16 +123,15 @@ namespace FusionIK
             position = target.position;
             rotation = target.rotation;
 
-            MoveResults(starting, position, rotation);
+            MoveResults(position, rotation);
         }
 
         /// <summary>
         /// Get the results of all robots moving for multiple generation values.
         /// </summary>
-        /// <param name="starting">The starting joint values.</param>
         /// <param name="position">The position to reach.</param>
         /// <param name="rotation">The rotation to reach.</param>
-        protected void MoveResults(List<float> starting, Vector3 position, Quaternion rotation)
+        protected void MoveResults(Vector3 position, Quaternion rotation)
         {
             for (int i = 0; i < results.Length; i++)
             {

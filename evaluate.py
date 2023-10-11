@@ -81,7 +81,7 @@ def evaluate():
                 success, time, fitness = read_file(file)
                 results[timeout][mode] = {"Success": success, "Time": time, "Fitness": fitness}
         # Write the results to CSV.
-        modes = ["Bio IK", "Fusion IK", "Iterative Fusion IK", "Exhaustive Fusion IK", "Minimal Fusion IK"]
+        modes = ["Bio IK", "Fusion IK", "Iterative Fusion IK", "Exhaustive Fusion IK", "Exhaustive Iterative Fusion IK", "Minimal Fusion IK"]
         longest = 0
         s = "Timeout (ms)"
         for mode in modes:

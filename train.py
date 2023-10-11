@@ -61,10 +61,8 @@ class JointNetwork(nn.Module):
         :param minimal: If this is a minimal network.
         """
         super().__init__()
-        # Define the network architecture.
-        self.layers = nn.Sequential(
-            nn.Linear(7 if minimal else joints + 7, joints)
-        )
+        # Define the network.
+        self.layers = nn.Linear(7 if minimal else joints + 7, joints)
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters())
         # Run on GPU if available.

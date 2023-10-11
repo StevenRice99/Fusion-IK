@@ -335,8 +335,8 @@ namespace FusionIK
                             continue;
                         }
 
-                        // In Bio IK, standard Fusion IK, and iterative Fusion IK create a random member.
-                        if (details.robot.mode != Robot.SolverMode.ExhaustiveFusionIk)
+                        // In Bio IK, standard Fusion IK, and iterative Fusion IK, create a random member.
+                        if (!details.robot.exhaustive)
                         {
                             RandomMember(_offspring[i]);
                             continue;
@@ -398,10 +398,10 @@ namespace FusionIK
                     }
                     
                     // Break out if there was no improvement or out of time.
-                    if ((details.robot.mode == Robot.SolverMode.IterativeFusionIk && generations >= details.robot.Properties.Generations) || !improvement || details.Done)
+                    if ((details.robot.iterative && generations >= details.robot.Properties.Generations) || !improvement || details.Done)
                     {
                         // Keep the best values and pass then into the network.
-                        if (details.robot.mode == Robot.SolverMode.IterativeFusionIk)
+                        if (details.robot.iterative)
                         {
                             // Reset the generations.
                             generations = 0;

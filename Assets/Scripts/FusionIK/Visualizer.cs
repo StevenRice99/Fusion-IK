@@ -125,7 +125,7 @@ namespace FusionIK
             for (int i = 0; i < results.Length; i++)
             {
                 // Get the color for the robot.
-                Color color = results[i].robot.RobotColor();
+                Color color = results[i].robot.ToColor();
             
                 // Create the normal material for the robot when it is the best.
                 Material material = Instantiate(R.Properties.Normal);
@@ -191,7 +191,7 @@ namespace FusionIK
             }
         }
 
-        private List<float> GetStarting()
+        private void GetStarting()
         {
             // Clear old paths.
             foreach (List<Vector3> path in _paths)
@@ -200,10 +200,10 @@ namespace FusionIK
             }
             
             // Start at the last position.
-            return starting ?? R.GetJoints();
+            starting ??= R.GetJoints();
         }
 
-        private void MovePerform(List<float> start)
+        private void MovePerform()
         {
             // Get the best robot and order the rest.
             Details best = Best(results, out _ordered);
@@ -229,13 +229,10 @@ namespace FusionIK
                 }
             }
 
-            // Store the best result.
-           starting = best.Floats;
-
             // Store the endings and snap back to the start.
             for (int i = 0; i < results.Length; i++)
             {
-                results[i].robot.Snap(start);
+                results[i].robot.Snap(starting);
             }
             Robot.PhysicsStep();
 
@@ -244,6 +241,9 @@ namespace FusionIK
             {
                 results[i].robot.Move(results[i].Floats);
             }
+
+            // Store the best result.
+            starting = best.Floats;
         }
 
         private void Move()
@@ -253,9 +253,9 @@ namespace FusionIK
                 return;
             }
             
-            List<float> start = GetStarting();
-            MoveResults(start, _targetPosition.Value, _targetRotation.Value);
-            MovePerform(start);
+            GetStarting();
+            MoveResults(_targetPosition.Value, _targetRotation.Value);
+            MovePerform();
         }
 
         /// <summary>
@@ -263,14 +263,14 @@ namespace FusionIK
         /// </summary>
         private void RandomMove()
         {
-            List<float> start = GetStarting();
+            GetStarting();
 
             // Solve for random target.
-            RandomMoveResults(start, out Vector3 position, out Quaternion rotation);
+            RandomMoveResults(out Vector3 position, out Quaternion rotation);
             _targetPosition = position;
             _targetRotation = rotation;
 
-            MovePerform(start);
+            MovePerform();
         }
 
         /// <summary>
@@ -434,7 +434,7 @@ namespace FusionIK
             float offset = results.Length * 20 + 10;
             foreach (Details data in _ordered)
             {
-                RobotLabel(Screen.height - offset, data, data.robot.ToString(), Robot.RobotColor(data.robot.mode));
+                RobotLabel(Screen.height - offset, data, data.robot.ToString(), data.robot.ToColor());
                 offset -= 20;
             }
         }
@@ -473,7 +473,7 @@ namespace FusionIK
                 
                     DrawAxis(results[i].robot);
                 
-                    GL.Color(results[i].robot.RobotColor());
+                    GL.Color(results[i].robot.ToColor());
                 
                     for (int j = 1; j < _paths[i].Count; j++)
                     {
