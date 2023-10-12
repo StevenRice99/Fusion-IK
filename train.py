@@ -173,7 +173,7 @@ def save(robot: str, minimal: bool, net, best, epoch: int, score: float, joints:
         'Optimizer': net.optimizer.state_dict(),
         'Epoch': epoch,
         'Score': score
-    }, os.path.join(os.getcwd(), "Networks", robot, "Minimal.pt" if minimal else "Normal.pt"))
+    }, os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Normal.pt"))
     # Store the current training state.
     old = net.state_dict()
     # Export the best state.
@@ -181,7 +181,7 @@ def save(robot: str, minimal: bool, net, best, epoch: int, score: float, joints:
     torch.onnx.export(
         net,
         to_tensor(torch.randn(1, 7 if minimal else joints + 7, dtype=torch.float32)),
-        os.path.join(os.getcwd(), "Networks", robot, "Minimal.onnx" if minimal else "Normal.onnx"),
+        os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.onnx" if minimal else f"{robot} Normal.onnx"),
         export_params=True,
         opset_version=9,
         do_constant_folding=True,
@@ -234,14 +234,15 @@ def train(epochs: int, batch: int):
             # Setup datasets.
             total = len(df)
             training_size = int(total * 0.8)
+            testing_size = total - training_size
             training = DataLoader(InverseKinematicsDataset(df.head(training_size)), batch_size=batch, shuffle=True)
-            testing = DataLoader(InverseKinematicsDataset(df.tail(total - training_size)), batch_size=batch, shuffle=False)
+            testing = DataLoader(InverseKinematicsDataset(df.tail(testing_size)), batch_size=batch, shuffle=False)
             # Define the network.
             net = JointNetwork(joints, minimal)
             # Check if an existing net exists for this joint, load it.
-            if os.path.exists(os.path.join(os.getcwd(), "Networks", robot, "Minimal.pt" if minimal else "Normal.pt")):
+            if os.path.exists(os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Normal.pt")):
                 try:
-                    saved = torch.load(os.path.join(os.getcwd(), "Networks", robot, "Minimal.pt" if minimal else "Normal.pt"))
+                    saved = torch.load(os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Normal.pt"))
                     epoch = saved['Epoch']
                     score = saved['Score']
                     best = saved['Best']
@@ -257,12 +258,13 @@ def train(epochs: int, batch: int):
                 score = test(net, testing)
                 save(robot, minimal, net, best, epoch, score, joints)
             # Train for set epochs.
+            core = f"{robot} | {mode} | {sum(p.numel() for p in net.parameters() if p.requires_grad)} Parameters | {training_size} Training | {testing_size} Testing | Epoch "
             while True:
                 # Exit once done.
                 if epoch > epochs:
-                    print(f"{robot} | {mode} | {score}% | {sum(p.numel() for p in net.parameters() if p.requires_grad)} Parameters")
+                    print(f"{core}{epochs}/{epochs} | {score}%")
                     break
-                msg = f"{robot} | {mode} | Epoch {epoch}/{epochs} | {score}%"
+                msg = f"{core}{epoch}/{epochs} | {score}%"
                 # Train on the training dataset.
                 net.train()
                 for inputs, outputs in tqdm(training, msg):

@@ -153,6 +153,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   robotPrefab: {fileID: 1215757785776615163, guid: 641358d386454424db09d1121e4e416f, type: 3}
+  generatedTotal: 100000
   milliseconds: 500
 --- !u!4 &573790082
 Transform:
