@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Barracuda;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
@@ -125,6 +126,18 @@ namespace FusionIK
         private float[] _currentSpeeds;
 
         /// <summary>
+        /// Worker for the standard network.
+        /// </summary>
+        [NonSerialized]
+        private IWorker _standardWorker;
+
+        /// <summary>
+        /// Worker for the minimal network.
+        /// </summary>
+        [NonSerialized]
+        private IWorker _minimalWorker;
+
+        /// <summary>
         /// Get a name for display.
         /// </summary>
         /// <returns>A name for a robot.</returns>
@@ -145,6 +158,11 @@ namespace FusionIK
         /// <returns>A color for a robot.</returns>
         public Color ToColor()
         {
+            if (mode == SolverMode.Network)
+            {
+                return minimal ? Color.magenta : new(0.5f, 0, 1);
+            }
+            
             if (minimal)
             {
                 return Color.white;
@@ -159,17 +177,8 @@ namespace FusionIK
             {
                 return new(1, 0.5f, 0);
             }
-            
-            switch (mode)
-            {
-                case SolverMode.BioIk:
-                    return Color.cyan;
-                case SolverMode.Network:
-                    return Color.magenta;
-                case SolverMode.FusionIk:
-                default:
-                    return new(0.5f, 1, 1);
-            }
+
+            return mode == SolverMode.BioIk ? Color.cyan : new(0.5f, 1, 1);
         }
 
         /// <summary>
@@ -330,6 +339,38 @@ namespace FusionIK
             }
 
             return scaled;
+        }
+
+        /// <summary>
+        /// Run the network inference.
+        /// </summary>
+        /// <param name="position">The position to reach.</param>
+        /// <param name="rotation">The rotation to reach.</param>
+        /// <param name="starting">The joints to start at.</param>
+        /// <returns>The joints to move the robot to.</returns>
+        public List<float> RunNetwork(Vector3 position, Quaternion rotation, List<float> starting = null)
+        {
+            // Get initial input values and prepare for outputs.
+            float[] inputs = PrepareInputs(position, rotation, starting);
+            Tensor input = new(1, 1, 1, inputs.Length, inputs, "INPUTS");
+
+            IWorker worker = minimal ? _minimalWorker : _standardWorker;
+
+            // Run the current joint network.
+            worker.Execute(input);
+            worker.FlushSchedule(true);
+            Tensor output = worker.PeekOutput();
+            input.Dispose();
+            
+            // Add the output and replace the input for the next joint's network.
+            List<float> outputs = new(Limits.Length);
+            for (int i = 0; i < Limits.Length; i++)
+            {
+                outputs.Add(math.clamp(output[0, 0, 0, i], 0, 1));
+            }
+            output.Dispose();
+
+            return ResultsScaled(outputs);
         }
         
         /// <summary>
@@ -635,7 +676,41 @@ namespace FusionIK
                 j.UpdateData();
             }
 
-            Properties.SetupWorkers(this);
+            bool original = minimal;
+            
+            // Setup large network.
+            if (properties.StandardNetworkValid)
+            {
+                _standardWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, ModelLoader.Load(properties.standardNetwork));
+
+                if (_standardWorker != null)
+                {
+                    minimal = false;
+                    RunNetwork(Vector3.zero, Quaternion.identity, GetJoints());
+                }
+                else
+                {
+                    _standardWorker?.Dispose();
+                }
+            }
+
+            // Setup minimal network.
+            if (properties.MinimalNetworkValid)
+            {
+                _minimalWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, ModelLoader.Load(properties.minimalNetwork));
+
+                if (_minimalWorker != null)
+                {
+                    minimal = true;
+                    RunNetwork(Vector3.zero, Quaternion.identity);
+                }
+                else
+                {
+                    _minimalWorker?.Dispose();
+                }
+            }
+
+            minimal = original;
 
             Virtual = new(this);
         }
@@ -681,6 +756,12 @@ namespace FusionIK
 
             // Set to position.
             SnapPerform(delta);
+        }
+
+        public void OnDestroy()
+        {
+            _standardWorker?.Dispose();
+            _minimalWorker?.Dispose();
         }
     }
 }

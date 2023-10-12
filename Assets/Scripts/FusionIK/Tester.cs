@@ -80,11 +80,11 @@ namespace FusionIK
                             continue;
                         }
                         
-                        file = Path.Combine(_path, "Network.csv");
+                        file = Path.Combine(_path, $"{result.robot}.csv");
                     }
                     else
                     {
-                        file = DirectoryPath(new[] {"Testing", result.robot.name, result.robot.ToString()});
+                        file = DirectoryPath(new[] {"Testing", R.Properties.name, result.robot.ToString()});
                         if (file == null)
                         {
 #if UNITY_EDITOR

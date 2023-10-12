@@ -37,6 +37,12 @@ namespace FusionIK
                 robots.Add(r);
             }
 
+            r = CreateRobot(Robot.SolverMode.Network, minimal:true);
+            if (r != null)
+            {
+                robots.Add(r);
+            }
+
             r = CreateRobot(Robot.SolverMode.FusionIk, true);
             if (r != null)
             {
@@ -74,7 +80,12 @@ namespace FusionIK
         /// <returns>The robot if it was created, false otherwise.</returns>
         private Robot CreateRobot(Robot.SolverMode solverMode, bool exhaustive = false, bool iterative = false, bool minimal = false)
         {
-            if (solverMode != Robot.SolverMode.FusionIk && (exhaustive || iterative || minimal))
+            if (solverMode == Robot.SolverMode.BioIk && minimal)
+            {
+                return null;
+            }
+            
+            if (solverMode != Robot.SolverMode.FusionIk && (exhaustive || iterative))
             {
                 return null;
             }

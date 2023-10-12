@@ -320,7 +320,7 @@ namespace FusionIK
             }
             
             GUI.color = color;
-            GUI.Label(new(10, y, 150, 20), $"{title}");
+            GUI.Label(new(10, y, 190, 20), $"{title}");
 
             string success;
             string description;
@@ -336,8 +336,8 @@ namespace FusionIK
                 description = $"{data.Fitness} Fitness Score";
             }
             
-            GUI.Label(new(160, y, 55, 20), success);
-            GUI.Label(new(225, y, Screen.width - 235, 20), description);
+            GUI.Label(new(200, y, 55, 20), success);
+            GUI.Label(new(265, y, Screen.width - 275, 20), description);
         }
 
         private void OnGUI()

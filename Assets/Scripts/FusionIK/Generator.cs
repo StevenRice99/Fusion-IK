@@ -14,7 +14,7 @@ namespace FusionIK
         [Tooltip("The total number of entries to generate for training.")]
         [Min(1)]
         [SerializeField]
-        private int generatedTotal = 250000;
+        private int generatedTotal = 100000;
         
         [Tooltip("The time the algorithm is allowed to run for.")]
         [Min(1)]
