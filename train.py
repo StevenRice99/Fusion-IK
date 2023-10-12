@@ -173,7 +173,7 @@ def save(robot: str, minimal: bool, net, best, epoch: int, score: float, joints:
         'Optimizer': net.optimizer.state_dict(),
         'Epoch': epoch,
         'Score': score
-    }, os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Normal.pt"))
+    }, os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Standard.pt"))
     # Store the current training state.
     old = net.state_dict()
     # Export the best state.
@@ -181,7 +181,7 @@ def save(robot: str, minimal: bool, net, best, epoch: int, score: float, joints:
     torch.onnx.export(
         net,
         to_tensor(torch.randn(1, 7 if minimal else joints + 7, dtype=torch.float32)),
-        os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.onnx" if minimal else f"{robot} Normal.onnx"),
+        os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.onnx" if minimal else f"{robot} Standard.onnx"),
         export_params=True,
         opset_version=9,
         do_constant_folding=True,
@@ -240,9 +240,9 @@ def train(epochs: int, batch: int):
             # Define the network.
             net = JointNetwork(joints, minimal)
             # Check if an existing net exists for this joint, load it.
-            if os.path.exists(os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Normal.pt")):
+            if os.path.exists(os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Standard.pt")):
                 try:
-                    saved = torch.load(os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Normal.pt"))
+                    saved = torch.load(os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Standard.pt"))
                     epoch = saved['Epoch']
                     score = saved['Score']
                     best = saved['Best']

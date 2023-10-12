@@ -142,7 +142,7 @@ namespace FusionIK
                 List<float> starting = details.robot.minimal ? null : details.robot.GetJoints();
                 
                 details.Start();
-                List<float> joints = details.robot.RunNetwork(details.robot.PrepareInputs(targetPosition, targetRotation, starting));
+                List<float> joints = details.robot.Properties.RunNetwork(details.robot, targetPosition, targetRotation, starting);
                 details.Stop();
 
                 seed[1] = new double[joints.Count];
@@ -350,7 +350,7 @@ namespace FusionIK
                         }
 
                         // Run the network.
-                        List<float> results = details.robot.RunNetwork(details.robot.PrepareInputs(targetPosition, targetRotation, starting));
+                        List<float> results = details.robot.Properties.RunNetwork(details.robot, targetPosition, targetRotation, starting);
                         
                         // Update the values.
                         for (int j = 0; j < _dimensionality; j++)
@@ -424,7 +424,7 @@ namespace FusionIK
                                 }
                                 
                                 // Run the network.
-                                List<float> results = details.robot.RunNetwork(details.robot.PrepareInputs(targetPosition, targetRotation, starting));
+                                List<float> results = details.robot.Properties.RunNetwork(details.robot, targetPosition, targetRotation, starting);
                                 temp[i + 2] = new double[_dimensionality];
                                 
                                 // Copy to the new seeds.

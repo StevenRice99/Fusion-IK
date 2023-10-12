@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.Barracuda;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
@@ -62,6 +61,11 @@ namespace FusionIK
         public List<float> Middle { get; private set; }
 
         /// <summary>
+        /// The joint limits of the robot.
+        /// </summary>
+        public JointLimit[] Limits { get; private set; }
+
+        /// <summary>
         /// Get the end position and rotation of the robot.
         /// </summary>
         public (Vector3 position, Quaternion rotation) EndTransform => (LastJoint.position, LastJoint.rotation);
@@ -101,11 +105,6 @@ namespace FusionIK
         private RobotJoint[] _joints;
 
         /// <summary>
-        /// The joint limits of the robot.
-        /// </summary>
-        private JointLimit[] _limits;
-
-        /// <summary>
         /// Simple reference zero values for the robot.
         /// </summary>
         private List<float> _zeros;
@@ -124,16 +123,6 @@ namespace FusionIK
         /// How fast the joints are currently moving.
         /// </summary>
         private float[] _currentSpeeds;
-
-        /// <summary>
-        /// The normal network worker.
-        /// </summary>
-        private IWorker _normalWorker;
-
-        /// <summary>
-        /// The minimal network worker.
-        /// </summary>
-        private IWorker _minimalWorker;
 
         /// <summary>
         /// Get a name for display.
@@ -246,7 +235,7 @@ namespace FusionIK
         /// <returns>The joints of the robot.</returns>
         public List<float> GetJoints()
         {
-            List<float> angles = new(_limits.Length);
+            List<float> angles = new(Limits.Length);
             Root.GetJointPositions(angles);
             return angles;
         }
@@ -257,10 +246,10 @@ namespace FusionIK
         /// <returns>Random joint values.</returns>
         public List<float> RandomJoints()
         {
-            List<float> angles = new(_limits.Length);
-            for (int i = 0; i < _limits.Length; i++)
+            List<float> angles = new(Limits.Length);
+            for (int i = 0; i < Limits.Length; i++)
             {
-                angles.Add(Random.Range(_limits[i].lower, _limits[i].upper));
+                angles.Add(Random.Range(Limits[i].lower, Limits[i].upper));
             }
 
             return angles;
@@ -337,7 +326,7 @@ namespace FusionIK
             List<float> scaled = new(joints.Count);
             for (int i = 0; i < joints.Count; i++)
             {
-                scaled.Add((joints[i] - _limits[i].lower) / (_limits[i].upper - _limits[i].lower));
+                scaled.Add((joints[i] - Limits[i].lower) / (Limits[i].upper - Limits[i].lower));
             }
 
             return scaled;
@@ -353,7 +342,7 @@ namespace FusionIK
             List<float> scaled = new(joints.Count);
             for (int i = 0; i < joints.Count; i++)
             {
-                scaled.Add(math.clamp(joints[i] * (_limits[i].upper - _limits[i].lower) + _limits[i].lower, _limits[i].lower, _limits[i].upper));
+                scaled.Add(math.clamp(joints[i] * (Limits[i].upper - Limits[i].lower) + Limits[i].lower, Limits[i].lower, Limits[i].upper));
             }
 
             return scaled;
@@ -397,36 +386,6 @@ namespace FusionIK
             inputs[offset + 6] = (targetRotation.w + 1) / 2;
 
             return inputs;
-        }
-
-        /// <summary>
-        /// Run the network inference.
-        /// </summary>
-        /// <param name="inputs">The inputs to the networks.</param>
-        /// <returns>The joints to move the robot to.</returns>
-        public List<float> RunNetwork(IEnumerable<float> inputs)
-        {
-            // Get initial input values and prepare for outputs.
-            float[] forwards = inputs.ToArray();
-            Tensor input = new(1, 1, 1, forwards.Length, forwards, "INPUTS");
-
-            IWorker worker = minimal ? _minimalWorker : _normalWorker;
-
-            // Run the current joint network.
-            worker.Execute(input);
-            worker.FlushSchedule(true);
-            Tensor output = worker.PeekOutput();
-            input.Dispose();
-            
-            // Add the output and replace the input for the next joint's network.
-            List<float> outputs = new(_limits.Length);
-            for (int i = 0; i < _limits.Length; i++)
-            {
-                outputs.Add(math.clamp(output[0, 0, 0, i], 0, 1));
-            }
-            output.Dispose();
-
-            return ResultsScaled(outputs);
         }
 
         private void Start()
@@ -498,18 +457,18 @@ namespace FusionIK
 
             Rescaling = math.PI * math.PI / (ChainLength * ChainLength);
 
-            _limits = limits.ToArray();
+            Limits = limits.ToArray();
 
-            Middle = new(_limits.Length);
-            for (int i = 0; i < _limits.Length; i++)
+            Middle = new(Limits.Length);
+            for (int i = 0; i < Limits.Length; i++)
             {
-                Middle.Add((_limits[i].lower + _limits[i].upper) / 2);
+                Middle.Add((Limits[i].lower + Limits[i].upper) / 2);
             }
             
             List<float> joints = GetJoints();
             
             // Get the max speeds.
-            List<float> speeds = new(_limits.Length);
+            List<float> speeds = new(Limits.Length);
             foreach (RobotJoint j in _joints)
             {
                 if (!j.HasMotion)
@@ -535,7 +494,7 @@ namespace FusionIK
             _maxSpeeds = speeds.ToArray();
 
             // Ensure every joint had limits assigned.
-            if (joints.Count != _limits.Length)
+            if (joints.Count != Limits.Length)
             {
                 Debug.LogError($"Ensure all joints on {name} have limits defined.");
 #if UNITY_EDITOR
@@ -676,41 +635,7 @@ namespace FusionIK
                 j.UpdateData();
             }
 
-            bool original = minimal;
-
-            // Setup large network.
-            if (properties.StandardNetworkValid)
-            {
-                _normalWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledStandardNetwork);
-
-                if (_normalWorker != null)
-                {
-                    minimal = false;
-                    RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity, GetJoints()).ToList());
-                }
-                else
-                {
-                    _normalWorker?.Dispose();
-                }
-            }
-
-            // Setup minimal network.
-            if (properties.MinimalNetworkValid)
-            {
-                _minimalWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, properties.CompiledMinimalNetwork);
-
-                if (_minimalWorker != null)
-                {
-                    minimal = true;
-                    RunNetwork(PrepareInputs(Vector3.zero, Quaternion.identity));
-                }
-                else
-                {
-                    _minimalWorker?.Dispose();
-                }
-            }
-
-            minimal = original;
+            Properties.SetupWorkers(this);
 
             Virtual = new(this);
         }
@@ -756,12 +681,6 @@ namespace FusionIK
 
             // Set to position.
             SnapPerform(delta);
-        }
-
-        private void OnDestroy()
-        {
-            _normalWorker?.Dispose();
-            _minimalWorker?.Dispose();
         }
     }
 }

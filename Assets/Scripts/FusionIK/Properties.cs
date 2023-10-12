@@ -1,4 +1,8 @@
-﻿using Unity.Barracuda;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Unity.Barracuda;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace FusionIK
@@ -95,18 +99,88 @@ namespace FusionIK
         /// Check if the minimal network is valid.
         /// </summary>
         public bool MinimalNetworkValid => minimalNetwork != null;
-        
+
         /// <summary>
-        /// Compile the standard network.
+        /// Worker for the standard network.
         /// </summary>
-        /// <returns>The standard network compiled.</returns>
-        public Model CompiledStandardNetwork => StandardNetworkValid ? ModelLoader.Load(standardNetwork) : null;
-        
+        [NonSerialized]
+        private IWorker _standardWorker;
+
         /// <summary>
-        /// Compile the minimal network.
+        /// Worker for the minimal network.
         /// </summary>
-        /// <returns>The minimal network compiled.</returns>
-        public Model CompiledMinimalNetwork => MinimalNetworkValid ? ModelLoader.Load(minimalNetwork) : null;
+        [NonSerialized]
+        private IWorker _minimalWorker;
+
+        /// <summary>
+        /// Setup the workers.
+        /// </summary>
+        /// <param name="robot">The robot.</param>
+        public void SetupWorkers(Robot robot)
+        {
+            // Setup large network.
+            if (StandardNetworkValid)
+            {
+                _standardWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, ModelLoader.Load(standardNetwork));
+
+                if (_standardWorker != null)
+                {
+                    RunNetwork(robot, Vector3.zero, Quaternion.identity, robot.GetJoints());
+                }
+                else
+                {
+                    _standardWorker?.Dispose();
+                }
+            }
+
+            // Setup minimal network.
+            if (MinimalNetworkValid)
+            {
+                _minimalWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, ModelLoader.Load(minimalNetwork));
+
+                if (_minimalWorker != null)
+                {
+                    RunNetwork(robot, Vector3.zero, Quaternion.identity);
+                }
+                else
+                {
+                    _minimalWorker?.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Run the network inference.
+        /// </summary>
+        /// <param name="robot">The robot to process.</param>
+        /// <param name="position">The position to reach.</param>
+        /// <param name="rotation">The rotation to reach.</param>
+        /// <param name="starting">The joints to start at.</param>
+        /// <returns>The joints to move the robot to.</returns>
+        public List<float> RunNetwork(Robot robot, Vector3 position, Quaternion rotation, List<float> starting = null)
+        {
+            // Get initial input values and prepare for outputs.
+            float[] inputs = robot.PrepareInputs(position, rotation, starting);
+            Tensor input = new(1, 1, 1, inputs.Length, inputs, "INPUTS");
+
+            IWorker worker = robot.minimal ? _minimalWorker : _standardWorker;
+
+            // Run the current joint network.
+            worker.Execute(input);
+            worker.FlushSchedule(true);
+            Tensor output = worker.PeekOutput();
+            input.Dispose();
+            
+            // Add the output and replace the input for the next joint's network.
+            List<float> outputs = new(robot.Limits.Length);
+            for (int i = 0; i < robot.Limits.Length; i++)
+            {
+                outputs.Add(math.clamp(output[0, 0, 0, i], 0, 1));
+            }
+            output.Dispose();
+
+            return robot.ResultsScaled(outputs);
+        }
 
         private void OnValidate()
         {
