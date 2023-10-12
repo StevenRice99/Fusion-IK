@@ -17,8 +17,7 @@ MonoBehaviour:
   elites: 3
   generations: 10
   kept: 10
-  largeNetwork: {fileID: 0}
-  smallNetwork: {fileID: 5022602860645237092, guid: f4144ee3d2571854f8884e57ebb29b02, type: 3}
-  minimalNetwork: {fileID: 0}
+  standardNetwork: {fileID: 5022602860645237092, guid: a627dbf01a87e1b49b9169ce8fb84603, type: 3}
+  minimalNetwork: {fileID: 5022602860645237092, guid: 88d225e032d396d489dfbbf049cc35b6, type: 3}
   normal: {fileID: 2100000, guid: caa1e16d1366e024bb46efaef55dd1be, type: 2}
   transparent: {fileID: 2100000, guid: be575b3ea8105cc41a2cebe19ab207e2, type: 2}
