@@ -232,7 +232,10 @@ def train(epochs: int, batch: int):
             if not os.path.exists(os.path.join(os.getcwd(), "Networks", robot)):
                 os.mkdir(os.path.join(os.getcwd(), "Networks", robot))
             # Setup datasets.
-            dataset = DataLoader(InverseKinematicsDataset(df), batch_size=batch, shuffle=False)
+            total = len(df)
+            training_size = int(total * 0.8)
+            training = DataLoader(InverseKinematicsDataset(df.head(training_size)), batch_size=batch, shuffle=True)
+            testing = DataLoader(InverseKinematicsDataset(df.tail(total - training_size)), batch_size=batch, shuffle=False)
             # Define the network.
             net = JointNetwork(joints, minimal)
             # Check if an existing net exists for this joint, load it.
@@ -251,7 +254,7 @@ def train(epochs: int, batch: int):
             else:
                 epoch = 1
                 best = net.state_dict()
-                score = test(net, dataset)
+                score = test(net, testing)
                 save(robot, minimal, net, best, epoch, score, joints)
             # Train for set epochs.
             while True:
@@ -262,10 +265,10 @@ def train(epochs: int, batch: int):
                 msg = f"{robot} | {mode} | Epoch {epoch}/{epochs} | {score}%"
                 # Train on the training dataset.
                 net.train()
-                for inputs, outputs in tqdm(dataset, msg):
+                for inputs, outputs in tqdm(training, msg):
                     net.optimize(to_tensor(inputs), to_tensor(outputs))
                 # Check how well the newest epoch performs.
-                temp = test(net, dataset)
+                temp = test(net, testing)
                 # Check if this is the new best net.
                 if temp > score:
                     best = net.state_dict()
