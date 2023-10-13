@@ -82,7 +82,7 @@ namespace FusionIK
             }
             
             // If no previous starting values, load last known values.
-            starting = _minimal ? R.Middle : starting ??= R.GetJoints();
+            starting = _minimal || starting == null ? R.Middle : starting;
             
             // Randomly move the robot.
             R.Snap(R.RandomJoints());

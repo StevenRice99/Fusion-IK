@@ -200,7 +200,7 @@ namespace FusionIK
             }
             
             // Start at the last position.
-            starting ??= R.GetJoints();
+            starting ??= R.Middle;
         }
 
         private void MovePerform()

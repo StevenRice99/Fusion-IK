@@ -64,7 +64,7 @@ namespace FusionIK
             }
             
             // Get all results.
-            starting ??= R.GetJoints();
+            starting ??= R.Middle;
             RandomMoveResults(out Vector3 _, out Quaternion _);
 
             // Add all results.

@@ -713,6 +713,8 @@ namespace FusionIK
             minimal = original;
 
             Virtual = new(this);
+            
+            SnapPerform(Middle);
         }
 
         private void FixedUpdate()
