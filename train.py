@@ -3,9 +3,8 @@ import os
 
 import pandas as pd
 import torch
-from torch import nn, optim, Tensor
+from torch import nn, optim
 from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm
 
 
 class InverseKinematicsDataset(Dataset):
@@ -62,7 +61,7 @@ class JointNetwork(nn.Module):
         """
         super().__init__()
         # Define the network.
-        self.layers = nn.Linear(7 if minimal else joints + 7, joints)
+        self.neurons = nn.Linear(7 if minimal else joints + 7, joints)
         self.loss = nn.MSELoss()
         nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters())
@@ -75,7 +74,7 @@ class JointNetwork(nn.Module):
         :param inputs: The inputs for the network.
         :return: The final output layer from the network.
         """
-        return self.layers(inputs)
+        return self.neurons(inputs)
 
     def predict(self, inputs):
         """
@@ -97,23 +96,27 @@ class JointNetwork(nn.Module):
         # Get the results of the network.
         inputs = self.forward(inputs)
         # Setup multipliers to ensure higher joints have a higher weighting on the loss for being wrong.
-        tensor_size = len(inputs.data[0])
-        weight = tensor_size
+        joints = len(inputs.data[0])
+        weight = 0
         weights = []
-        for i in range(tensor_size):
+        for i in range(joints):
             weights.append(weight)
-            weight -= 1
-        tensor_size = len(inputs.data)
+            if weight == 0:
+                weight = 1
+            else:
+                weight *= 2
+        weights.reverse()
+        joints = len(inputs.data)
         batch = []
-        for i in range(tensor_size):
+        for i in range(joints):
             batch.append(weights)
         batch = to_tensor(torch.FloatTensor(batch))
         # Determine how far off the network was.
         difference = inputs - outputs
         # Multiply the modifier by the difference.
-        batch *= difference
+        difference *= batch
         # Add the modifier back to the inputs to skew how far off lower joints are.
-        inputs += batch
+        inputs += difference
         # Calculate the loss.
         loss = self.loss(inputs, outputs)
         loss.backward()
@@ -159,45 +162,6 @@ def to_tensor(tensor, device=get_processing_device()):
     :return: The data ready to be used.
     """
     return tensor.to(device)
-
-
-def save(robot: str, minimal: bool, net, best, epoch: int, loss: float, accuracies: str, joints: int):
-    """
-    Save the model and ONNX export.
-    :param robot: The robot the network is for.
-    :param minimal: If this is a minimal network.
-    :param net: The network.
-    :param best: The best network model.
-    :param epoch: The current epoch.
-    :param loss: The loss.
-    :param accuracies: Joint accuracies.
-    :param joints: The number of joints.
-    :return: Nothing.
-    """
-    torch.save({
-        'Best': best,
-        'Training': net.state_dict(),
-        'Optimizer': net.optimizer.state_dict(),
-        'Epoch': epoch,
-        'Loss': loss,
-        'Accuracies': accuracies
-    }, os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Standard.pt"))
-    # Store the current training state.
-    old = net.state_dict()
-    # Export the best state.
-    net.load_state_dict(best)
-    torch.onnx.export(
-        net,
-        to_tensor(torch.randn(1, 7 if minimal else joints + 7, dtype=torch.float32)),
-        os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.onnx" if minimal else f"{robot} Standard.onnx"),
-        export_params=True,
-        opset_version=9,
-        do_constant_folding=True,
-        input_names=['input'],
-        output_names=['output']
-    )
-    # Restore the current training state.
-    net.load_state_dict(old)
 
 
 def train(epochs: int, batch: int):
@@ -260,35 +224,40 @@ def train(epochs: int, batch: int):
             else:
                 epoch = 1
                 loss = 0
+                weight = 0
                 for i in range(joints):
-                    loss += i
+                    loss += weight
+                    if weight == 0:
+                        weight = 1
+                    else:
+                        weight *= 2
                 best = net.state_dict()
-                accuracies = "Accuracies not Calculated"
-                save(robot, minimal, net, best, epoch, loss, accuracies, joints)
+                accuracies = "N/A"
             # Train for set epochs.
             core = f"{robot} | {mode} | {sum(p.numel() for p in net.parameters() if p.requires_grad)} Parameters | Epoch "
             while True:
                 # Exit once done.
                 if epoch > epochs:
-                    print(f"{core}{epochs}/{epochs} | Loss {loss} | {accuracies}")
+                    print(f"{core}{epochs}/{epochs} | Loss {loss} | Accuracies {accuracies}")
                     break
-                msg = f"{core}{epoch}/{epochs} | Loss {loss}"
+                print(f"{core}{epoch}/{epochs} | Loss {loss} | Accuracies {accuracies}")
                 # Train on the training dataset.
                 net.train()
                 current_loss = 0
                 batches = 0
-                for inputs, outputs in tqdm(dataset, msg):
+                for i, data in enumerate(dataset, 0):
+                    inputs, outputs = data
                     current_loss += net.optimize(to_tensor(inputs), to_tensor(outputs))
                     batches += 1
                 current_loss /= batches
                 # Check if this is the new best net.
+                net.eval()
                 if current_loss < loss:
                     best = net.state_dict()
                     loss = current_loss
-                # Save data.
+                # Calculate accuracy at the end.
                 epoch += 1
                 if epoch > epochs:
-                    net.eval()
                     accuracies = [0] * joints
                     for inputs, outputs in dataset:
                         temp = net.calculate_score(to_tensor(inputs), to_tensor(outputs))
@@ -300,11 +269,37 @@ def train(epochs: int, batch: int):
                         accuracies[i] = (1 - accuracies[i] / len(dataset)) * 100
                         average += accuracies[i]
                     average /= len(accuracies)
-                    temp = f"Accuracies {accuracies[0]}%"
+                    temp = f"{accuracies[0]}%"
                     for i in range(1, len(accuracies)):
                         temp += f", {accuracies[i]}%"
                     accuracies = f"{temp}, Average {average}%"
-                save(robot, minimal, net, best, epoch, loss, accuracies, joints)
+                # Save data.
+                torch.save({
+                    'Best': best,
+                    'Training': net.state_dict(),
+                    'Optimizer': net.optimizer.state_dict(),
+                    'Epoch': epoch,
+                    'Loss': loss,
+                    'Accuracies': accuracies
+                }, os.path.join(os.getcwd(), "Networks", robot,
+                                f"{robot} Minimal.pt" if minimal else f"{robot} Standard.pt"))
+                # Store the current training state.
+                old = net.state_dict()
+                # Export the best state.
+                net.load_state_dict(best)
+                torch.onnx.export(
+                    net,
+                    to_tensor(torch.randn(1, 7 if minimal else joints + 7, dtype=torch.float32)),
+                    os.path.join(os.getcwd(), "Networks", robot,
+                                 f"{robot} Minimal.onnx" if minimal else f"{robot} Standard.onnx"),
+                    export_params=True,
+                    opset_version=9,
+                    do_constant_folding=True,
+                    input_names=['input'],
+                    output_names=['output']
+                )
+                # Restore the current training state.
+                net.load_state_dict(old)
 
 
 if __name__ == '__main__':
