@@ -168,8 +168,8 @@ namespace FusionIK
             // Get the robots that reached ordered by their move time, then solutions, then mode.
             Details[] reached = results.Where(x => x.Success).OrderBy(x => x.Time).ThenBy(x => x.robot.mode).ThenByDescending(x => x.robot.minimal).ThenBy(x => x.robot.iterative).ThenBy(x => x.robot.exhaustive).ToArray();
             
-            // Get the robots that did not reached ordered by their fitness, then distance, then angle, then mode.
-            Details[] notReached = results.Where(x => !x.Success).OrderBy(x => x.Fitness).ThenBy(x => x.robot.mode).ThenByDescending(x => x.robot.minimal).ThenBy(x => x.robot.iterative).ThenBy(x => x.robot.exhaustive).ToArray();
+            // Get the robots that did not reached ordered by their fitness, then move time, then mode.
+            Details[] notReached = results.Where(x => !x.Success).OrderBy(x => x.Fitness).ThenBy(x => x.Time).ThenBy(x => x.robot.mode).ThenByDescending(x => x.robot.minimal).ThenBy(x => x.robot.iterative).ThenBy(x => x.robot.exhaustive).ToArray();
             
             // Combine both and return the first robot.
             ordered = reached.Concat(notReached).ToArray();

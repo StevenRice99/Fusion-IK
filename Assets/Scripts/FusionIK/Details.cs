@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Linq;
 using Unity.Mathematics;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 namespace FusionIK
 {
@@ -15,7 +14,7 @@ namespace FusionIK
         /// <summary>
         /// One rotation in radians.
         /// </summary>
-        private const double C = 2.0 * math.PI_DBL;
+        public const double C = 2.0 * math.PI_DBL;
         
         /// <summary>
         /// If the algorithm should end.
@@ -108,7 +107,7 @@ namespace FusionIK
             for (int i = 0; i < success.Length; i++)
             {
                 success[i] = false;
-                time[i] = 0;
+                time[i] = double.MaxValue;
                 fitness[i] = double.MaxValue;
             }
         }
@@ -154,14 +153,6 @@ namespace FusionIK
         }
 
         /// <summary>
-        /// Stop the stopwatch.
-        /// </summary>
-        public void Stop()
-        {
-            _stopwatch.Stop();
-        }
-
-        /// <summary>
         /// Set values for the results.
         /// </summary>
         /// <param name="joints">The joints of the robot.</param>
@@ -169,47 +160,8 @@ namespace FusionIK
         {
             bool wasRunning = _stopwatch.IsRunning;
             _stopwatch.Stop();
-
-            // Minimize the joint movements, ensuring no extra full rotations.
-            for (int i = 0; i < joints.Length; i++)
-            {
-                if (joints[i] > _starting[i])
-                {
-                    while (joints[i] - C >= _starting[i])
-                    {
-                        joints[i] -= C;
-                    }
-
-                    if (joints[i] - C < robot.Limits[i].lower)
-                    {
-                        continue;
-                    }
-
-                    double radians = joints[i] - C;
-                    if (_starting[i] - radians < joints[i] - _starting[i])
-                    {
-                        joints[i] = radians;
-                    }
-                }
-                else
-                {
-                    while (joints[i] + C <= _starting[i])
-                    {
-                        joints[i] += C;
-                    }
-                    
-                    if (joints[i] + C > robot.Limits[i].upper)
-                    {
-                        continue;
-                    }
-
-                    double radians = joints[i] + C;
-                    if (radians - _starting[i] < _starting[i] - joints[i])
-                    {
-                        joints[i] = radians;
-                    }
-                }
-            }
+            
+            Improve(joints);
             
             // Check if successful.
             bool s = robot.Virtual.CheckConvergence(joints, _position, _rotation);
@@ -262,8 +214,8 @@ namespace FusionIK
                     return;
                 }
                 
-                // Zero the time for unsuccessful moves since it is not needed.
-                t = 0;
+                // Calculate the time.
+                t = robot.CalculateTime(_starting, joints);
             }
             
             for (long i = _stopwatch.ElapsedMilliseconds <= milliseconds ? _stopwatch.ElapsedMilliseconds : milliseconds; i <= milliseconds; i++)
@@ -281,6 +233,133 @@ namespace FusionIK
             if (wasRunning)
             {
                 _stopwatch.Start();
+            }
+        }
+
+
+        /// <summary>
+        /// Run the robot's network.
+        /// </summary>
+        /// <param name="floats">The joint values to run from as a list of floats.</param>
+        /// <returns>The solved joint values.</returns>
+        public double[] RunNetwork(List<float> floats)
+        {
+            bool wasRunning = _stopwatch.IsRunning;
+            _stopwatch.Stop();
+
+            double[] joints;
+            if (floats == null)
+            {
+                joints = null;
+            }
+            else
+            {
+                joints = new double[floats.Count];
+                for (int i = 0; i < joints.Length; i++)
+                {
+                    joints[i] = floats[i];
+                }
+            }
+
+            joints = RunNetwork(joints);
+
+            if (wasRunning)
+            {
+                _stopwatch.Start();
+            }
+
+            return joints;
+        }
+
+        /// <summary>
+        /// Run the robot's network.
+        /// </summary>
+        /// <param name="joints">The joint values to run from.</param>
+        /// <returns>The solved joint values.</returns>
+        public double[] RunNetwork(double[] joints = null)
+        {
+            bool wasRunning = _stopwatch.IsRunning;
+            _stopwatch.Stop();
+            List<float> floats;
+
+            if (joints != null)
+            {
+                floats = new(joints.Length);
+                for (int i = 0; i < joints.Length; i++)
+                {
+                    floats.Add((float) joints[i]);
+                }
+            }
+            else
+            {
+                floats = null;
+            }
+            
+            _stopwatch.Start();
+            floats = robot.RunNetwork(_position, _rotation, floats);
+            _stopwatch.Stop();
+
+            joints ??= new double[floats.Count];
+
+            for (int i = 0; i < joints.Length; i++)
+            {
+                joints[i] = floats[i];
+            }
+            
+            Improve(joints);
+
+            if (wasRunning)
+            {
+                _stopwatch.Start();
+            }
+
+            return joints;
+        }
+
+        /// <summary>
+        /// Minimize the joint movements, ensuring no extra full rotations.
+        /// </summary>
+        /// <param name="joints">The joints to improve.</param>
+        private void Improve(double[] joints)
+        {
+            for (int i = 0; i < joints.Length; i++)
+            {
+                if (joints[i] > _starting[i])
+                {
+                    while (joints[i] - C >= _starting[i])
+                    {
+                        joints[i] -= C;
+                    }
+
+                    if (joints[i] - C < robot.Limits[i].lower)
+                    {
+                        continue;
+                    }
+
+                    double radians = joints[i] - C;
+                    if (_starting[i] - radians < joints[i] - _starting[i])
+                    {
+                        joints[i] = radians;
+                    }
+                }
+                else
+                {
+                    while (joints[i] + C <= _starting[i])
+                    {
+                        joints[i] += C;
+                    }
+                    
+                    if (joints[i] + C > robot.Limits[i].upper)
+                    {
+                        continue;
+                    }
+
+                    double radians = joints[i] + C;
+                    if (radians - _starting[i] < _starting[i] - joints[i])
+                    {
+                        joints[i] = radians;
+                    }
+                }
             }
         }
     }

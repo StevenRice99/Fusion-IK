@@ -139,17 +139,7 @@ namespace FusionIK
             // Run through neural networks if it should.
             if (details.robot.mode != Robot.SolverMode.BioIk)
             {
-                List<float> starting = details.robot.minimal ? null : details.robot.GetJoints();
-                
-                details.Start();
-                List<float> joints = details.robot.RunNetwork(targetPosition, targetRotation, starting);
-                details.Stop();
-
-                seed[1] = new double[joints.Count];
-                for (int i = 0; i < seed[1].Length; i++)
-                {
-                    seed[1][i] = joints[i];
-                }
+                seed[1] = details.RunNetwork(details.robot.minimal ? null : details.robot.GetJoints());
 
                 // Get the existing fitness.
                 details.Set(seed[1]);
@@ -336,15 +326,8 @@ namespace FusionIK
                             continue;
                         }
 
-                        // Otherwise, pass the current value through the network.
-                        List<float> starting = new(_dimensionality);
-                        for (int j = 0; j < _dimensionality; j++)
-                        {
-                            starting.Add((float) _offspring[i].genes[j]);
-                        }
-
                         // Run the network.
-                        List<float> results = details.robot.RunNetwork(targetPosition, targetRotation, starting);
+                        double[] results = details.RunNetwork(_offspring[i].genes);
                         
                         // Update the values.
                         for (int j = 0; j < _dimensionality; j++)
@@ -391,22 +374,8 @@ namespace FusionIK
                             // Copy the best of the population.
                             for (int i = 0; i < details.robot.Properties.Kept; i++)
                             {
-                                // Convert to floats.
-                                List<float> starting = new(_dimensionality);
-                                for (int j = 0; j < _dimensionality; j++)
-                                {
-                                    starting.Add((float) _population[i].genes[j]);
-                                }
-                                
                                 // Run the network.
-                                List<float> results = details.robot.RunNetwork(targetPosition, targetRotation, starting);
-                                temp[i + 2] = new double[_dimensionality];
-                                
-                                // Copy to the new seeds.
-                                for (int j = 0; j < _dimensionality; j++)
-                                {
-                                    temp[i + 2][j] = results[j];
-                                }
+                                temp[i + 2] = details.RunNetwork(_population[i].genes);
                             }
 
                             // Update the seed.
