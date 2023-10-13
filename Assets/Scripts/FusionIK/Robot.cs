@@ -21,8 +21,8 @@ namespace FusionIK
         /// </summary>
         public enum SolverMode
         {
-            BioIk,
             Network,
+            BioIk,
             FusionIk
         }
 

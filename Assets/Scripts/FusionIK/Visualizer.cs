@@ -310,9 +310,8 @@ namespace FusionIK
         /// </summary>
         /// <param name="y">The Y position.</param>
         /// <param name="data">The data of its last move.</param>
-        /// <param name="title">The title of the robot.</param>
         /// <param name="color">The color to make it.</param>
-        private static void RobotLabel(float y, Details data, string title, Color color)
+        private void RobotLabel(float y, Details data, Color color)
         {
             if (data == null)
             {
@@ -320,7 +319,16 @@ namespace FusionIK
             }
             
             GUI.color = color;
-            GUI.Label(new(10, y, 190, 20), $"{title}");
+            int offset;
+            if (results.Length > 1)
+            {
+                offset = 200;
+                GUI.Label(new(10, y, 190, 20), data.robot.ToString());
+            }
+            else
+            {
+                offset = 10;
+            }
 
             string success;
             string description;
@@ -336,8 +344,8 @@ namespace FusionIK
                 description = $"{data.Fitness} Fitness Score";
             }
             
-            GUI.Label(new(200, y, 55, 20), success);
-            GUI.Label(new(265, y, Screen.width - 275, 20), description);
+            GUI.Label(new(offset, y, 55, 20), success);
+            GUI.Label(new(offset + 65, y, Screen.width - offset - 10, 20), description);
         }
 
         private void OnGUI()
@@ -434,7 +442,7 @@ namespace FusionIK
             float offset = results.Length * 20 + 10;
             foreach (Details data in _ordered)
             {
-                RobotLabel(Screen.height - offset, data, data.robot.ToString(), data.robot.ToColor());
+                RobotLabel(Screen.height - offset, data, data.robot.ToColor());
                 offset -= 20;
             }
         }

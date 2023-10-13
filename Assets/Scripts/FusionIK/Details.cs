@@ -13,7 +13,7 @@ namespace FusionIK
     public class Details
     {
         /// <summary>
-        /// One rotation.
+        /// One rotation in radians.
         /// </summary>
         private const double C = 2.0 * math.PI_DBL;
         
@@ -175,20 +175,41 @@ namespace FusionIK
             {
                 if (joints[i] > _starting[i])
                 {
-                    while (joints[i] - _starting[i] > C)
+                    while (joints[i] - C >= _starting[i])
                     {
                         joints[i] -= C;
+                    }
+
+                    if (joints[i] - C < robot.Limits[i].lower)
+                    {
+                        continue;
+                    }
+
+                    double radians = joints[i] - C;
+                    if (_starting[i] - radians < joints[i] - _starting[i])
+                    {
+                        joints[i] = radians;
                     }
                 }
                 else
                 {
-                    while (_starting[i] - joints[i] > C)
+                    while (joints[i] + C <= _starting[i])
                     {
                         joints[i] += C;
                     }
+                    
+                    if (joints[i] + C > robot.Limits[i].upper)
+                    {
+                        continue;
+                    }
+
+                    double radians = joints[i] + C;
+                    if (radians - _starting[i] < _starting[i] - joints[i])
+                    {
+                        joints[i] = radians;
+                    }
                 }
             }
-            
             
             // Check if successful.
             bool s = robot.Virtual.CheckConvergence(joints, _position, _rotation);
