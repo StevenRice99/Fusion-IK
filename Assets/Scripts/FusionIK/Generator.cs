@@ -14,12 +14,12 @@ namespace FusionIK
         [Tooltip("The total number of entries to generate for training.")]
         [Min(1)]
         [SerializeField]
-        private int generatedTotal = 100000;
+        private int generatedTotal = 10000;
         
         [Tooltip("The time the algorithm is allowed to run for.")]
         [Min(1)]
         [SerializeField]
-        private long milliseconds = 500;
+        private long milliseconds = 1000;
 
         /// <summary>
         /// How much training data has been generated.

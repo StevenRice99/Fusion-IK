@@ -234,8 +234,11 @@ def train(epochs: int, batch: int):
             total = len(df)
             training_size = int(total * 0.8)
             testing_size = total - training_size
+            if testing_size == 0:
+                training_size -= 1
+                testing_size = 1
             training = DataLoader(InverseKinematicsDataset(df.head(training_size)), batch_size=batch, shuffle=True)
-            testing = DataLoader(InverseKinematicsDataset(df.tail(testing_size)), batch_size=batch, shuffle=False)
+            testing = DataLoader(InverseKinematicsDataset(df.tail(testing_size)), batch_size=testing_size, shuffle=False)
             # Define the network.
             net = JointNetwork(joints, minimal)
             # Check if an existing net exists for this joint, load it.
@@ -284,7 +287,7 @@ if __name__ == '__main__':
         desc = "Fusion IK Training"
         parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
         parser.add_argument("-e", "--epoch", type=int, help="Number of epochs to train for.", default=100)
-        parser.add_argument("-b", "--batch", type=int, help="Batch size.", default=64)
+        parser.add_argument("-b", "--batch", type=int, help="Batch size.", default=1)
         a = vars(parser.parse_args())
         train(a["epoch"], a["batch"])
     except KeyboardInterrupt:
