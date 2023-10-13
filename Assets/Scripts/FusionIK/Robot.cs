@@ -399,7 +399,7 @@ namespace FusionIK
         public float[] PrepareInputs(Vector3 targetPosition, Quaternion targetRotation, List<float> starting = null)
         {
             int offset = starting?.Count ?? 0;
-            float[] inputs = new float[offset + 7];
+            float[] inputs = new float[offset + 6];
             
             // Scale and add joints.
             if (offset > 0)
@@ -421,10 +421,10 @@ namespace FusionIK
             inputs[offset + 2] = (targetPosition.z + 1) / 2;
             
             // Add scaled rotation.
-            inputs[offset + 3] = (targetRotation.x + 1) / 2;
-            inputs[offset + 4] = (targetRotation.y + 1) / 2;
-            inputs[offset + 5] = (targetRotation.z + 1) / 2;
-            inputs[offset + 6] = (targetRotation.w + 1) / 2;
+            Vector3 rotation = targetRotation.eulerAngles / 360f;
+            inputs[offset + 3] = rotation.x;
+            inputs[offset + 4] = rotation.y;
+            inputs[offset + 5] = rotation.z;
 
             return inputs;
         }

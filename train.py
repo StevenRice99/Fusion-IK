@@ -62,7 +62,7 @@ class JointNetwork(nn.Module):
         """
         super().__init__()
         # Define the network.
-        self.neurons = nn.Linear(7 if minimal else joints + 7, joints)
+        self.neurons = nn.Linear(6 if minimal else joints + 6, joints)
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters())
         # Run on GPU if available.
@@ -180,7 +180,7 @@ def save(robot: str, minimal: bool, net, best, epoch: int, score: float, joints:
     net.load_state_dict(best)
     torch.onnx.export(
         net,
-        to_tensor(torch.randn(1, 7 if minimal else joints + 7, dtype=torch.float32)),
+        to_tensor(torch.randn(1, 6 if minimal else joints + 6, dtype=torch.float32)),
         os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.onnx" if minimal else f"{robot} Standard.onnx"),
         export_params=True,
         opset_version=9,
