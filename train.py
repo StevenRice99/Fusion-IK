@@ -207,7 +207,6 @@ def train(epochs: int, batch: int):
     print(f"Fusion IK training running on GPU with CUDA {torch.version.cuda}." if torch.cuda.is_available() else "Fusion IK training running on CPU.")
     # Check if there is data to train on.
     if not os.path.exists(os.path.join(os.getcwd(), "Training")):
-        print("No data to train on.")
         return
     robots = os.listdir(os.path.join(os.getcwd(), "Training"))
     for robot in robots:
