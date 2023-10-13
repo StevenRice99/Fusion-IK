@@ -678,7 +678,7 @@ namespace FusionIK
 
             bool original = minimal;
             
-            // Setup large network.
+            // Setup standard network.
             if (properties.StandardNetworkValid)
             {
                 _standardWorker = WorkerFactory.CreateWorker(WorkerFactory.Type.CSharpBurst, ModelLoader.Load(properties.standardNetwork));
