@@ -180,7 +180,7 @@ namespace FusionIK
             // Read total from file in case it exceeds amount.
             _generatedCount = CountLines(_path);
 
-            if (_minimal)
+            if (_minimal || _generatedCount <= 0)
             {
                 return;
             }
@@ -194,14 +194,14 @@ namespace FusionIK
 
             // Count the joints.
             string[] strings = lines[0].Split(',');
-            int joints = strings.Count(s => s.Contains("I")) - 7;
+            int joints = strings.Count(s => s.Contains("I")) - 6;
             if (joints <= 0)
             {
                 return;
             }
             
             // Create the joints.
-            strings = lines[^1].Split(',').Skip(joints + 7).ToArray();
+            strings = lines[^1].Split(',').Skip(joints + 6).ToArray();
             starting = new(joints);
             for (int i = 0; i < joints; i++)
             {
