@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Unity.Mathematics;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace FusionIK
 {
@@ -10,6 +12,11 @@ namespace FusionIK
     /// </summary>
     public class Details
     {
+        /// <summary>
+        /// One rotation.
+        /// </summary>
+        private const double C = 2.0 * math.PI_DBL;
+        
         /// <summary>
         /// If the algorithm should end.
         /// </summary>
@@ -66,6 +73,21 @@ namespace FusionIK
         public double[] Joints { get; private set; }
 
         /// <summary>
+        /// The position to solve for.
+        /// </summary>
+        private Vector3 _position;
+
+        /// <summary>
+        /// The rotation to solve for.
+        /// </summary>
+        private Quaternion _rotation;
+
+        /// <summary>
+        /// The starting joints.
+        /// </summary>
+        private double[] _starting;
+        
+        /// <summary>
         /// Used to time algorithms.
         /// </summary>
         private readonly Stopwatch _stopwatch = new();
@@ -101,15 +123,18 @@ namespace FusionIK
             _stopwatch.Reset();
 
             Joints ??= new double[robot.Virtual.dof];
+            _starting ??= new double[Joints.Length];
             List<float> j = robot.GetJoints();
             for (int i = 0; i < Joints.Length; i++)
             {
-                Joints[i] = j[i];
+                _starting[i] = Joints[i] = j[i];
             }
 
-            robot.Virtual.SetTargetPosition(position);
-            robot.Virtual.SetTargetRotation(rotation);
-            bool s = robot.Virtual.CheckConvergence(Joints, position, rotation);
+            _position = position;
+            _rotation = rotation;
+            robot.Virtual.SetTargetPosition(_position);
+            robot.Virtual.SetTargetRotation(_rotation);
+            bool s = robot.Virtual.CheckConvergence(Joints, _position, _rotation);
             double f = s ? 0 : robot.Virtual.ComputeLoss(j);
             
             for (int i = 0; i < success.Length; i++)
@@ -139,37 +164,85 @@ namespace FusionIK
         /// <summary>
         /// Set values for the results.
         /// </summary>
-        /// <param name="s">If the move was successful.</param>
-        /// <param name="t">The time it took for the joints to reach their destinations.</param>
-        /// <param name="f">The fitness score of the result.</param>
-        /// <param name="j">The joints of the robot.</param>
-        public void Set(bool s, double t, double f, double[] j = null)
+        /// <param name="joints">The joints of the robot.</param>
+        public void Set(double[] joints)
         {
-            if (Success)
+            bool wasRunning = _stopwatch.IsRunning;
+            _stopwatch.Stop();
+
+            // Minimize the joint movements, ensuring no extra full rotations.
+            for (int i = 0; i < joints.Length; i++)
             {
-                if (!s || t >= Time)
+                if (joints[i] > _starting[i])
                 {
+                    while (joints[i] - _starting[i] > C)
+                    {
+                        joints[i] -= C;
+                    }
+                }
+                else
+                {
+                    while (_starting[i] - joints[i] > C)
+                    {
+                        joints[i] += C;
+                    }
+                }
+            }
+            
+            
+            // Check if successful.
+            bool s = robot.Virtual.CheckConvergence(joints, _position, _rotation);
+            double t;
+            double f;
+            
+            if (s)
+            {
+                // Get the time of the successful move.
+                t = robot.CalculateTime(_starting, joints);
+                
+                // If there is a previously successful move and the new time is worse, discard it.
+                if (Success && t >= Time)
+                {
+                    if (wasRunning)
+                    {
+                        _stopwatch.Start();
+                    }
+                    
                     return;
                 }
+                
+                // Zero the fitness score for successful moves since it is not needed.
+                f = 0;
             }
             else
             {
-                if (f >= Fitness)
+                // If there have been successful moves already, discard this unsuccessful move.
+                if (Success)
                 {
+                    if (wasRunning)
+                    {
+                        _stopwatch.Start();
+                    }
+                    
                     return;
                 }
-            }
-
-            if (s)
-            {
-                f = 0;
-            }
-            
-            bool wasRunning = false;
-            if (_stopwatch.IsRunning)
-            {
-                _stopwatch.Stop();
-                wasRunning = true;
+                
+                // Get the fitness score of unsuccessful moves.
+                f = robot.Virtual.ComputeLoss(joints);
+                
+                // If the existing fitness is better, discard it.
+                if (f >= Fitness)
+                {
+                    if (wasRunning)
+                    {
+                        _stopwatch.Start();
+                    }
+                    
+                    return;
+                }
+                
+                // Zero the time for unsuccessful moves since it is not needed.
+                t = 0;
             }
             
             for (long i = _stopwatch.ElapsedMilliseconds <= milliseconds ? _stopwatch.ElapsedMilliseconds : milliseconds; i <= milliseconds; i++)
@@ -179,12 +252,9 @@ namespace FusionIK
                 fitness[i] = f;
             }
 
-            if (j != null)
+            for (int i = 0; i < Joints.Length; i++)
             {
-                for (int i = 0; i < Joints.Length; i++)
-                {
-                    Joints[i] = j[i];
-                }
+                Joints[i] = joints[i];
             }
 
             if (wasRunning)

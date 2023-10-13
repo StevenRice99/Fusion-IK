@@ -151,13 +151,11 @@ namespace FusionIK
                     seed[1][i] = joints[i];
                 }
 
-                bool reached = details.robot.Virtual.CheckConvergence(seed[1], targetPosition, targetRotation);
-
                 // Get the existing fitness.
-                details.Set(reached, details.robot.CalculateTime(seed[0], seed[1]), reached ? 0 : details.robot.Virtual.ComputeLoss(seed[1]), seed[1]);
+                details.Set(seed[1]);
                 
                 // If it was reached, don't use it in future attempts for even faster times as it will always be the exact same.
-                if (reached)
+                if (details.Success)
                 {
                     double[][] temp = new double[1][];
                     temp[0] = new double[seed[0].Length];
@@ -168,10 +166,6 @@ namespace FusionIK
 
                     seed = temp;
                 }
-            }
-            else
-            {
-                details.Set(false, 0, details.robot.Virtual.ComputeLoss(details.Joints), seed[0]);
             }
 
             // Use Bio IK if it should.
@@ -370,31 +364,12 @@ namespace FusionIK
                     // Check for improvement.
                     bool improvement = TryUpdateSolution() || HasAnyEliteImproved();
                     
-                    // If we reached the target, finish this attempt and check if it is better than any previous.
+                    details.Set(_solution);
+                    
+                    // If we reached the target, finish this attempt.
                     if (_virtual.CheckConvergence(_solution, targetPosition, targetRotation))
                     {
-                        // If there was already a successful attempt, only update it if this move is faster.
-                        if (details.Success)
-                        {
-                            double attemptMoveTime = details.robot.CalculateTime(seed[0], _solution);
-                            if (attemptMoveTime >= details.Time)
-                            {
-                                break;
-                            }
-
-                            details.Set(true, attemptMoveTime, 0, _solution);
-                            break;
-                        }
-
-                        // If this was the first solution, set it.
-                        details.Set(true, details.robot.CalculateTime(seed[0], _solution), 0, _solution);
                         break;
-                    }
-
-                    // If we have not yet had success, update the results.
-                    if (!details.Success && _fitness < details.Fitness)
-                    {
-                        details.Set(false, 0, _fitness, _solution);
                     }
                     
                     // Break out if there was no improvement or out of time.
