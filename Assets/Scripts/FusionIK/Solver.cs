@@ -319,8 +319,8 @@ namespace FusionIK
                             continue;
                         }
 
-                        // In Bio IK, standard Fusion IK, and iterative Fusion IK, create a random member.
-                        if (!details.robot.exhaustive)
+                        // If not exploitative, create a random member.
+                        if (!details.robot.exploitative)
                         {
                             RandomMember(_offspring[i]);
                             continue;

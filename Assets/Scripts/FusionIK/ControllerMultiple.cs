@@ -110,7 +110,7 @@ namespace FusionIK
             }
 
             r.mode = solverMode;
-            r.exhaustive = exhaustive;
+            r.exploitative = exhaustive;
             r.iterative = iterative;
             r.minimal = minimal;
             go.name = $"{r.Properties.name} {r}";
@@ -166,10 +166,10 @@ namespace FusionIK
         protected static Details Best(Details[] results, out Details[] ordered)
         {
             // Get the robots that reached ordered by their move time, then solutions, then mode.
-            Details[] reached = results.Where(x => x.Success).OrderBy(x => x.Time).ThenBy(x => x.robot.mode).ThenByDescending(x => x.robot.minimal).ThenBy(x => x.robot.iterative).ThenBy(x => x.robot.exhaustive).ToArray();
+            Details[] reached = results.Where(x => x.Success).OrderBy(x => x.Time).ThenBy(x => x.robot.mode).ThenByDescending(x => x.robot.minimal).ThenBy(x => x.robot.iterative).ThenBy(x => x.robot.exploitative).ToArray();
             
             // Get the robots that did not reached ordered by their fitness, then move time, then mode.
-            Details[] notReached = results.Where(x => !x.Success).OrderBy(x => x.Fitness).ThenBy(x => x.Time).ThenBy(x => x.robot.mode).ThenByDescending(x => x.robot.minimal).ThenBy(x => x.robot.iterative).ThenBy(x => x.robot.exhaustive).ToArray();
+            Details[] notReached = results.Where(x => !x.Success).OrderBy(x => x.Fitness).ThenBy(x => x.Time).ThenBy(x => x.robot.mode).ThenByDescending(x => x.robot.minimal).ThenBy(x => x.robot.iterative).ThenBy(x => x.robot.exploitative).ToArray();
             
             // Combine both and return the first robot.
             ordered = reached.Concat(notReached).ToArray();

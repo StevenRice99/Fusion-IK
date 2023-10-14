@@ -192,16 +192,13 @@ def save(robot: str, minimal: bool, net, best, epoch: int, score: float, joints:
     net.load_state_dict(old)
 
 
-def train(epochs: int, batch: int):
+def train(epochs: int):
     """
     Train robot networks.
     :param epochs: Number of epochs to train for.
-    :param batch: Batch size.
     :return: Nothing.
     """
     # Ensure values are valid.
-    if batch < 1:
-        batch = 1
     if epochs < 1:
         epochs = 1
     print(f"Fusion IK training running on GPU with CUDA {torch.version.cuda}." if torch.cuda.is_available() else "Fusion IK training running on CPU.")
@@ -237,7 +234,7 @@ def train(epochs: int, batch: int):
             if testing_size == 0:
                 training_size -= 1
                 testing_size = 1
-            training = DataLoader(InverseKinematicsDataset(df.head(training_size)), batch_size=batch, shuffle=True)
+            training = DataLoader(InverseKinematicsDataset(df.head(training_size)), batch_size=1, shuffle=True)
             testing = DataLoader(InverseKinematicsDataset(df.tail(testing_size)), batch_size=testing_size, shuffle=False)
             # Define the network.
             net = JointNetwork(joints, minimal)
@@ -255,30 +252,32 @@ def train(epochs: int, batch: int):
                     continue
             # Otherwise, start a new training.
             else:
-                epoch = 1
+                epoch = 0
                 best = net.state_dict()
                 score = test(net, testing)
                 save(robot, minimal, net, best, epoch, score, joints)
             # Train for set epochs.
-            core = f"{robot} | {mode} | {sum(p.numel() for p in net.parameters() if p.requires_grad)} Parameters | {training_size} Training | {testing_size} Testing | Epoch "
+            core = f"{robot} | {mode} | {sum(p.numel() for p in net.parameters() if p.requires_grad)} Parameters | {training_size} Training | {testing_size} Testing | No improvement for "
             while True:
                 # Exit once done.
-                if epoch > epochs:
-                    print(f"{core}{epochs}/{epochs} | {score}%")
+                msg = f"{core}{epoch} Epochs | {score}%"
+                if epoch >= epochs:
+                    print(msg)
                     break
-                msg = f"{core}{epoch}/{epochs} | {score}%"
                 # Train on the training dataset.
                 net.train()
                 for inputs, outputs in tqdm(training, msg):
                     net.optimize(to_tensor(inputs), to_tensor(outputs))
                 # Check how well the newest epoch performs.
                 temp = test(net, testing)
-                # Check if this is the new best net.
+                # Check if this is the new best network.
                 if temp > score:
                     best = net.state_dict()
                     score = temp
+                    epoch = 0
+                else:
+                    epoch += 1
                 # Save data.
-                epoch += 1
                 save(robot, minimal, net, best, epoch, score, joints)
 
 
@@ -286,10 +285,9 @@ if __name__ == '__main__':
     try:
         desc = "Fusion IK Training"
         parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
-        parser.add_argument("-e", "--epoch", type=int, help="Number of epochs to train for.", default=100)
-        parser.add_argument("-b", "--batch", type=int, help="Batch size.", default=1)
+        parser.add_argument("epoch", nargs='?', type=int, help="Number of epochs to stop training after no improvement.", default=10)
         a = vars(parser.parse_args())
-        train(a["epoch"], a["batch"])
+        train(a["epoch"])
     except KeyboardInterrupt:
         print("Training stopped.")
     except torch.cuda.OutOfMemoryError:

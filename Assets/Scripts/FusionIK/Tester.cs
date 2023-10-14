@@ -44,6 +44,22 @@ namespace FusionIK
 #endif
                 return;
             }
+
+            foreach (Details result in results)
+            {
+                string file = DirectoryPath(new[] {"Testing", R.Properties.name, result.robot.ToString()});
+                if (file != null)
+                {
+                    continue;
+                }
+                
+#if UNITY_EDITOR
+                EditorApplication.ExitPlaymode();
+#else
+                Application.Quit();
+#endif
+                return;
+            }
             
             // Don't need visuals during this process.
             NoVisuals();
@@ -84,18 +100,7 @@ namespace FusionIK
                     }
                     else
                     {
-                        file = DirectoryPath(new[] {"Testing", R.Properties.name, result.robot.ToString()});
-                        if (file == null)
-                        {
-#if UNITY_EDITOR
-                            EditorApplication.ExitPlaymode();
-#else
-                            Application.Quit();
-#endif
-                            return;
-                        }
-                        
-                        file = Path.Combine(file, $"{i}.csv");
+                        file = Path.Combine(_path, result.robot.ToString(), $"{i}.csv");
                     }
 
                     // If file exceeds what is needed, return.

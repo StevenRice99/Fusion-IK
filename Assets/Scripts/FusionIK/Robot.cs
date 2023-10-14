@@ -87,7 +87,7 @@ namespace FusionIK
         public SolverMode mode;
 
         [NonSerialized]
-        public bool exhaustive;
+        public bool exploitative;
 
         [NonSerialized]
         public bool iterative;
@@ -143,7 +143,7 @@ namespace FusionIK
         /// <returns>A name for a robot.</returns>
         public override string ToString()
         {
-            return (exhaustive ? "Exhaustive " : string.Empty) + (iterative ? "Iterative " : string.Empty) +
+            return (exploitative ? "Exploitative " : string.Empty) + (iterative ? "Iterative " : string.Empty) +
                    (minimal ? "Minimal " : string.Empty) + mode switch
                    {
                        SolverMode.BioIk => "Bio IK",
@@ -168,12 +168,12 @@ namespace FusionIK
                 return Color.white;
             }
             
-            if (exhaustive)
+            if (exploitative)
             {
                 return iterative ? new(1, 0.71f, 0.008f) : Color.yellow;
             }
 
-            if (exhaustive)
+            if (exploitative)
             {
                 return new(1, 0.5f, 0);
             }
