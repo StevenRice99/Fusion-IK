@@ -277,7 +277,7 @@ def train(epochs: int):
                 for inputs, outputs in tqdm(training, msg):
                     net.optimize(to_tensor(inputs), to_tensor(outputs))
                 # Check how well the newest epoch performs.
-                temp_accuracy, temp_accuracies  = test(net, testing)
+                temp_accuracy, temp_accuracies = test(net, testing)
                 # Check if this is the new best network.
                 if temp_accuracy > accuracy:
                     best = net.state_dict()
