@@ -117,8 +117,9 @@ namespace FusionIK
         /// <param name="targetPosition">The position to reach.</param>
         /// <param name="targetRotation">The rotation to reach.</param>
         /// <param name="details">The solving parameters to save to.</param>
+        /// <param name="random">The random seed.</param>
         /// <returns>The results to update.</returns>
-        public static void Run(ref Vector3 targetPosition, ref Quaternion targetRotation, ref Details details)
+        public static void Run(ref Vector3 targetPosition, ref Quaternion targetRotation, ref Details details, uint random = 0)
         {
             // Reset the values.
             details.Reset(targetPosition, targetRotation);
@@ -164,7 +165,7 @@ namespace FusionIK
                 return;
             }
             
-            _random = new((uint) Random.Range(1, int.MaxValue));
+            _random = new(random == 0 ? (uint) Random.Range(1, int.MaxValue) : random);
 
             _populationSize = details.robot.Properties.Population;
             _elites = details.robot.Properties.Elites;

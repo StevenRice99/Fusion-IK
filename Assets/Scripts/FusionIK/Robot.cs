@@ -178,7 +178,7 @@ namespace FusionIK
                 return new(1, 0.5f, 0);
             }
 
-            return mode == SolverMode.BioIk ? Color.cyan : new(0.5f, 1, 1);
+            return mode == SolverMode.BioIk ? new(0.5f, 1, 0.5f) : Color.cyan;
         }
 
         /// <summary>

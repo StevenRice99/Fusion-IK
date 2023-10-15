@@ -151,9 +151,11 @@ namespace FusionIK
             
             Robot.PhysicsStep();
 
+            uint random = (uint) Random.Range(1, int.MaxValue);
+
             for (int i = 0; i < results.Length; i++)
             {
-                Solver.Run(ref position, ref rotation, ref results[i]);
+                Solver.Run(ref position, ref rotation, ref results[i], random);
             }
         }
 
