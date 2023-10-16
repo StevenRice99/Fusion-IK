@@ -17,11 +17,13 @@ def read_file(path: str):
     success = 0
     time = 0
     fitness = 0
+    successes = {}
     # Sum the data.
     for index, data in df.iterrows():
         # Only add the time when the move was successful.
         if data["Success"] is True:
             success += 1
+            successes[index] = True
             time += float(data["Time"])
         # Only add the fitness when the move was unsuccessful.
         else:
@@ -31,7 +33,7 @@ def read_file(path: str):
     fitness = "" if success == rows else fitness / (rows - success)
     success = success / rows * 100
     print(f"Processed {path}")
-    return success, time, fitness
+    return success, time, fitness, successes
 
 
 def evaluate():
@@ -48,6 +50,7 @@ def evaluate():
         os.mkdir(os.path.join(os.getcwd(), "Results"))
     robots = os.listdir(testing)
     modes = []
+    successes = {}
     # Loop all robots.
     for robot in robots:
         if not os.path.exists(os.path.join(os.getcwd(), "Results", robot)):
@@ -60,7 +63,7 @@ def evaluate():
             path = os.path.join(testing, robot, d)
             # The network inference is in its own file.
             if os.path.isfile(path):
-                success, time, fitness = read_file(path)
+                success, time, fitness, _ = read_file(path)
                 networks[d.replace(".csv", "")] = {"Success": success, "Time": time, "Fitness": fitness}
                 continue
             # Loop through every timeout stored for Bio IK and Fusion IK.
@@ -74,7 +77,15 @@ def evaluate():
                 timeout = int(timeout.replace(".csv", ""))
                 if timeout not in results:
                     results[timeout] = {}
-                success, time, fitness = read_file(file)
+                success, time, fitness, temp = read_file(file)
+                if d not in successes:
+                    successes[d] = {}
+                    for iteration in temp:
+                        successes[d][iteration] = timeout
+                else:
+                    for iteration in temp:
+                        if iteration not in successes[d] or time < successes[d][iteration]:
+                            successes[d][iteration] = timeout
                 results[timeout][d] = {"Success": success, "Time": time, "Fitness": fitness}
         # Write network results to CSV.
         success = False
@@ -120,6 +131,21 @@ def evaluate():
             f = open(os.path.join(os.getcwd(), "Results", robot, "Fitness Score.csv"), "a")
             f.write(fitness)
             f.close()
+        # Calculate first convergences.
+        averages = {}
+        for mode in successes:
+            count = 0
+            total = 0
+            for result in successes[mode]:
+                count += 1
+                total += successes[mode][result]
+            averages[mode] = total / count
+        s = "Mode,Average First Solution Time (ms)"
+        for mode in averages:
+            s += f"\n{mode},{averages[mode]}"
+        f = open(os.path.join(os.getcwd(), "Results", robot, "Average First Solution Time (ms).csv"), "w")
+        f.write(s)
+        f.close()
 
 
 if __name__ == '__main__':

@@ -154,7 +154,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   robotPrefab: {fileID: 1215757785776615163, guid: 641358d386454424db09d1121e4e416f, type: 3}
   testingTotal: 10000
-  milliseconds: 1000
+  milliseconds: 100
 --- !u!4 &1763950136
 Transform:
   m_ObjectHideFlags: 0
