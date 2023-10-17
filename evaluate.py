@@ -23,8 +23,8 @@ def read_file(path: str):
         # Only add the time when the move was successful.
         if data["Success"] is True:
             success += 1
-            successes[index] = True
-            time += float(data["Time"])
+            successes[index] = float(data["Time"])
+            time += successes[index]
         # Only add the fitness when the move was unsuccessful.
         else:
             fitness += float(data["Fitness"])
@@ -81,11 +81,11 @@ def evaluate():
                 if d not in successes:
                     successes[d] = {}
                     for iteration in temp:
-                        successes[d][iteration] = timeout
+                        successes[d][iteration] = {"Timeout": timeout, "Time": temp[iteration]}
                 else:
                     for iteration in temp:
-                        if iteration not in successes[d] or time < successes[d][iteration]:
-                            successes[d][iteration] = timeout
+                        if iteration not in successes[d] or timeout < successes[d][iteration]["Timeout"]:
+                            successes[d][iteration] = {"Timeout": timeout, "Time": temp[iteration]}
                 results[timeout][d] = {"Success": success, "Time": time, "Fitness": fitness}
         # Write network results to CSV.
         success = False
@@ -135,15 +135,17 @@ def evaluate():
         averages = {}
         for mode in successes:
             count = 0
-            total = 0
+            total_timeout = 0
+            total_time = 0
             for result in successes[mode]:
                 count += 1
-                total += successes[mode][result]
-            averages[mode] = total / count
-        s = "Mode,Average First Solution Time (ms)"
+                total_timeout += successes[mode][result]["Timeout"]
+                total_time += successes[mode][result]["Time"]
+            averages[mode] = {"Timeout": total_timeout / count, "Time": total_time / count}
+        s = "Mode,Average First Solution Time (ms),Average First Move Time (s)"
         for mode in averages:
-            s += f"\n{mode},{averages[mode]}"
-        f = open(os.path.join(os.getcwd(), "Results", robot, "Average First Solution Time (ms).csv"), "w")
+            s += f"\n{mode},{averages[mode]['Timeout']},{averages[mode]['Time']}"
+        f = open(os.path.join(os.getcwd(), "Results", robot, "Average Firsts.csv"), "w")
         f.write(s)
         f.close()
 

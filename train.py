@@ -65,17 +65,15 @@ class JointNetwork(nn.Module):
         # Define the network.
         inputs = 6 if minimal else joints + 6
         if large:
-            hidden = 128
+            hidden = max(joints, 6)
+            hidden *= 2
             self.neurons = nn.Sequential(
                 nn.Linear(inputs, hidden),
                 nn.ReLU(),
-                nn.Dropout(),
                 nn.Linear(hidden, hidden),
                 nn.ReLU(),
-                nn.Dropout(),
                 nn.Linear(hidden, hidden),
                 nn.ReLU(),
-                nn.Dropout(),
                 nn.Linear(hidden, joints),
                 nn.ReLU(),
             )
@@ -290,7 +288,7 @@ def train(epochs: int):
                         msg += f" | Joints {accuracies[0]}%"
                         for i in range(1, len(accuracies)):
                             msg += f", {accuracies[i]}%"
-                        results[mode] = {"Average": accuracy, "Joints": accuracies, "Parameters": parameters}
+                        results[name] = {"Average": accuracy, "Joints": accuracies, "Parameters": parameters}
                         print(msg)
                         break
                     # Train on the training dataset.
