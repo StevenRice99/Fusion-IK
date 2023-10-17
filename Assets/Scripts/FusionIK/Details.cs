@@ -14,7 +14,12 @@ namespace FusionIK
         /// <summary>
         /// One rotation in radians.
         /// </summary>
-        public const double C = 2.0 * math.PI_DBL;
+        private const double C = 2.0 * math.PI_DBL;
+        
+        /// <summary>
+        /// The time it took for the joints to reach their destinations from the middle joints.
+        /// </summary>
+        public double TimeMiddle { get; private set; }
         
         /// <summary>
         /// If the algorithm should end.
@@ -40,6 +45,11 @@ namespace FusionIK
         /// Convert joints for use with articulation bodies.
         /// </summary>
         public List<float> Floats => Joints.Select(t => (float) t).ToList();
+
+        /// <summary>
+        /// Convert middle joints for use with articulation bodies.
+        /// </summary>
+        public List<float> FloatsMiddle => JointsMiddle.Select(t => (float) t).ToList();
         
         /// <summary>
         /// The robot that did the move.
@@ -70,6 +80,11 @@ namespace FusionIK
         /// The joints of the best move.
         /// </summary>
         public double[] Joints { get; private set; }
+        
+        /// <summary>
+        /// The joints of the best move from the middle, used only in generation.
+        /// </summary>
+        public double[] JointsMiddle { get; private set; }
 
         /// <summary>
         /// The position to solve for.
@@ -85,6 +100,11 @@ namespace FusionIK
         /// The starting joints.
         /// </summary>
         private double[] _starting;
+
+        /// <summary>
+        /// The starting middle joints.
+        /// </summary>
+        private double[] _startingMiddle;
         
         /// <summary>
         /// Used to time algorithms.
@@ -122,11 +142,21 @@ namespace FusionIK
             _stopwatch.Reset();
 
             Joints ??= new double[robot.Virtual.dof];
+            JointsMiddle ??= new double[Joints.Length];
             _starting ??= new double[Joints.Length];
             List<float> j = robot.GetJoints();
             for (int i = 0; i < Joints.Length; i++)
             {
-                _starting[i] = Joints[i] = j[i];
+                _starting[i] = JointsMiddle[i] = Joints[i] = j[i];
+            }
+
+            if (_startingMiddle == null)
+            {
+                _startingMiddle = new double[Joints.Length];
+                for (int i = 0; i < _startingMiddle.Length; i++)
+                {
+                    _startingMiddle[i] = robot.Middle[i];
+                }
             }
 
             _position = position;
@@ -142,6 +172,8 @@ namespace FusionIK
                 time[i] = 0;
                 fitness[i] = f;
             }
+
+            TimeMiddle = double.MaxValue;
         }
 
         /// <summary>
@@ -170,6 +202,17 @@ namespace FusionIK
             
             if (s)
             {
+                // If an improved middle time, save it.
+                double middleTime = robot.CalculateTime(_startingMiddle, joints);
+                if (middleTime < TimeMiddle)
+                {
+                    TimeMiddle = middleTime;
+                    for (int i = 0; i < JointsMiddle.Length; i++)
+                    {
+                        JointsMiddle[i] = joints[i];
+                    }
+                }
+                
                 // Get the time of the successful move.
                 t = robot.CalculateTime(_starting, joints);
                 

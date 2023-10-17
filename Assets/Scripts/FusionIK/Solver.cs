@@ -207,6 +207,13 @@ namespace FusionIK
             
             details.Start();
 
+            // Cache the seed fitness ahead of time.
+            double[] cachedSeedFitness = new double[seed.Length];
+            for (int i = 0; i < seed.Length; i++)
+            {
+                cachedSeedFitness[i] = _virtual.ComputeLoss(seed[i]);
+            }
+
             // Loop for all available time.
             do
             {
@@ -232,8 +239,8 @@ namespace FusionIK
                         _population[i].genes[j] = seed[i][j];
                         _population[i].momentum[j] = 0.0;
                     }
-                
-                    _population[i].fitness = _virtual.ComputeLoss(_population[i].genes);
+
+                    _population[i].fitness = i < cachedSeedFitness.Length ? cachedSeedFitness[i] : _virtual.ComputeLoss(_population[i].genes);
                 }
 
                 // Randomize the rest of the population.
