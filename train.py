@@ -54,15 +54,33 @@ class JointNetwork(nn.Module):
     The neural network to train.
     """
 
-    def __init__(self, joints: int, minimal: bool):
+    def __init__(self, joints: int, minimal: bool, large: bool):
         """
         Create the neural network.
         :param joints: The number of joints.
         :param minimal: If this is a minimal network.
+        :param minimal: If a large structure of hidden layers should be used.
         """
         super().__init__()
         # Define the network.
-        self.neurons = nn.Linear(6 if minimal else joints + 6, joints)
+        inputs = 6 if minimal else joints + 6
+        if large:
+            hidden = 128
+            self.neurons = nn.Sequential(
+                nn.Linear(inputs, hidden),
+                nn.ReLU(),
+                nn.Dropout(),
+                nn.Linear(hidden, hidden),
+                nn.ReLU(),
+                nn.Dropout(),
+                nn.Linear(hidden, hidden),
+                nn.ReLU(),
+                nn.Dropout(),
+                nn.Linear(hidden, joints),
+                nn.ReLU(),
+            )
+        else:
+            self.neurons = nn.Linear(inputs, joints)
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters())
         # Run on GPU if available.
@@ -186,7 +204,7 @@ def train(epochs: int):
     for robot in robots:
         if not os.path.isdir(os.path.join(os.getcwd(), "Training", robot)):
             continue
-        accuracy_dict = {}
+        results = {}
         joints = 0
         for minimal in [False, True]:
             mode = "Minimal.csv" if minimal else "Standard.csv"
@@ -215,91 +233,97 @@ def train(epochs: int):
                 testing_size = 1
             training = DataLoader(InverseKinematicsDataset(df.head(training_size)), batch_size=1, shuffle=True)
             testing = DataLoader(InverseKinematicsDataset(df.tail(testing_size)), batch_size=testing_size, shuffle=False)
-            # Define the network.
-            net = JointNetwork(joints, minimal)
-            # Check if an existing net exists for this joint, load it.
-            if os.path.exists(os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Standard.pt")):
-                try:
-                    saved = torch.load(os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Standard.pt"))
-                    epoch = saved["Epoch"]
-                    accuracy = saved["Accuracy"]
-                    accuracies = saved["Accuracies"]
-                    best = saved["Best"]
-                    net.load_state_dict(saved["Training"])
-                    net.optimizer.load_state_dict(saved["Optimizer"])
-                except:
-                    print(f"{robot} | {mode} | Unable to load existing data.")
-                    continue
-            # Otherwise, start a new training.
-            else:
-                epoch = 0
-                best = net.state_dict()
-                accuracy, accuracies = test(net, testing)
-            # Train for set epochs.
-            core = f"{robot} | {mode} | {sum(p.numel() for p in net.parameters() if p.requires_grad)} Parameters | {training_size} Training | {testing_size} Testing | No improvement for "
-            while True:
-                # Save the data.
-                torch.save({
-                    "Best": best,
-                    "Training": net.state_dict(),
-                    "Optimizer": net.optimizer.state_dict(),
-                    "Epoch": epoch,
-                    "Accuracy": accuracy,
-                    "Accuracies": accuracies
-                }, os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.pt" if minimal else f"{robot} Standard.pt"))
-                # Store the current training state.
-                current = net.state_dict()
-                # Export the best state.
-                net.load_state_dict(best)
-                torch.onnx.export(
-                    net,
-                    to_tensor(torch.randn(1, 6 if minimal else joints + 6, dtype=torch.float32)),
-                    os.path.join(os.getcwd(), "Networks", robot, f"{robot} Minimal.onnx" if minimal else f"{robot} Standard.onnx"),
-                    export_params=True,
-                    opset_version=9,
-                    do_constant_folding=True,
-                    input_names=["input"],
-                    output_names=["output"]
-                )
-                # Restore the current training state.
-                net.load_state_dict(current)
-                # Exit once done.
-                msg = f"{core}{epoch} Epochs | Accuracy {accuracy}%"
-                if epoch >= epochs:
-                    msg += f" | Joints {accuracies[0]}%"
-                    for i in range(1, len(accuracies)):
-                        msg += f", {accuracies[i]}%"
-                    accuracy_dict[mode] = {"Average": accuracy, "Joints": accuracies}
-                    print(msg)
-                    break
-                # Train on the training dataset.
-                net.train()
-                for inputs, outputs in tqdm(training, msg):
-                    net.optimize(to_tensor(inputs), to_tensor(outputs))
-                # Check how well the newest epoch performs.
-                temp_accuracy, temp_accuracies = test(net, testing)
-                # Check if this is the new best network.
-                if temp_accuracy > accuracy:
-                    best = net.state_dict()
-                    accuracy = temp_accuracy
-                    accuracies = temp_accuracies
-                    epoch = 0
+            for large in [False, True]:
+                # Define the network.
+                net = JointNetwork(joints, minimal, large)
+                name = robot + (" Minimal" if minimal else " Standard") + (" Large" if large else "")
+                # Check if an existing net exists for this joint, load it.
+                if os.path.exists(os.path.join(os.getcwd(), "Networks", robot, f"{name}.pt")):
+                    try:
+                        saved = torch.load(os.path.join(os.getcwd(), "Networks", robot, f"{name}.pt"))
+                        epoch = saved["Epoch"]
+                        accuracy = saved["Accuracy"]
+                        accuracies = saved["Accuracies"]
+                        best = saved["Best"]
+                        net.load_state_dict(saved["Training"])
+                        net.optimizer.load_state_dict(saved["Optimizer"])
+                    except:
+                        print(f"{name} | Unable to load existing data.")
+                        continue
+                # Otherwise, start a new training.
                 else:
-                    epoch += 1
+                    epoch = 0
+                    best = net.state_dict()
+                    accuracy, accuracies = test(net, testing)
+                # Train for set epochs.
+                parameters = sum(p.numel() for p in net.parameters() if p.requires_grad)
+                core = f"{name} | {parameters} Parameters | {training_size} Training | {testing_size} Testing | No improvement for "
+                while True:
+                    # Save the data.
+                    torch.save({
+                        "Best": best,
+                        "Training": net.state_dict(),
+                        "Optimizer": net.optimizer.state_dict(),
+                        "Epoch": epoch,
+                        "Accuracy": accuracy,
+                        "Accuracies": accuracies
+                    }, os.path.join(os.getcwd(), "Networks", robot, f"{name}.pt"))
+                    # Store the current training state.
+                    current = net.state_dict()
+                    # Export the best state.
+                    net.load_state_dict(best)
+                    torch.onnx.export(
+                        net,
+                        to_tensor(torch.randn(1, 6 if minimal else joints + 6, dtype=torch.float32)),
+                        os.path.join(os.getcwd(), "Networks", robot, f"{name}.onnx"),
+                        export_params=True,
+                        opset_version=9,
+                        do_constant_folding=True,
+                        input_names=["input"],
+                        output_names=["output"]
+                    )
+                    # Restore the current training state.
+                    net.load_state_dict(current)
+                    # Exit once done.
+                    msg = f"{core}{epoch} Epochs | Accuracy {accuracy}%"
+                    if epoch >= epochs:
+                        msg += f" | Joints {accuracies[0]}%"
+                        for i in range(1, len(accuracies)):
+                            msg += f", {accuracies[i]}%"
+                        results[mode] = {"Average": accuracy, "Joints": accuracies, "Parameters": parameters}
+                        print(msg)
+                        break
+                    # Train on the training dataset.
+                    net.train()
+                    for inputs, outputs in tqdm(training, msg):
+                        net.optimize(to_tensor(inputs), to_tensor(outputs))
+                    # Check how well the newest epoch performs.
+                    temp_accuracy, temp_accuracies = test(net, testing)
+                    # Check if this is the new best network.
+                    if temp_accuracy > accuracy:
+                        best = net.state_dict()
+                        accuracy = temp_accuracy
+                        accuracies = temp_accuracies
+                        epoch = 0
+                    else:
+                        epoch += 1
         if not os.path.exists(os.path.join(os.getcwd(), "Results")):
             os.mkdir(os.path.join(os.getcwd(), "Results"))
         if not os.path.exists(os.path.join(os.getcwd(), "Results", robot)):
             os.mkdir(os.path.join(os.getcwd(), "Results", robot))
-        s = "Joint"
-        for mode in accuracy_dict:
+        s = "Network"
+        for mode in results:
             s += f",{mode}"
+        s += "\nParameters"
+        for mode in results:
+            s += f",{results[mode]['Parameters']}"
         for i in range(joints):
-            s += f"\nJoint {i + 1}"
-            for mode in accuracy_dict:
-                s += f",{accuracy_dict[mode]['Joints'][i]}%"
-        s += f"\nAverage"
-        for mode in accuracy_dict:
-            s += f",{accuracy_dict[mode]['Average']}%"
+            s += f"\nJoint {i + 1} Accuracy"
+            for mode in results:
+                s += f",{results[mode]['Joints'][i]}%"
+        s += f"\nAverage Accuracy"
+        for mode in results:
+            s += f",{results[mode]['Average']}%"
         f = open(os.path.join(os.getcwd(), "Results", robot, "Training.csv"), "w")
         f.write(s)
         f.close()
