@@ -10,7 +10,7 @@
 
 # Overview
 
-Fusion IK: Solving Inverse Kinematics with Evolution and Deep Learning. To see Fusion IK in action without getting this repository setup, [a web demo is available here](https://stevenrice.ca/fusion-ik "Fusion IK Web Demo").
+Fusion IK: Solving Inverse Kinematics with Evolution and Deep Learning.
 
 # Setup
 
