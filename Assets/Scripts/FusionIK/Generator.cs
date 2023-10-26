@@ -31,6 +31,11 @@ namespace FusionIK
         /// </summary>
         private string _path;
 
+        /// <summary>
+        /// If minimal mode is being used.
+        /// </summary>
+        private bool _minimal;
+
         private void Start()
         {
             // Spawn the robot.
@@ -59,17 +64,25 @@ namespace FusionIK
             // If already generated required amount, exit.
             if (_generatedCount >= generatedTotal)
             {
-                Debug.Log("Finished generation.");
+                if (!_minimal)
+                {
+                    _minimal = true;
+                    Load(R);
+                }
+                else
+                {
+                    Debug.Log("Finished generation.");
 #if UNITY_EDITOR
-                EditorApplication.ExitPlaymode();
+                    EditorApplication.ExitPlaymode();
 #else
                     Application.Quit();
 #endif
-                return;
+                    return;
+                }
             }
             
             // If no previous starting values, load last known values.
-            starting ??= R.Middle;
+            starting = _minimal || starting == null ? R.Middle : starting;
             
             // Randomly move the robot.
             R.Snap(R.RandomJoints());
@@ -98,92 +111,50 @@ namespace FusionIK
             Robot.PhysicsStep();
 
             // If reached, add the result, update the last pose, and set the start of the next generation to the result.
-            float[] inputs = R.PrepareInputs(R.EndTransform.position, R.EndTransform.rotation, starting);
-            float[] inputsMinimal = R.PrepareInputs(R.EndTransform.position, R.EndTransform.rotation);
+            float[] inputs = R.PrepareInputs(R.EndTransform.position, R.EndTransform.rotation, _minimal ? null : starting);
             float[] outputs = R.NetScaledJoints(results[0].Floats).ToArray();
-            float[] outputsMinimal = R.NetScaledJoints(results[0].FloatsMiddle).ToArray();
 
-            string path = Path.Combine(_path, "Standard.csv");
-            string data = string.Empty;
+            string s = string.Empty;
             
             // Write header if new file.
-            if (!File.Exists(path))
+            if (!File.Exists(_path))
             {
                 for (int i = 0; i < inputs.Length; i++)
                 {
-                    data += $"I{i + 1},";
+                    s += $"I{i + 1},";
                 }
                 
                 for (int i = 0; i < outputs.Length; i++)
                 {
-                    data += $"O{i + 1}";
+                    s += $"O{i + 1}";
                     if (i < outputs.Length - 1)
                     {
-                        data += ",";
+                        s += ",";
                     }
                 }
             
-                File.WriteAllText(path, data);
+                File.WriteAllText(_path, s);
             }
 
             // Write data.
-            data = "\n";
+            s = "\n";
             for (int j = 0; j < inputs.Length; j++)
             {
-                data += $"{inputs[j]},";
+                s += $"{inputs[j]},";
             }
             for (int j = 0; j < outputs.Length; j++)
             {
-                data += $"{outputs[j]}";
+                s += $"{outputs[j]}";
                 if (j < outputs.Length - 1)
                 {
-                    data += ",";
+                    s += ",";
                 }
             }
             
-            File.AppendAllText(path, data);
+            File.AppendAllText(_path, s);
             
-            string pathMinimal = Path.Combine(_path, "Minimal.csv");
-            string dataMinimal = string.Empty;
-            
-            // Write header if new file.
-            if (!File.Exists(pathMinimal))
-            {
-                for (int i = 0; i < inputsMinimal.Length; i++)
-                {
-                    dataMinimal += $"I{i + 1},";
-                }
-                
-                for (int i = 0; i < outputsMinimal.Length; i++)
-                {
-                    dataMinimal += $"O{i + 1}";
-                    if (i < outputsMinimal.Length - 1)
-                    {
-                        dataMinimal += ",";
-                    }
-                }
-            
-                File.WriteAllText(pathMinimal, dataMinimal);
-            }
-
-            // Write data.
-            dataMinimal = "\n";
-            for (int j = 0; j < inputsMinimal.Length; j++)
-            {
-                dataMinimal += $"{inputsMinimal[j]},";
-            }
-            for (int j = 0; j < outputsMinimal.Length; j++)
-            {
-                dataMinimal += $"{outputsMinimal[j]}";
-                if (j < outputsMinimal.Length - 1)
-                {
-                    dataMinimal += ",";
-                }
-            }
-            
-            File.AppendAllText(pathMinimal, dataMinimal);
-            
-            Debug.Log($"{R.Properties.name} | Generated {++_generatedCount} of {generatedTotal}.");
+            string doing = _minimal ? "Minimal" : "Standard";
+            Debug.Log($"{R.Properties.name} | {doing} | Generated {++_generatedCount} of {generatedTotal}.");
             
             // Update the pose to start at.
             starting = results[0].Floats;
@@ -203,18 +174,19 @@ namespace FusionIK
                 return;
             }
 
-            string path = Path.Combine(_path, "Standard.csv");
+            string doing = _minimal ? "Minimal" : "Standard";
+            _path = Path.Combine(_path, $"{doing}.csv");
             
             // Read total from file in case it exceeds amount.
-            _generatedCount = CountLines(path);
+            _generatedCount = CountLines(_path);
 
-            if (_generatedCount <= 0)
+            if (_minimal || _generatedCount <= 0)
             {
                 return;
             }
 
             // Attempt to load the last pose.
-            string[] lines = File.ReadLines(path).ToArray();
+            string[] lines = File.ReadLines(_path).ToArray();
             if (lines.Length <= 1)
             {
                 return;
