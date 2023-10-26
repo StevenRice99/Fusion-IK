@@ -10,7 +10,7 @@
 
 # Overview
 
-Fusion IK: Solving Inverse Kinematics with Evolution and Deep Learning.
+Fusion IK: Solving Inverse Kinematics using a Hybridized Deep Learning and Evolutionary Approach
 
 # Setup
 
