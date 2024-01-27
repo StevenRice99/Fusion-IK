@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef716d2651ad4bce98d1d53a8b5e9074, type: 3}
+  m_Name: 20 DOF
+  m_EditorClassIdentifier: 
+  repeatability: 0.00008
+  population: 120
+  elites: 3
+  generations: 10
+  kept: 10
+  standardNetwork: {fileID: 5022602860645237092, guid: bdd657e0e3b4a474584d9ae38baefacf, type: 3}
+  minimalNetwork: {fileID: 0}
+  normal: {fileID: 2100000, guid: caa1e16d1366e024bb46efaef55dd1be, type: 2}
+  transparent: {fileID: 2100000, guid: be575b3ea8105cc41a2cebe19ab207e2, type: 2}
