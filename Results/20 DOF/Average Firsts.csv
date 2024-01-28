@@ -1,0 +1,7 @@
+Mode,Average First Solution Time (ms),Average First Move Time (s)
+Bio IK,6.8466,3.916494506748658
+Exploitative Fusion IK,8.929,3.870286059747073
+Exploitative Iterative Fusion IK,7.35,3.909434282816927
+Fusion IK,6.8102,3.9308675728711298
+Iterative Fusion IK,7.5348,3.847340042036525
+Minimal Fusion IK,6.3022,3.934080153681946

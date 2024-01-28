@@ -18,6 +18,6 @@ MonoBehaviour:
   generations: 10
   kept: 10
   standardNetwork: {fileID: 5022602860645237092, guid: bdd657e0e3b4a474584d9ae38baefacf, type: 3}
-  minimalNetwork: {fileID: 0}
+  minimalNetwork: {fileID: 5022602860645237092, guid: 6dcda6aee80b8144080bbbb6703bd123, type: 3}
   normal: {fileID: 2100000, guid: caa1e16d1366e024bb46efaef55dd1be, type: 2}
   transparent: {fileID: 2100000, guid: be575b3ea8105cc41a2cebe19ab207e2, type: 2}
