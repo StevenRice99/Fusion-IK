@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
+using UnityEngine.SceneManagement;
 
 namespace FusionIK
 {
@@ -79,6 +81,11 @@ namespace FusionIK
         private List<Vector3>[] _paths;
 
         /// <summary>
+        /// The next scene to load.
+        /// </summary>
+        private int _next;
+
+        /// <summary>
         /// Setup the material for line rendering.
         /// </summary>
         private static void LineMaterial()
@@ -107,6 +114,13 @@ namespace FusionIK
 
         private void Start()
         {
+            // Get the next scene to load.
+            _next = SceneManager.GetActiveScene().buildIndex + 1;
+            if (_next >= SceneManager.sceneCountInBuildSettings)
+            {
+                _next = 0;
+            }
+            
             SetResult(CreateRobots(), milliseconds);
             
             // Create path visualization lists for every robot.
@@ -178,7 +192,7 @@ namespace FusionIK
             // Create a new movement when the space key is pressed.
             if (Keyboard.current.spaceKey.wasPressedThisFrame)
             {
-                RandomMove();
+                Move();
             }
         }
 
@@ -246,22 +260,10 @@ namespace FusionIK
             starting = best.Floats;
         }
 
-        private void Move()
-        {
-            if (_targetPosition == null || _targetRotation == null)
-            {
-                return;
-            }
-            
-            GetStarting();
-            MoveResults(_targetPosition.Value, _targetRotation.Value);
-            MovePerform();
-        }
-
         /// <summary>
         /// Move all robots to a random target.
         /// </summary>
-        private void RandomMove()
+        private void Move()
         {
             GetStarting();
 
@@ -353,9 +355,9 @@ namespace FusionIK
             GUI.color = Color.white;
             
             // Display input to change the milliseconds.
-            GUI.Label(new(10, 10, 100, 20), "Milliseconds");
+            GUI.Label(new(10, 10, 80, 20), "Milliseconds");
             string s = milliseconds.ToString();
-            s = GUI.TextField(new(10, 30, 100, 20), s, 5);
+            s = GUI.TextField(new(10, 30, 80, 20), s, 5);
             s = new(s.Where(char.IsDigit).ToArray());
             if (string.IsNullOrWhiteSpace(s))
             {
@@ -390,48 +392,22 @@ namespace FusionIK
             {
                 _targetPosition = R.EndTransform.position;
                 _targetRotation = R.EndTransform.rotation;
-                Move();
+                GetStarting();
+                MoveResults(_targetPosition.Value, _targetRotation.Value);
+                MovePerform();
             }
 
             // Button to move the robot randomly.
-            if (GUI.Button(new(10, 55, 100, 20), "Random Move"))
-            {
-                RandomMove();
-            }
-
-            // Button to move the robot.
-            if (GUI.Button(new(10, 75, 100, 20), "Move"))
+            if (GUI.Button(new(10, 55, 80, 20), "Move"))
             {
                 Move();
             }
-
-            // Cartesian jog constants.
-            const int controlsWidth = 200;
-            const int controlsHeight = 20;
-            const int labelWidth = 90;
             
-            // Cartesian jog labels.
-            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, 10, labelWidth, controlsHeight), "Position X");
-            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight + 10 * 2, labelWidth, controlsHeight), "Position Y");
-            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 2 + 10 * 3, labelWidth, controlsHeight), "Position Z");
-            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 3 + 10 * 4, labelWidth, controlsHeight), "Rotation X");
-            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 4 + 10 * 5, labelWidth, controlsHeight), "Rotation Y");
-            GUI.Label(new(Screen.width - controlsWidth - labelWidth - 10, controlsHeight * 5 + 10 * 6, labelWidth, controlsHeight), "Rotation Z");
-
-            // Cartesian jog position sliders.
-            Transform robotTransform = R.transform;
-            Vector3 robotPosition = robotTransform.position;
-            float x = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, 10, controlsWidth, controlsHeight), _targetPosition.Value.x, robotPosition.x - R.ChainLength, robotPosition.x + R.ChainLength);
-            float y = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight + 10 * 2, controlsWidth, controlsHeight), _targetPosition.Value.y, robotPosition.y - R.ChainLength, robotPosition.y + R.ChainLength);
-            float z = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 2 + 10 * 3, controlsWidth, controlsHeight), _targetPosition.Value.z, robotPosition.z - R.ChainLength, robotPosition.z + R.ChainLength);
-            _targetPosition = new(x, y, z);
-
-            // Cartesian jog rotation sliders.
-            Vector3 euler = _targetRotation.Value.eulerAngles;
-            x = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 3 + 10 * 4, controlsWidth, controlsHeight), euler.x, 0, 360);
-            y = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 4 + 10 * 5, controlsWidth, controlsHeight), euler.y, 0, 360);
-            z = GUI.HorizontalSlider(new(Screen.width - controlsWidth - 10, controlsHeight * 5 + 10 * 6, controlsWidth, controlsHeight), euler.z, 0, 360);
-            _targetRotation = Quaternion.Euler(x, y, z);
+            // View the next scene if pressed.
+            if (SceneManager.sceneCountInBuildSettings > 1 && GUI.Button(new(Screen.width - 120, 10, 110, 20), "Test Next Robot"))
+            {
+                SceneManager.LoadScene(_next);
+            }
             
             if (_ordered == null)
             {
