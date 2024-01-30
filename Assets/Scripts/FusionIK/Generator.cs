@@ -11,11 +11,17 @@ namespace FusionIK
     [DisallowMultipleComponent]
     public sealed class Generator : Controller
     {
+        /// <summary>
+        /// The total number of entries to generate for training.
+        /// </summary>
         [Tooltip("The total number of entries to generate for training.")]
         [Min(1)]
         [SerializeField]
         private int generatedTotal = 10000;
         
+        /// <summary>
+        /// The time the algorithm is allowed to run for.
+        /// </summary>
         [Tooltip("The time the algorithm is allowed to run for.")]
         [Min(1)]
         [SerializeField]
@@ -36,6 +42,9 @@ namespace FusionIK
         /// </summary>
         private bool _minimal;
 
+        /// <summary>
+        /// Start is called on the frame when a script is enabled just before any of the Update methods are called the first time. This function can be a coroutine.
+        /// </summary>
         private void Start()
         {
             // Spawn the robot.
@@ -59,6 +68,9 @@ namespace FusionIK
             Load(robot);
         }
 
+        /// <summary>
+        /// Update is called every frame, if the MonoBehaviour is enabled.
+        /// </summary>
         private void Update()
         {
             // If already generated required amount, exit.

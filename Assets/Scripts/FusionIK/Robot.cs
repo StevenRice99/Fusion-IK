@@ -86,12 +86,21 @@ namespace FusionIK
         [NonSerialized]
         public SolverMode mode;
 
+        /// <summary>
+        /// If this robot is solving in exploitative mode.
+        /// </summary>
         [NonSerialized]
         public bool exploitative;
 
+        /// <summary>
+        /// If this robot is solving in iterative mode.
+        /// </summary>
         [NonSerialized]
         public bool iterative;
 
+        /// <summary>
+        /// If this robot is solving in minimal mode.
+        /// </summary>
         [NonSerialized]
         public bool minimal;
 
@@ -429,6 +438,9 @@ namespace FusionIK
             return inputs;
         }
 
+        /// <summary>
+        /// Start is called on the frame when a script is enabled just before any of the Update methods are called the first time. This function can be a coroutine.
+        /// </summary>
         private void Start()
         {
             // Ensure there are properties attached.
@@ -717,6 +729,9 @@ namespace FusionIK
             SnapPerform(Middle);
         }
 
+        /// <summary>
+        /// Frame-rate independent MonoBehaviour.FixedUpdate message for physics calculations.
+        /// </summary>
         private void FixedUpdate()
         {
             if (!IsMoving)
@@ -760,6 +775,9 @@ namespace FusionIK
             SnapPerform(delta);
         }
 
+        /// <summary>
+        /// Destroying the attached Behaviour will result in the game or Scene receiving OnDestroy.
+        /// </summary>
         public void OnDestroy()
         {
             _standardWorker?.Dispose();

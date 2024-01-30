@@ -10,23 +10,41 @@ namespace FusionIK
 	[DisallowMultipleComponent]
 	public class VirtualJoint : MonoBehaviour
 	{
+		/// <summary>
+		/// The parent joint.
+		/// </summary>
 		[Header("Chain Properties")]
 		[Tooltip("The parent joint.")]
 		public VirtualJoint parent;
 		
+		/// <summary>
+		/// The child joint.
+		/// </summary>
 		[Tooltip("The child joint.")]
 		public VirtualJoint child;
 
+		/// <summary>
+		/// The motion along the X axis.
+		/// </summary>
 		[Header("Movement Properties")]
 		[Tooltip("The motion along the X axis.")]
 		public Motion x;
 		
+		/// <summary>
+		/// The motion along the Y axis.
+		/// </summary>
 		[Tooltip("The motion along the Y axis.")]
 		public Motion y;
 		
+		/// <summary>
+		/// The motion along the Z axis.
+		/// </summary>
 		[Tooltip("The motion along the Z axis.")]
 		public Motion z;
 		
+		/// <summary>
+		/// True if this joint is rotational, false if it is Prismatic.
+		/// </summary>
 		[Tooltip("True if this joint is rotational, false if it is Prismatic.")]
 		public bool rotational = true;
 		

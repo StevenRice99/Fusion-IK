@@ -14,7 +14,7 @@ namespace FusionIK
         /// <summary>
         /// One rotation in radians.
         /// </summary>
-        public const double C = 2.0 * math.PI_DBL;
+        private const double C = 2.0 * math.PI_DBL;
         
         /// <summary>
         /// If the algorithm should end.

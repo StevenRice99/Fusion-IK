@@ -12,6 +12,9 @@ namespace FusionIK
     [DisallowMultipleComponent]
     public abstract class Controller : MonoBehaviour
     {
+        /// <summary>
+        /// The robot to control.
+        /// </summary>
         [Tooltip("The robot to control.")]
         [SerializeField]
         protected GameObject robotPrefab;
@@ -45,6 +48,9 @@ namespace FusionIK
             }
         }
 
+        /// <summary>
+        /// Awake is called when the script instance is being loaded.
+        /// </summary>
         protected virtual void Awake()
         {
             if (robotPrefab == null)

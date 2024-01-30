@@ -9,7 +9,7 @@ EditorBuildSettings:
     path: Assets/ABB IRB 7600/Scenes/Visualize.unity
     guid: cfc362863d80d9749b992bc8d4e7d050
   - enabled: 1
-    path: Assets/20 DOF/Scenes/20 DOF.unity
+    path: Assets/20 DOF/Scenes/Visualize.unity
     guid: bb07d1be1fccfe04a85018feca508e6e
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: ac2e9bec2e581d54eb5002277b387897, type: 2}

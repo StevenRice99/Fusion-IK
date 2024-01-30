@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -40,6 +39,9 @@ namespace FusionIK
         /// </summary>
         private static Material _lineMaterial;
         
+        /// <summary>
+        /// The time the algorithm is allowed to run for.
+        /// </summary>
         [Tooltip("The time the algorithm is allowed to run for.")]
         [Min(1)]
         [SerializeField]
@@ -112,6 +114,9 @@ namespace FusionIK
             _lineMaterial.SetInt(ZWrite, 0);
         }
 
+        /// <summary>
+        /// Start is called on the frame when a script is enabled just before any of the Update methods are called the first time. This function can be a coroutine.
+        /// </summary>
         private void Start()
         {
             // Get the next scene to load.
@@ -187,6 +192,9 @@ namespace FusionIK
             }
         }
 
+        /// <summary>
+        /// Update is called every frame, if the MonoBehaviour is enabled.
+        /// </summary>
         private void Update()
         {
             // Create a new movement when the space key is pressed.
@@ -196,6 +204,9 @@ namespace FusionIK
             }
         }
 
+        /// <summary>
+        /// Frame-rate independent MonoBehaviour.FixedUpdate message for physics calculations.
+        /// </summary>
         private void FixedUpdate()
         {
             // Add to paths as needed.
@@ -205,6 +216,9 @@ namespace FusionIK
             }
         }
 
+        /// <summary>
+        /// Get the starting position of the robots.
+        /// </summary>
         private void GetStarting()
         {
             // Clear old paths.
@@ -217,6 +231,9 @@ namespace FusionIK
             starting ??= R.Middle;
         }
 
+        /// <summary>
+        /// Perform a move of the robots.
+        /// </summary>
         private void MovePerform()
         {
             // Get the best robot and order the rest.
@@ -350,6 +367,9 @@ namespace FusionIK
             GUI.Label(new(offset + 65, y, Screen.width - offset - 10, 20), description);
         }
 
+        /// <summary>
+        /// OnGUI is called for rendering and handling GUI events.
+        /// </summary>
         private void OnGUI()
         {
             GUI.color = Color.white;
@@ -423,6 +443,9 @@ namespace FusionIK
             }
         }
 
+        /// <summary>
+        /// OnRenderObject is called after camera has rendered the Scene.
+        /// </summary>
         private void OnRenderObject()
         {
             LineMaterial();

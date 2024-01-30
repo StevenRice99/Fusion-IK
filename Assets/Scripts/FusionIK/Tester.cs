@@ -10,12 +10,19 @@ namespace FusionIK
     [DisallowMultipleComponent]
     public class Tester : ControllerMultiple
     {
+        /// <summary>
+        /// The total number of results to generate for testing.
+        /// </summary>
         [Tooltip("The total number of results to generate for testing.")]
         [Min(1)]
         [SerializeField]
         private int testingTotal = 10000;
 
+        /// <summary>
+        /// The time the algorithms are allowed to run for.
+        /// </summary>
         [Tooltip("The time the algorithms are allowed to run for.")]
+        [Min(1)]
         [SerializeField]
         protected long milliseconds = 1000;
 
@@ -29,6 +36,9 @@ namespace FusionIK
         /// </summary>
         private string _path;
         
+        /// <summary>
+        /// Start is called on the frame when a script is enabled just before any of the Update methods are called the first time. This function can be a coroutine.
+        /// </summary>
         private void Start()
         {
             SetResult(CreateRobots(), milliseconds);
@@ -47,6 +57,12 @@ namespace FusionIK
 
             foreach (Details result in results)
             {
+                // Don't need folders for network-only robots as they simply write to a single CSV file.
+                if (result.robot.mode == Robot.SolverMode.Network)
+                {
+                    continue;
+                }
+                
                 string file = DirectoryPath(new[] {"Testing", R.Properties.name, result.robot.ToString()});
                 if (file != null)
                 {
@@ -65,6 +81,9 @@ namespace FusionIK
             NoVisuals();
         }
 
+        /// <summary>
+        /// Update is called every frame, if the MonoBehaviour is enabled.
+        /// </summary>
         private void Update()
         {
             // If already evaluated required amount, exit.

@@ -8,16 +8,25 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(Camera))]
 public class CameraController : MonoBehaviour
 {
+    /// <summary>
+    /// Camera movement speed in meters per second.
+    /// </summary>
     [Tooltip("Camera movement speed in meters per second.")]
     [Min(float.Epsilon)]
     [SerializeField]
     private float movementSpeed = 1;
     
+    /// <summary>
+    /// Camera look speed.
+    /// </summary>
     [Tooltip("Camera look speed.")]
     [Min(float.Epsilon)]
     [SerializeField]
     private float lookSpeed =  0.1f;
     
+    /// <summary>
+    /// Camera look speed with the keyboard in meters per second.
+    /// </summary>
     [Tooltip("Camera look speed with the keyboard in meters per second.")]
     [Min(float.Epsilon)]
     [SerializeField]
