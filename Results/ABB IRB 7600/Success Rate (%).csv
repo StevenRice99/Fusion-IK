@@ -1,4 +1,4 @@
-Timeout (ms),Bio IK,Exploitative Fusion IK,Exploitative Iterative Fusion IK,Fusion IK,Iterative Fusion IK,Minimal Fusion IK,Minimal Network,Network
+Timeout (ms),Bio IK,Exploitative Fusion IK,Exploitative Iterative Fusion IK,Fusion IK,Iterative Fusion IK,Minimal Fusion IK
 0,0.04%,0.0%,0.02%,0.04%,0.08%,0.04%,,
 1,12.78%,10.059999999999999%,8.219999999999999%,12.24%,10.96%,12.620000000000001%,,
 2,36.46%,25.380000000000003%,25.0%,35.06%,28.02%,36.04%,,
