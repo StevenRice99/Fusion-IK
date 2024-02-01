@@ -15,7 +15,6 @@ namespace FusionIK
         /// The speed in meters per second (for prismatic joints) or in degrees per second (for rotational joints).
         /// </summary>
         [Tooltip("The speed in meters per second (for prismatic joints) or in degrees per second (for rotational joints).")]
-        [Min(float.Epsilon)]
         [SerializeField]
         private float3 speed;
         
