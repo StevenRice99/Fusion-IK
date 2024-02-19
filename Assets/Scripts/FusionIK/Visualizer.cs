@@ -407,14 +407,20 @@ namespace FusionIK
                 SetResult(robots, milliseconds);
             }
 
-            // At the beginning, just call to move.
+            // At the beginning, just set up the target.
             if (_targetPosition == null || _targetRotation == null)
             {
+                GetStarting();
+                
+                for (int i = 0; i < results.Length; i++)
+                {
+                    results[i].robot.Snap(starting);
+                }
+            
+                Robot.PhysicsStep();
+                
                 _targetPosition = R.EndTransform.position;
                 _targetRotation = R.EndTransform.rotation;
-                GetStarting();
-                MoveResults(_targetPosition.Value, _targetRotation.Value);
-                MovePerform();
             }
 
             // Button to move the robot randomly.
