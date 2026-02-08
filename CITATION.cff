@@ -5,7 +5,7 @@ title: >-
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
-type: software
+type: article
 authors:
   - given-names: Steven
     family-names: Rice
@@ -23,42 +23,5 @@ authors:
 identifiers:
   - type: doi
     value: 10.1016/j.mfglet.2024.09.005
-  - type: url
-    value: >-
-      https://www.sciencedirect.com/science/article/pii/S2213846324000622
-repository-code: 'https://github.com/StevenRice99/Fusion-IK'
-url: 'https://stevenrice.ca/#fusion-ik'
-abstract: >-
-  Inverse kinematics is a core aspect of robot manipulation.
-  This paper presents an approach to solving Inverse
-  Kinematics (IK) for robots, including articulated
-  industrial ones, combining deep learning with an
-  evolutionary algorithm. Fusion IK passes the manipulator’s
-  target and current joint values into a neural network, the
-  results of which are then used to seed an evolutionary
-  algorithm, Bio IK, to complete the solution of the inverse
-  kinematics problem. Fusion IK allows for solving the
-  position and orientation of the robot while attempting to
-  minimize joint movement times. Comparisons between Fusion
-  IK and its underlying algorithm Bio IK are tested on a
-  six-degree-of-freedom articulated industrial robot as well
-  as a 20-degree-of-freedom robot to explore the move times
-  that Fusion IK produces. The comparisons show that the
-  variations of the Fusion IK algorithm show comparable
-  results to its underlying evolutionary Bio IK algorithm on
-  a six-degrees-of-freedom articulated robot and
-  improvements on a 20-degree-of-freedom robot without any
-  additional hyperparameter tuning. The results show that
-  Fusion IK could be of real value regarding the movement
-  time and the quality of the obtained solutions upon
-  further research, especially with higher degree-of-freedom
-  robots.
-keywords:
-  - Robotics
-  - Inverse kinematics
-  - Evolutionary algorithm
-  - Optimization
-  - Hybrid algorithm
-  - Deep learning
-  - Neural networks
+url: 'https://doi.org/10.1016/j.mfglet.2024.09.005'
 date-released: '2024-10-15'
